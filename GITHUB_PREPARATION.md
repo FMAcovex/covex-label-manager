@@ -9,3 +9,7 @@ Procedimiento de primera publicación: crear el repositorio PRIVADO vacío, comp
 Solo se autorizan código, pruebas sintéticas, scripts y documentación técnica. No maestros, etiquetas reales, catálogo ni evidencias visuales originales, aunque el repositorio sea privado. Scripts/check_repository_content.py rechaza formatos documentales/binarios, data y patrones habituales de credenciales. Su resultado no sustituye revisión manual de texto y PR.
 
 El workflow crea ZIP portable y resultados privados, no releases públicas. No requiere secretos ERP. La carpeta de usuario no se empaqueta; la biblioteca nueva comienza vacía. La aprobación de 00-R1 es documental y local, independiente de Git. Windows, Word e impresión siguen pendientes hasta evidencia real. R3 no iniciado.
+
+## Protección de rama
+
+El 08/10/2026 GitHub indicó que las reglas de protección no se aplican a este repositorio privado con el plan actual. Main no está protegida técnicamente. Todas las incorporaciones deben continuar por ramas y PR con el job Windows satisfactorio; el propietario deberá valorar un plan compatible si necesita impedir técnicamente commits directos. No se ha contratado ni cambiado ningún plan.

@@ -8,6 +8,7 @@ from datetime import datetime
 import tempfile
 import zipfile
 import sqlite3
+from contextlib import closing
 import fitz
 from .storage import Store,sha256
 from .library_service import LibraryService
@@ -86,7 +87,7 @@ class LocalServices:
         # Consistent SQLite snapshot, including WAL, instead of copying a live DB.
         with tempfile.TemporaryDirectory() as temp:
             snapshot=Path(temp)/'labels.sqlite'
-            with sqlite3.connect(snapshot) as db:self._repository.db.backup(db)
+            with closing(sqlite3.connect(snapshot)) as db:self._repository.db.backup(db)
             with zipfile.ZipFile(target,'w',compression=zipfile.ZIP_DEFLATED) as archive:
                 archive.write(snapshot,'labels.sqlite')
                 for f in self._repository.root.rglob('*'):

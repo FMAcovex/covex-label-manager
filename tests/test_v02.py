@@ -14,6 +14,11 @@ from covex_label_manager.storage import Store, sha256
 from covex_label_manager.vessels import parse_tabular_vessels, validate_vessel_masses
 
 
+def extracted_text(page):
+    # Embedded Arial maps visually identical hyphens/spaces differently on Windows.
+    return page.get_text().replace('\u00ad', '-').replace('\u00a0', ' ')
+
+
 @pytest.fixture
 def store(tmp_path):
     s=Store(tmp_path/'instance')
@@ -73,7 +78,7 @@ def test_integrated_colored_states_all_three(store,tmp_path):
         result=render_emission(v,store.root,data(),profile(),[1],1,1,path,True,
                                status=status,status_master=store.status_master(kind))
         assert result['physical']==1
-        d=fitz.open(path);t=d[0].get_text()
+        d=fitz.open(path);t=extracted_text(d[0])
         assert 'DEMO B' in t
         assert {'aprobado':'Aprobado','rechazado':'Rechazado',
                 'sin_analizar':'Sin analizar'}[kind] in t
@@ -95,7 +100,7 @@ def test_two_vessels_different_lots_and_weights_and_two_copies(store,tmp_path):
     d=fitz.open(pdf)
     for number,lot,pn,pb in [(0,'TEST-001','0,1000','0,2000'),(2,'TEST-002','0,1500','0,2500')]:
         for page in (d[number],d[number+1]):
-            text=page.get_text()
+            text=extracted_text(page)
             assert lot in text and pn in text and pb in text
             assert f'{number//2+1}/2' in text
         assert d[number].get_text()==d[number+1].get_text()
@@ -111,7 +116,7 @@ def test_status_only_in_a4_and_original_status_source_preserved(store,tmp_path):
                            status={**approved(),'placement':'independiente'},
                            status_master=store.status_master('aprobado'))
     assert result['pages']==1 and result['per_page']>=2
-    text=fitz.open(doc)[0].get_text()
+    text=extracted_text(fitz.open(doc)[0])
     assert 'Aprobado' in text and 'EDROFONIO' not in text
     assert 'Noviembre-2025' in text
     assert sha256(src)==before
@@ -209,6 +214,6 @@ def test_reprint_retains_per_vessel_and_status_exactly(store,tmp_path):
     render_emission(v,store.root,json.loads(i['variables_json']),json.loads(i['profile_json']),[2],2,1,
                     reprint,False,per_container=json.loads(i['per_container_json']),status=json.loads(i['status_json']),
                     status_master=store.status_master('aprobado'))
-    text=fitz.open(reprint)[0].get_text()
+    text=extracted_text(fitz.open(reprint)[0])
     assert '2/2' in text and '0,1500 KG' in text and '0,2500 KG' in text
     assert 'TEST-002' in text and 'TEST-001' not in text

@@ -22,3 +22,7 @@ Revisión de lista completa de archivos y de todos los objetos del historial pub
 ## Publicación y aceptación pendientes
 
 Abrir y revisar PR de incorporación, ejecutar Actions, revisar resultados y configurar protección de main. No se ha ejecutado un build Windows todavía. Después descargar artefacto privado y aplicar WINDOWS_VALIDATION.md; Word y medidas impresas necesitan entorno real. No se ha iniciado R3 ni integración externa.
+
+## Protección de rama
+
+El 08/10/2026 GitHub indicó que las reglas de protección no se aplican a este repositorio privado con el plan actual. Main no está protegida técnicamente. Todas las incorporaciones deben continuar por ramas y PR con el job Windows satisfactorio; el propietario deberá valorar un plan compatible si necesita impedir técnicamente commits directos. No se ha contratado ni cambiado ningún plan.

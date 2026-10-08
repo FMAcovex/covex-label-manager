@@ -9,3 +9,7 @@ Antes de integrar: ejecutar `python -m pytest -q`, revisar el control de conteni
 No subir maestros, etiquetas reales, catálogos, emisiones, bases de usuario, credenciales ni capturas que reproduzcan documentos reales. El control automático rechaza formatos documentales/binarios y patrones habituales, pero no garantiza ausencia de información sensible en texto: revisar el diff. Pruebas generan fixtures SYNTHETIC; artefactos de CI no incluyen datos reales. Nuevos recursos autorizados requieren revisión específica antes de ampliar el control.
 
 Un merge, tag, release o build no aprueba una plantilla. 00-R1 permanece pendiente de aprobación documental en los datos locales. Windows, Word e impresión requieren pruebas reales. No iniciar R3 antes de autorización de implementación y validación del diseño.
+
+## Protección de rama
+
+El 08/10/2026 GitHub indicó que las reglas de protección no se aplican a este repositorio privado con el plan actual. Main no está protegida técnicamente. Todas las incorporaciones deben continuar por ramas y PR con el job Windows satisfactorio; el propietario deberá valorar un plan compatible si necesita impedir técnicamente commits directos. No se ha contratado ni cambiado ningún plan.
