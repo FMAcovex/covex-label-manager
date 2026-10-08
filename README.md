@@ -17,7 +17,7 @@ python -m pip install -r requirements-dev.txt
 python main.py
 ```
 
-Windows portable se construye en Windows x64/Python 3.11.9 mediante BUILD_WINDOWS.bat o Actions. El destino final necesita la carpeta completa COVEXLabelManager, incluyendo _internal; no necesita Python. Word/LibreOffice no se incluyen. Todavía pendientes compilación y ejecución reales Windows, importación Word y medidas impresas.
+Windows portable se construye en Windows x64/Python 3.11.9 mediante BUILD_WINDOWS.bat o Actions. El destino final necesita la carpeta completa COVEXLabelManager, incluyendo _internal; no necesita Python. Word/LibreOffice no se incluyen. Actions #3 ha compilado y ejecutado la comprobación del núcleo en Windows Server 2022 (49 tests pasan, 1 omitido). Pendientes aceptación interactiva en Windows 10/11, importación Word y medidas impresas; consultar el job del commit final antes de descargar.
 
 ## Datos y actualizaciones
 

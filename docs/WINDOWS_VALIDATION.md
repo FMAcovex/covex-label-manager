@@ -1,4 +1,4 @@
-# Portable Windows: construcción y aceptación pendientes
+# Portable Windows: construcción automatizada y aceptación pendiente
 
 ## Preparado y comprobado en este entorno Linux
 
@@ -8,9 +8,13 @@ Un único workflow `windows-portable.yml`, runner `windows-2022`, acciones fijad
 
 `BUILD_WINDOWS.bat` utiliza el mismo lock, exige Python 3.11.9 y rechaza reconstruir un destino que tenga `data`. El manifest de construcción registra commit, entorno, paquetes y hashes de archivos. Es un procedimiento repetible con entradas controladas; no se ha demostrado que dos ZIP sean idénticos byte a byte. El runner hospedado puede cambiar; archivar manifest y artefacto de la versión aceptada.
 
+## Construcción ejecutada
+
+Repositorio privado creado el 08/10/2026. Actions #3 ha completado en Windows Server 2022/Python 3.11.9: control de contenido, 49 pruebas satisfactorias y 1 omitida, compilación PyInstaller, ejecución del núcleo del EXE y ZIP portable. Esta evidencia no verifica la interfaz en el equipo final, Word ni impresión. Descargar únicamente el artefacto de una ejecución verde correspondiente al commit/version elegidos.
+
 ## Falta exactamente
 
-1. Crear/reutilizar el repositorio privado autorizado; subir la rama y tags autorizados. Habilitar Actions y ejecutar el workflow. Resolver cualquier fallo real de Windows antes de distribuir el ZIP. No hay EXE compilado en esta entrega.
+1. Comprobar que la ejecución correspondiente al commit final de la versión también es satisfactoria. Conservar el ZIP y manifest de esa ejecución; no usar artefactos de ejecuciones fallidas.
 2. Extraer el ZIP completo en un Windows x64 compatible, en ruta escribible (por ejemplo carpeta de usuario), sin Python instalado. Comprobar apertura/cierre, búsqueda, filtros, favoritos, doble clic, Ctrl+K, edición de borradores y visor PDF. Probar rutas con espacios y caracteres españoles. El EXE y `_internal` se distribuyen juntos.
 3. Actualizar una COPIA de los datos existentes: cierre, copia íntegra de `data`, nuevo programa en otra carpeta y traslado de `data` o misma ruta `COVEX_LABEL_DATA`. Comparar maestros, perfiles, variantes, UID, preferencias e historial. Cerrar/reabrir y restaurar una copia de seguridad. Conservar respaldo anterior. No probar primero sobre el único dato de producción.
 4. Revisar documentalmente 00-R1 y sus PDFs antes de activarla: responsable y referencia real. El estado recibido es PENDING; las aprobaciones automatizadas usan instancias desechables, no los datos de COVEX. Verificar bloqueo de 00 defectuosa, de versiones retiradas y de documentos alterados.

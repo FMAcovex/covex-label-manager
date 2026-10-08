@@ -76,7 +76,7 @@ R1 cerrado técnicamente → R2 cerrado técnicamente → revisión del usuario 
 | Área | Decisión | Estado |
 |---|---|---|
 | Modularidad local, contratos y UID | Aprobada ahora | Implementada de forma incremental: UI → servicios locales → repositorio/motor. No se introduce servidor. |
-| GitHub privado, pruebas y construcción Windows | Aprobada como preparación | Archivos preparados. No se ha creado ni duplicado un repositorio remoto; no hay remoto configurado en el paquete. |
+| GitHub privado, pruebas y construcción Windows | Aprobada como preparación | Repositorio privado FMAcovex/covex-label-manager creado. Código incorporado por PR #1; workflow Windows ejecutado. Protección efectiva de main limitada por el plan actual. |
 | Business Central | Base ampliable aprobada; conexión excluida ahora | Solo documentación breve en `ARCHITECTURE.md`. Sin cliente API, credenciales, infraestructura ni sincronización. |
 | SharePoint | Evolución futura contemplada | Pendiente; conservar hashes/versiones y revisar antes de activar nuevos documentos. |
 | Otras apps COVEX | Evolución futura contemplada | Pendiente de contrato y casos de uso; no escribir directamente en bases ajenas. |
@@ -95,7 +95,7 @@ En cada revisión: actualizar fecha/versión, función y alcance real, pruebas/e
 | Controles documentales | Parche 0.3.1: bloqueo del PDF defectuoso por SHA-256, integridad antes de aprobar/copiar, recarga del estado antes de emitir. Pruebas adaptadas a fixtures sintéticos, sin originales. |
 | Geometría | Comprobación histórica privada de la consolidación; no se publican los maestros ni sus reproducciones. |
 | GitHub | Cuenta FMAcovex comprobada. No aparece repositorio Label Manager. Repositorio privado creado y verificado. Incorporación por PR; comprobar estado real de CI. |
-| Construcción Windows | Un workflow, dependencias transitivas con hashes y comprobación del núcleo empaquetado preparados. Ejecución GitHub/Windows pendiente. |
+| Construcción Windows | Un workflow, dependencias transitivas con hashes y comprobación del núcleo empaquetado preparados. Actions #3 satisfactorio en Windows Server 2022: 49 tests pasan, 1 omitido, build y núcleo empaquetado pasan. Aceptación Windows 10/11, Word e impresión pendientes. |
 | R3 | No implementado. Próximo paso: diseñar y aprobar visualmente biblioteca, editor central y propiedades; decidir tecnología de interfaz antes de programar. |
 
 ## Política de publicación y desarrollo oficial
