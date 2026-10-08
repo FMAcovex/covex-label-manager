@@ -1,0 +1,516 @@
+from __future__ import annotations
+import json
+import math
+import os
+from datetime import datetime
+from pathlib import Path
+from dataclasses import dataclass
+from collections.abc import Iterable
+import fitz
+
+MM=72.0/25.4
+A4=(210.,297.)
+
+
+class LayoutError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class SheetPlan:
+    cols: int
+    rows: int
+    capacity: int
+    pages: int
+    count_physical: int
+    paper_w_mm: float
+    paper_h_mm: float
+
+
+def plan_sheet(profile, physical_count):
+    w=float(profile['width_mm']); h=float(profile['height_mm'])
+    m=float(profile.get('margin_mm',8)); gap=float(profile.get('gap_mm',3))
+    first=int(profile.get('start_slot',1))
+    p_w,p_h=A4 if profile.get('orientation','portrait')=='portrait' else A4[::-1]
+    if not (10<=w<=p_w and 10<=h<=p_h and 0<=m<=40 and 0<=gap<=50):
+        raise LayoutError('Compruebe el tamano de etiqueta, margenes y separacion.')
+    cols=math.floor((p_w-2*m+gap+1e-9)/(w+gap))
+    rows=math.floor((p_h-2*m+gap+1e-9)/(h+gap))
+    capacity=cols*rows
+    if capacity<1:
+        raise LayoutError('No cabe ninguna etiqueta en una hoja A4 con estos ajustes.')
+    if first<1 or first>capacity:
+        raise LayoutError(f'La casilla inicial debe estar entre 1 y {capacity}.')
+    n=int(physical_count)
+    if n<1 or n>10000:
+        raise LayoutError('Numero de etiquetas fuera del rango permitido (1 a 10000).')
+    first_space=capacity-first+1
+    pages=1 if n<=first_space else 1+math.ceil((n-first_space)/capacity)
+    return SheetPlan(cols,rows,capacity,pages,n,p_w,p_h)
+
+
+def text_from_field(field, values, number, total):
+    key=field['key']
+    if key=='numero':
+        return f'{number}/{total}'
+    if key=='texto_fijo':
+        return str(field.get('text',''))
+    return str(values.get(key,'')).strip()
+
+
+def validate_fields(version, values, profile, strict=True):
+    fields=json.loads(version['fields_json']) if isinstance(version['fields_json'],str) else version['fields_json']
+    result=[]
+    crop=json.loads(version['crop_json']) if isinstance(version['crop_json'],str) else version['crop_json']
+    crop_w=crop[2]-crop[0]; crop_h=crop[3]-crop[1]
+    scale=min(float(profile['width_mm'])*MM/crop_w,float(profile['height_mm'])*MM/crop_h)
+    for f in fields:
+        k=f.get('key','')
+        if f.get('required') and not str(values.get(k,'')).strip():
+            result.append(f'Campo obligatorio sin completar: {f.get("label",k)}')
+        if float(f.get('x',0))<0 or float(f.get('y',0))<0 or float(f.get('w',0))<=0 or float(f.get('h',0))<=0 or float(f['x'])+float(f['w'])>1.001 or float(f['y'])+float(f['h'])>1.001:
+            result.append(f'Campo fuera de la etiqueta: {f.get("label",k)}')
+        font=float(f.get('font_pt',10))*scale
+        if font<6 and (k=='numero' or k=='texto_fijo' or str(values.get(k,''))):
+            result.append(f'Texto pequeno ({font:.1f} pt) en {f.get("label",k)}: requiere revisar el formato.')
+    # A closed template can legitimately contain no variable fields.
+    if strict and result:
+        raise LayoutError('\n'.join(result))
+    return result
+
+
+def _fonts():
+    paths=[
+      ('C:/Windows/Fonts/arial.ttf','C:/Windows/Fonts/arialbd.ttf'),
+      ('/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf',
+       '/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf'),
+      ('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+       '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'),
+    ]
+    for regular,bold in paths:
+        if os.path.exists(regular):
+            return regular, bold if os.path.exists(bold) else regular
+    return None,None
+
+
+def _loaded_json(value, fallback):
+    return json.loads(value) if isinstance(value,str) else (value if value is not None else fallback)
+
+
+def normalized_lot(value, prefix=''):
+    value=str(value or '').strip()
+    if not value:return ''
+    if not prefix or value.upper().startswith(prefix.upper()):return value
+    if value.upper().startswith('CV/'):
+        raise LayoutError('El lote tiene un prefijo diferente del asignado a la plantilla ('+prefix+').')
+    return prefix+value
+
+
+def _font(fontpath, text, fontsize):
+    if fontpath:
+        return fitz.Font(fontfile=fontpath).text_length(text,fontsize=fontsize)
+    return fitz.get_text_length(text,fontsize=fontsize,fontname='helv')
+
+
+def _wrap_words(txt,max_width,fontpath,fontsize):
+    lines=[];current=''
+    for word in txt.replace('\n',' \n ').split(' '):
+        if word=='\n':lines.append(current);current='';continue
+        if _font(fontpath,word,fontsize)>max_width:
+            raise LayoutError('Una palabra no cabe en el recuadro: '+word)
+        candidate=(current+' '+word).strip()
+        if _font(fontpath,candidate,fontsize)<=max_width:
+            current=candidate
+        elif current:
+            lines.append(current);current=word
+        else:
+            raise LayoutError('Una palabra no cabe en el recuadro: '+word)
+    if current:lines.append(current)
+    return lines
+
+
+def _overlay_field(page,field,values,number,total,view_rect,font_regular,font_bold,warnings,test_mode):
+    key=field['key']
+    if key=='numero':
+        txt=f'{number}/{total}'
+    elif key=='texto_fijo':
+        txt=str(field.get('text',''))
+    else:
+        txt=str(values.get(key,'')).strip()
+        if field.get('strip_prefix') and txt.upper().startswith(field['strip_prefix'].upper()):
+            txt=txt[len(field['strip_prefix']):]
+        if txt and field.get('suffix') and not txt.upper().endswith(field['suffix'].upper()):
+            txt+=field['suffix']
+        if txt and field.get('prefix'):
+            txt=field['prefix']+txt
+    if not txt:
+        return
+    w,h=view_rect.width,view_rect.height
+    x=view_rect.x0+float(field['x'])*w
+    y=view_rect.y0+float(field['y'])*h
+    maxw=float(field['w'])*w
+    maxh=float(field['h'])*h
+    # View is a fitted rendering of the original crop; scale is supplied separately.
+    size=float(field.get('font_pt',10))*float(values['_label_scale'])
+    fontpath=font_bold if field.get('bold') else font_regular
+    fname=('CovexBold' if field.get('bold') else 'CovexRegular') if font_regular else ('hebo' if field.get('bold') else 'helv')
+    if field.get('erase'):
+        xx,yy,ww,hh=map(float,field['erase'])
+        mask=fitz.Rect(view_rect.x0+xx*w,view_rect.y0+yy*h,view_rect.x0+(xx+ww)*w,view_rect.y0+(yy+hh)*h)
+        page.draw_rect(mask,fill=(1,1,1),color=None,overlay=True)
+    if field.get('draw')=='baseline':
+        try:
+            width=_font(fontpath,txt,size)
+        except ValueError as ex:
+            raise LayoutError('Texto inválido en '+key+': '+str(ex))
+        if width>maxw+2*float(values['_label_scale']):
+            msg=f'El campo {field["label"]} no cabe ({number}/{total})'
+            raise LayoutError(msg)
+        if field.get('align')=='right':
+            x+=maxw-width
+        elif field.get('align')=='center':
+            x+=(maxw-width)/2
+        page.insert_text(fitz.Point(x,y),txt,fontname=fname,fontsize=size,overlay=True,
+                         color=(.04,.05,.08))
+        return
+    if field.get('draw')=='continuation':
+        # Preserve the Word's bold fixed caption. Add only its changing content,
+        # and continue subsequent lines from the original table's left margin.
+        words=txt.split()
+        lines=[];cur='';available=maxw
+        full_width=float(field['next_w'])*w
+        for word in words:
+            candidate=(cur+' '+word).strip()
+            if _font(fontpath,candidate,size)<=available:
+                cur=candidate
+            else:
+                # An empty first line is intentional when the caption leaves
+                # too little room. Continue under the caption, not over it.
+                lines.append(cur)
+                available=full_width
+                if _font(fontpath,word,size)>available:
+                    raise LayoutError(f'Una palabra no cabe en condiciones: {word}')
+                cur=word
+        if cur:lines.append(cur)
+        if (len(lines)>int(field.get('max_lines',3)) or
+                (len(lines)-1)*size*1.13+size*.3>maxh):
+            raise LayoutError(f'Condiciones demasiado largas para la etiqueta {number}/{total}')
+        for j,line in enumerate(lines):
+            posx=x if j==0 else view_rect.x0+float(field['second_x'])*w
+            page.insert_text((posx,y+j*size*1.13),line,fontname=fname,fontsize=size,overlay=True)
+        return
+    if field.get('draw')=='paragraph':
+        lines=_wrap_words(txt,maxw-3*values['_label_scale'],fontpath,size)
+        baseline=y+size*1.05
+        lineh=size*1.13
+        if baseline+(len(lines)-1)*lineh>y+maxh-1:
+            msg=f'El texto de {field["label"]} supera el espacio disponible ({number}/{total})'
+            raise LayoutError(msg)
+        for line in lines:
+            page.insert_text((x,baseline),line,fontname=fname,fontsize=size,overlay=True)
+            baseline+=lineh
+        return
+    rect=fitz.Rect(x,y,x+maxw,y+maxh)
+    available=page.insert_textbox(rect,txt,fontname=fname,fontsize=size,color=(.04,.05,.08),
+                                   align={'right':fitz.TEXT_ALIGN_RIGHT,'center':fitz.TEXT_ALIGN_CENTER}.get(field.get('align'),fitz.TEXT_ALIGN_LEFT),
+                                   lineheight=1.05,overlay=True)
+    if available<0:
+        msg=f'El campo {field["label"]} no cabe en la etiqueta ({number}/{total})'
+        raise LayoutError(msg)
+
+
+def _paint_status(page,status_source,status_master,view_rect,values,status,font_regular,font_bold,warnings,test_mode):
+    """Vector-copy the EXACT three colored Word designs, then fill variable spaces."""
+    from .geometry import STATUS_COLORS
+    kind=status['kind'];source_crop=fitz.Rect(*_loaded_json(status_master['crop_json'],[]))
+    # Keep the natural aspect ratio to avoid silently deforming an approved design.
+    ratio=source_crop.width/source_crop.height
+    factor=min(view_rect.width/source_crop.width,view_rect.height/source_crop.height)
+    if 8.2*factor<6:
+        msg=f'Texto pequeño en etiqueta de estado ({8.2*factor:.1f} pt): revise el tamaño.'
+        if not test_mode:raise LayoutError(msg)
+        warnings.append(msg)
+    ww,hh=source_crop.width*factor,source_crop.height*factor
+    dest=fitz.Rect(view_rect.x0+(view_rect.width-ww)/2,view_rect.y0+(view_rect.height-hh)/2,
+                   view_rect.x0+(view_rect.width+ww)/2,view_rect.y0+(view_rect.height+hh)/2)
+    page.show_pdf_page(dest,status_source,0,clip=source_crop,overlay=True,keep_proportion=True)
+    color=STATUS_COLORS[kind]
+    font_color=(0,0,0) if kind!='rechazado' else (1,1,1)
+    def xy(sx,sy):return fitz.Point(dest.x0+(sx-source_crop.x0)*factor,dest.y0+(sy-source_crop.y0)*factor)
+    def erase(bbox):
+        a,b,c,d=bbox
+        page.draw_rect(fitz.Rect(xy(a,b),xy(c,d)),color=None,fill=color,overlay=True)
+    def write(x,y,txt,size=13,bold=True,right_bound=None):
+        if not txt:return
+        path=font_bold if bold else font_regular
+        fn=('CovexBold' if bold else 'CovexRegular') if font_regular else ('hebo' if bold else 'helv')
+        fs=size*factor
+        tw=_font(path,txt,fs)
+        if right_bound and tw>(right_bound-x)*factor:
+            msg='El dato de estado excede el área prevista: '+txt[:32]
+            raise LayoutError(msg)
+        font=fitz.Font(fontfile=path) if path else fitz.Font(fontname='hebo' if bold else 'helv')
+        # Baseline is constrained by real font metrics, including fallback fonts.
+        y=min(y,source_crop.y1-abs(font.descender)*size-.5)
+        page.insert_text(xy(x,y),txt,fontname=fn,fontsize=fs,color=font_color,overlay=True)
+    lot=values.get('lote','').strip()
+    prefix=''
+    for f in _loaded_json(values.get('_fields_json','[]'),[]):
+        if f.get('key')=='lote':prefix=f.get('strip_prefix','');break
+    lot=normalized_lot(lot,prefix) if lot else ''
+    fecha=str(status.get('fecha','')).strip()
+    persona=str(status.get('persona','')).strip()
+    expiry=str(status.get('caducidad_reanalisis','')).strip()
+    if kind=='aprobado':
+        erase((87.7,281.5,128,298.0))
+        write(88.9,297.0,lot,17.5,right_bound=387)
+        write(435,241.8,fecha,9.8,False,right_bound=516)
+        write(394,296,persona,12.0,right_bound=516)
+        write(237,308.2,expiry,8.2,False,right_bound=389)
+    elif kind=='sin_analizar':
+        erase((87.7,145.5,127.8,161.0))
+        write(88.9,158.4,lot,17.5,right_bound=387)
+        write(434.3,107.7,fecha,9.8,False,right_bound=516)
+        # 'Pendiente análisis:' is fixed text, no imaginary approval/signature added.
+    elif kind=='rechazado':
+        write(435,362.0,fecha,9.8,False,right_bound=516)
+        write(394,417,persona,12.0,right_bound=516)
+
+
+def _status_settings(status,status_master,root,version,test_mode):
+    from .storage import sha256
+    status=status or {}
+    kind=status.get('kind','ninguna')
+    if kind=='ninguna':return None,None,None
+    from .geometry import STATUS_CROPS
+    if kind not in STATUS_CROPS:raise LayoutError('Tipo de estado no reconocido.')
+    if status_master is None or status_master['kind']!=kind:
+        raise LayoutError('No existe la versión maestra de esa etiqueta de estado.')
+    if not test_mode and status_master['state']!='APPROVED':
+        raise LayoutError('La etiqueta de estado está pendiente de comprobación documental: solo PDF de prueba.')
+    pdf=Path(root)/status_master['master_pdf'];source=Path(root)/status_master['original_file']
+    if not pdf.exists() or sha256(pdf)!=status_master['pdf_sha256'] or not source.exists() or sha256(source)!=status_master['source_sha256']:
+        raise LayoutError('Integridad comprometida en la etiqueta de estado.')
+    placement=status.get('placement','integrada')
+    if placement not in ('integrada','independiente'):
+        raise LayoutError('Posición de estado no reconocida.')
+    area=_loaded_json(version['status_area_json'],[]) if 'status_area_json' in version.keys() else []
+    if placement=='integrada' and (len(area)!=4 or min(area[2:])<=0):
+        raise LayoutError('Esta plantilla no tiene zona de estado configurada. Revísela en el editor.')
+    if placement=='integrada' and (min(area[:2])<0 or area[0]+area[2]>1.001 or area[1]+area[3]>1.001):
+        raise LayoutError('La zona de estado queda fuera de la etiqueta principal.')
+    fecha=str(status.get('fecha','')).strip()
+    if fecha:
+        try:
+            parsed=datetime.strptime(fecha,'%d/%m/%Y')
+            if parsed.strftime('%d/%m/%Y')!=fecha:raise ValueError()
+        except ValueError:
+            raise LayoutError('Fecha de estado inválida. Utilice DD/MM/AAAA y una fecha real.') from None
+    if not test_mode and not str(status.get('fecha','')).strip():
+        raise LayoutError('La fecha de la etiqueta de estado es obligatoria.')
+    return fitz.open(pdf),area,placement
+
+
+def check_rendered_bounds(page, view, previous_spans, safety_mm=0):
+    """Verify actual variable glyphs, including baseline ascenders/descenders."""
+    safety=float(safety_mm)*MM
+    if not math.isfinite(safety) or safety<0 or safety*2>=min(view.width,view.height):
+        raise LayoutError('Zona de seguridad inválida para el tamaño elegido.')
+    safe=fitz.Rect(view.x0+safety,view.y0+safety,view.x1-safety,view.y1-safety)
+    spans=[]
+    for b in page.get_text('dict')['blocks']:
+        for line in b.get('lines',[]):spans.extend(line['spans'])
+    for span in spans:
+        signature=(span['text'],tuple(span['bbox']))
+        if signature in previous_spans:continue
+        box=fitz.Rect(span['bbox'])
+        if not safe.contains(box):
+            raise LayoutError('Texto fuera de los límites o zona de seguridad: '+span['text'])
+
+
+def span_count(page):
+    return {(span['text'],tuple(span['bbox'])) for b in page.get_text('dict')['blocks'] for line in b.get('lines',[]) for span in line['spans']}
+
+
+def render_emission(version,root,values,profile,indices,count_containers,copies_per_container,
+                    destination,test_mode=False,per_container=None,status=None,status_master=None):
+    """A4 output from untouched Word master + per-vessel data + original status overlays.
+
+    TEST prints are watermarked. The existence of a stored PDF does not certify
+    that its physical printing or a QA material disposition actually occurred.
+    """
+    from .storage import sha256
+    if not indices:raise LayoutError('No se han seleccionado recipientes.')
+    if any(not isinstance(i,int) or i<1 or i>count_containers for i in indices):
+        raise LayoutError('Numeración fuera del intervalo definido.')
+    if copies_per_container not in (1,2):raise LayoutError('Solo se permiten una o dos etiquetas por recipiente.')
+    if len(indices)!=len(set(indices)):raise LayoutError('Hay números de envase repetidos.')
+    physical=[i for i in indices for _ in range(copies_per_container)]
+    plan=plan_sheet(profile,len(physical))
+    if not test_mode and version['state']!='APPROVED':
+        raise LayoutError('El máster está pendiente de aprobación documental. Solo PDF de prueba.')
+    source_path=Path(root)/version['master_pdf']
+    if sha256(source_path)!=version['pdf_sha256']:
+        raise LayoutError('Integridad comprometida: el PDF maestro no coincide con el original registrado.')
+    if version['original_file']:
+        original_path=Path(root)/version['original_file']
+        if not original_path.exists() or sha256(original_path)!=version['source_sha256']:
+            raise LayoutError('Integridad comprometida: el Word original ha cambiado.')
+    per_container={str(k):v for k,v in (per_container or {}).items()}
+    for k,v in per_container.items():
+        if not k.isdecimal() or not (1<=int(k)<=count_containers) or not isinstance(v,dict):
+            raise LayoutError('Tabla individual de envases inválida.')
+    orig=fitz.open(source_path)
+    if orig.page_count<1:raise LayoutError('El PDF maestro no contiene páginas.')
+    crop=fitz.Rect(*_loaded_json(version['crop_json'],[]))
+    if crop not in orig[0].rect:raise LayoutError('Recorte fuera del PDF original.')
+    fields=_loaded_json(version['fields_json'],[])
+    from .integrity import verify_renderable
+    try:verify_renderable(version)
+    except ValueError as error:raise LayoutError(str(error)) from error
+    status_doc,status_area,placement=_status_settings(status,status_master,root,version,test_mode)
+    rootfont,boldfont=_fonts()
+    out=fitz.open()
+    width_mm=float(profile['width_mm']);height_mm=float(profile['height_mm'])
+    margin=float(profile.get('margin_mm',8));gap=float(profile.get('gap_mm',3))
+    ox=float(profile.get('offset_x_mm',0));oy=float(profile.get('offset_y_mm',0))
+    start=int(profile.get('start_slot',1))
+    aspect=crop.width/crop.height
+    status_crop=fitz.Rect(*_loaded_json(status_master['crop_json'],[])) if status_doc else None
+    base_crop=status_crop if placement=='independiente' else crop
+    aspect=base_crop.width/base_crop.height
+    if width_mm/height_mm>aspect:
+        draw_h=height_mm*MM;draw_w=draw_h*aspect
+    else:
+        draw_w=width_mm*MM;draw_h=draw_w/aspect
+    fit_scale=draw_w/base_crop.width
+    issues=[]
+    for ix,number in enumerate(physical):
+        absolute_slot=ix+start-1
+        page_index=0 if absolute_slot<plan.capacity else 1+(absolute_slot-plan.capacity)//plan.capacity
+        slot=absolute_slot if page_index==0 else (absolute_slot-plan.capacity)%plan.capacity
+        if page_index>=len(out):
+            page=out.new_page(width=plan.paper_w_mm*MM,height=plan.paper_h_mm*MM)
+            if rootfont:
+                page.insert_font(fontname='CovexRegular',fontfile=rootfont)
+                page.insert_font(fontname='CovexBold',fontfile=boldfont)
+            if test_mode and placement=='independiente':
+                page.insert_text((2,10),'PRUEBA - NO APTO PARA USO GMP',fontsize=7,
+                                 fontname='helv',color=(.86,.12,.15),overlay=True)
+        else:page=out[-1]
+        xslot=(margin+(slot%plan.cols)*(width_mm+gap)+ox)*MM
+        yslot=(margin+(slot//plan.cols)*(height_mm+gap)+oy)*MM
+        if xslot<0 or yslot<0 or xslot+width_mm*MM>page.rect.width+.01 or yslot+height_mm*MM>page.rect.height+.01:
+            raise LayoutError('La calibración desplaza una etiqueta fuera del A4.')
+        view=fitz.Rect(xslot+(width_mm*MM-draw_w)/2,yslot+(height_mm*MM-draw_h)/2,
+                       xslot+(width_mm*MM+draw_w)/2,yslot+(height_mm*MM+draw_h)/2)
+        if profile.get('crop_marks'):
+            page.draw_rect(fitz.Rect(xslot,yslot,xslot+width_mm*MM,yslot+height_mm*MM),
+                            color=(.60,.69,.79),width=.45,overlay=True)
+        item=dict(values);item.update(per_container.get(str(number),{}))
+        for field in fields:
+            if field.get('key')=='lote' and field.get('strip_prefix'):
+                item['lote']=normalized_lot(item.get('lote',''),field['strip_prefix'])
+        from .vessels import validate_vessel_masses
+        try:validate_vessel_masses(item,number)
+        except ValueError as ex:raise LayoutError(str(ex)) from ex
+        item['_label_scale']=fit_scale
+        item['_fields_json']=fields
+        item['_label_name']=version['name']
+        item['_crop_x0']=crop.x0
+        item['_crop_width']=crop.width
+        if placement!='independiente':
+            page.show_pdf_page(view,orig,0,clip=crop,overlay=True,keep_proportion=True)
+            warn=validate_fields(version,item,profile,strict=False)
+            if warn and not test_mode:raise LayoutError('; '.join(warn))
+            issues.extend(warn)
+            before_spans=span_count(page)
+            for f in fields:
+                _overlay_field(page,f,item,number,count_containers,view,rootfont,boldfont,issues,test_mode)
+            check_rendered_bounds(page,view,before_spans,profile.get('safety_mm',0))
+        if status_doc:
+            if not test_mode and status['kind'] in ('sin_analizar','aprobado') and not item.get('lote','').strip():
+                raise LayoutError('El estado de un material necesita su identificación de lote.')
+            place=view
+            if placement=='integrada':
+                sx,sy,sw,sh=map(float,status_area)
+                place=fitz.Rect(view.x0+view.width*sx,view.y0+view.height*sy,
+                                view.x0+view.width*(sx+sw),view.y0+view.height*(sy+sh))
+            before_status=span_count(page)
+            _paint_status(page,status_doc,status_master,place,item,status,rootfont,boldfont,issues,test_mode)
+            # Include the integrated status variables in the label-boundary check.
+            check_rendered_bounds(page,view,before_status,profile.get('safety_mm',0))
+        if test_mode:
+            page.draw_rect(fitz.Rect(xslot,yslot,xslot+width_mm*MM,yslot+height_mm*MM),
+                color=(.78,.27,.27),width=.6,overlay=True)
+            if placement!='independiente':
+                page.insert_text((xslot+2,yslot+10),'PRUEBA - NO APTO PARA USO GMP',fontsize=7,
+                    fontname='helv',color=(.86,.12,.15),overlay=True)
+    target=Path(destination);target.parent.mkdir(parents=True,exist_ok=True)
+    out.set_metadata({'title':'COVEX Label Manager - '+('PRUEBA' if test_mode else 'Emisión'),
+                      'subject':f'{count_containers} recipientes, {copies_per_container} copias; estado={(status or {}).get("kind","ninguna")}',
+                      'creator':'COVEX Label Manager '+__import__('covex_label_manager').__version__})
+    out.save(target,garbage=4,deflate=True)
+    out.close();orig.close()
+    if status_doc:status_doc.close()
+    return {'pages':plan.pages,'per_page':plan.capacity,'physical':len(physical),
+            'warnings':sorted(set(issues)),'path':str(target)}
+
+
+def render_label_thumbnail(version,root,values=None,number=1,total=1,width_px=500):
+    crop=fitz.Rect(*json.loads(version['crop_json']))
+    d=fitz.open(Path(root)/version['master_pdf'])
+    page=d[0]
+    clip=crop
+    scale=min(2,width_px/clip.width)
+    pix=page.get_pixmap(matrix=fitz.Matrix(scale,scale),clip=clip,alpha=False)
+    from PIL import Image
+    im=Image.frombytes('RGB',(pix.width,pix.height),pix.samples)
+    d.close()
+    return im
+
+
+def preview_pdf(path, maxwidth=630):
+    from PIL import Image
+    doc=fitz.open(path)
+    p=doc[0]
+    scale=maxwidth/p.rect.width
+    pix=p.get_pixmap(matrix=fitz.Matrix(scale,scale),alpha=False)
+    img=Image.frombytes('RGB',(pix.width,pix.height),pix.samples)
+    count=doc.page_count
+    doc.close()
+    return img,count
+
+
+def render_calibration_page(profile,destination):
+    """Generate a 100% scale test sheet; never a production label."""
+    plan=plan_sheet(profile,1)
+    m=float(profile.get('margin_mm',8));gap=float(profile.get('gap_mm',3))
+    w=float(profile['width_mm']);h=float(profile['height_mm'])
+    ox=float(profile.get('offset_x_mm',0));oy=float(profile.get('offset_y_mm',0))
+    d=fitz.open()
+    p=d.new_page(width=plan.paper_w_mm*MM,height=plan.paper_h_mm*MM)
+    for index in range(plan.capacity):
+        col=index%plan.cols;row=index//plan.cols
+        x=(m+col*(w+gap)+ox)*MM;y=(m+row*(h+gap)+oy)*MM
+        rect=fitz.Rect(x,y,x+w*MM,y+h*MM)
+        if rect not in p.rect:
+            d.close();raise LayoutError('La calibracion desplaza casillas fuera del papel.')
+        p.draw_rect(rect,color=(.24,.41,.63),width=.9,dashes='[5 3] 0')
+        txt=f'POS. {index+1}  |  {w:g} x {h:g} mm'
+        p.insert_text((x+8,y+15),txt,fontsize=8,color=(.11,.29,.48))
+        p.draw_line((x-4,y),(x+4,y),color=(.82,.24,.24),width=.6)
+        p.draw_line((x,y-4),(x,y+4),color=(.82,.24,.24),width=.6)
+        p.draw_line((x+w*MM-4,y+h*MM),(x+w*MM+4,y+h*MM),color=(.82,.24,.24),width=.6)
+        p.draw_line((x+w*MM,y+h*MM-4),(x+w*MM,y+h*MM+4),color=(.82,.24,.24),width=.6)
+    # The reference ruler is visible when the margin accommodates it.
+    ry=p.rect.height-10
+    p.draw_line((18,ry),(18+50*MM,ry),color=(0,0,0),width=1)
+    for mm in (0,25,50):
+        x=18+mm*MM
+        p.draw_line((x,ry-5),(x,ry+3),color=(0,0,0),width=.8)
+    p.insert_text((18,ry-8),'Regla de referencia 50 mm | imprimir al 100%',fontsize=6.5)
+    d.set_metadata({'title':'COVEX - HOJA DE CALIBRACION - NO PRODUCTIVA','creator':'COVEX Label Manager'})
+    dest=Path(destination);dest.parent.mkdir(parents=True,exist_ok=True)
+    d.save(dest,deflate=True,garbage=4);d.close()
+    return str(dest)
