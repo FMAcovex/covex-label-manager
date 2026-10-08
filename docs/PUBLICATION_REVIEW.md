@@ -21,7 +21,7 @@ Revisión de lista completa de archivos y de todos los objetos del historial pub
 
 ## Publicación y aceptación pendientes
 
-Abrir y revisar PR de incorporación, ejecutar Actions, revisar resultados y configurar protección de main. No se ha ejecutado un build Windows todavía. Después descargar artefacto privado y aplicar WINDOWS_VALIDATION.md; Word y medidas impresas necesitan entorno real. No se ha iniciado R3 ni integración externa.
+La incorporación se tramita mediante PR #1. Actions ya ejecuta Python 3.11.9 en Windows Server 2022. La primera ejecución descubrió un bloqueo de archivo en la copia de seguridad: se corrigió cerrando explícitamente la conexión SQLite del snapshot. Las aserciones de extracción PDF normalizan exclusivamente los espacios no separables y guiones blandos equivalentes que devuelve Arial; no se cambió el renderizado para hacer pasar esos tests. Consultar el resultado final del job Windows en la PR antes de integrar o descargar; un artefacto de una ejecución fallida puede contener solo resultados de pruebas. Después descargar artefacto privado y aplicar WINDOWS_VALIDATION.md; Word y medidas impresas necesitan entorno real. No se ha iniciado R3 ni integración externa.
 
 ## Protección de rama
 

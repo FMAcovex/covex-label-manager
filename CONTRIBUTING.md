@@ -1,6 +1,6 @@
 # Desarrollo oficial
 
-Este proyecto se incorporará a un único repositorio privado FMAcovex/covex-label-manager. No crear copias públicas ni otros repositorios de desarrollo.
+La fuente oficial de este proyecto es el repositorio privado FMAcovex/covex-label-manager. No crear copias públicas ni otros repositorios de desarrollo.
 
 Todas las revisiones posteriores se desarrollan en ramas `fix/...`, `feature/...` o `chore/...` y se incorporan mediante pull request. No escribir directamente en main, no force push y no eliminar referencias de versiones. Cada PR incluye problema, cambio y comprobaciones, además de actualización de ROADMAP/arquitectura cuando proceda.
 

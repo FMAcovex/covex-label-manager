@@ -1,6 +1,6 @@
 # Incorporación privada autorizada
 
-Destino único autorizado: FMAcovex/covex-label-manager, PRIVADO. Repositorio creado bajo FMAcovex y visibilidad privada verificada el 08/10/2026. Código preparado para incorporación por rama/PR; consultar el estado real de Actions y PR antes de considerar terminada la aceptación Windows.
+Destino único autorizado: FMAcovex/covex-label-manager, PRIVADO. Repositorio creado bajo FMAcovex y visibilidad privada verificada el 08/10/2026. Código incorporado a la rama publication/0.3.1 y PR #1; consultar el estado real de Actions y PR antes de considerar terminada la aceptación Windows.
 
 Historial limpio preparado: primer commit documental identificado v0.3.0-reference, rama publication/0.3.1 con código y referencia v0.3.1. No contiene el historial anterior ni blobs originales. Los identificadores históricos constan únicamente como metadatos en VERSION_HISTORY.md. Nunca subir el bundle privado anterior.
 
@@ -8,7 +8,7 @@ Procedimiento de primera publicación: crear el repositorio PRIVADO vacío, comp
 
 Solo se autorizan código, pruebas sintéticas, scripts y documentación técnica. No maestros, etiquetas reales, catálogo ni evidencias visuales originales, aunque el repositorio sea privado. Scripts/check_repository_content.py rechaza formatos documentales/binarios, data y patrones habituales de credenciales. Su resultado no sustituye revisión manual de texto y PR.
 
-El workflow crea ZIP portable y resultados privados, no releases públicas. No requiere secretos ERP. La carpeta de usuario no se empaqueta; la biblioteca nueva comienza vacía. La aprobación de 00-R1 es documental y local, independiente de Git. Windows, Word e impresión siguen pendientes hasta evidencia real. R3 no iniciado.
+El workflow crea ZIP portable y resultados privados, no releases públicas. No requiere secretos ERP. La carpeta de usuario no se empaqueta; la biblioteca nueva comienza vacía. La aprobación de 00-R1 es documental y local, independiente de Git. El workflow prueba el núcleo y el ejecutable empaquetado en Windows Server 2022; esto no acredita la aceptación interactiva en Windows 10/11, la conversión Word ni la impresión física. Estas requieren pruebas reales del usuario. R3 no iniciado.
 
 ## Protección de rama
 
