@@ -14,6 +14,7 @@ Editor reutiliza el componente avanzado existente integrado en la pestaña; no e
 
 - Base 0.3.1: 49 tests pasan y 1 omitido.
 - R3A/Linux con display de prueba: 53 tests pasan y 1 omitido (Word). Incluyen vistas reales Tk, filtros, navegación conservando lote/envases/estado, apertura Editor y conservación de ajustes, confirmación al cambiar de revisión, Ctrl+K/paneles, biblioteca vacía y todos los accesos; integridad/aprobación del botón de preparación.
+- Smoke gráfico R1/R2 satisfactorio con Tk 8.6: previsualización, filtros/favoritas, comparación existente, Editor avanzado, buscador rápido, envases, Centro de impresión, historial y configuración sin errores de callback.
 - 11 PDF sintéticos / 19 páginas: geometría y raster de 144 dpi idénticos a 0.3.1. Motor/persistencia/rutas/migraciones sin modificaciones. No acredita validación con maestros privados ni impresión física.
 - `tests/capture_r3a.py` produce capturas de ventanas reales con documentos/maestros/datos sintéticos, guardadas en test-results/r3a (no versionadas). No documentos originales ni información de fabricación.
 - Workflow Windows existente conserva lock/hashes y PyInstaller onedir. Los nuevos tests Tk se ejecutan en Windows. Consultar resultado de la PR; build/núcleo no acreditan aceptación interactiva en equipos COVEX ni Word/impresión.

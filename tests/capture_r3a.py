@@ -21,7 +21,7 @@ try:
     def capture(name):
         for _ in range(4):app.update();time.sleep(.08)
         x,y=app.winfo_rootx(),app.winfo_rooty()
-        ImageGrab.grab(bbox=(x,y,x+app.winfo_width(),y+app.winfo_height()),xdisplay=os.environ['DISPLAY']).save(out/name)
+        ImageGrab.grab(bbox=(x,y,x+app.winfo_width(),y+app.winfo_height()),xdisplay=os.environ.get('DISPLAY')).save(out/name)
     panel=app.library_panel
     row=next(r for r in panel.rows.values() if r['name']=='EDROFONIO' and r['version']=='00-R1')
     panel.tree.selection_set(str(row['version_id']));panel.preview()

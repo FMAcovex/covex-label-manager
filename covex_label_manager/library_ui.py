@@ -73,7 +73,11 @@ class LibraryPanel(tk.Frame):
         dc.configure(yscrollcommand=ds.set);dc.pack(fill='both',expand=True)
         details=tk.Frame(dc,bg='white');dw=dc.create_window((0,0),window=details,anchor='nw')
         details.bind('<Configure>',lambda _:dc.configure(scrollregion=dc.bbox('all')))
-        dc.bind('<Configure>',lambda e:dc.itemconfigure(dw,width=e.width))
+        def resize_details(event):
+            dc.itemconfigure(dw,width=event.width)
+            for label in (self.document_title,self.info,self.revision_note):
+                label.configure(wraplength=max(100,event.width-4))
+        dc.bind('<Configure>',resize_details)
         tk.Label(details,text='VISTA DE ETIQUETA',bg='white',fg=MUTED,font=(UI_FONT,9,'bold')).pack(anchor='w')
         self.document_title=tk.Label(details,text='Seleccione una revisión',bg='white',fg=INK,font=(UI_FONT,13,'bold'),wraplength=260,justify='left');self.document_title.pack(anchor='w',pady=(12,6))
         self.state_badge=tk.Label(details,bg='#fff4dc',fg='#956514',font=(UI_FONT,9,'bold'),padx=8,pady=5);self.state_badge.pack(anchor='w')
@@ -87,6 +91,7 @@ class LibraryPanel(tk.Frame):
         self.emit_button=ttk.Button(footer,text='Preparar emisión',command=self.emit)
         if on_emit:self.emit_button.pack(fill='x',pady=4)
         self.eligibility=tk.Label(footer,bg='white',fg='#956514',wraplength=255,justify='left',font=(UI_FONT,8));self.eligibility.pack(fill='x',pady=6)
+        footer.bind('<Configure>',lambda e:self.eligibility.configure(wraplength=max(100,e.width-4)))
         self.query.trace_add('write',lambda *_:self.schedule());self.refresh_facets();self.refresh()
     def set_actions(self,actions):
         self.action_menu.delete(0,'end')
