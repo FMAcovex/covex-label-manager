@@ -64,16 +64,37 @@ Un adaptador documental futuro descargará una copia, registrará identificadore
 
 `gui.py` sigue siendo grande y contiene coordinación de pantallas heredadas. No bloquea futuras integraciones porque sus accesos a persistencia/renderizado pasan por servicios, pero su extracción por casos de uso debe continuar cuando se modifique cada módulo. El editor actual no es composición nativa completa. La auditoría local no es inviolable. Un futuro entorno multiusuario requerirá repositorio central y controles de concurrencia/acceso; no bastará con compartir este SQLite. Son decisiones posteriores, no infraestructura instalada preventivamente.
 
-## Preparación GitHub
+## Repositorio oficial operativo
 
-La copia recibida no tenía Git. Ahora hay repositorio local con referencia documental `v0.3.0-reference` y rama de consolidación sin originales; todavía sin remoto. Se ha comprobado la cuenta FMAcovex: no aparece un repositorio Label Manager. Consulte `GITHUB_PREPARATION.md`: estructura, exclusiones de datos, CI de pruebas y generación Windows preparados. Antes de R3 conviene guardar esta base en un único repositorio privado y verificar una compilación Windows. No se ha creado un repositorio remoto.
+Fuente oficial: repositorio privado `FMAcovex/covex-label-manager`, rama `main`. PR #1 integrada; `v0.3.1` identifica `bd6e92e11f2116f18bec8dd2ab9cf0bf61fef16e`. Actions #7 generó portable y pasó 49 tests (1 omitido), además de comprobar el núcleo del EXE en Windows Server 2022. `v0.3.0-reference` es una referencia documental sin originales.
+
+Main carece de protección efectiva por el plan actual. Todas las revisiones se incorporan por ramas y PR, sin commits directos ni force push. R3A se presenta en `feature/r3a-studio-navigation`; su PR no se integra sin autorización del propietario. No se publican maestros/documentos/datos de usuario ni credenciales.
 
 ## Viabilidad de R3
 
-Biblioteca, búsqueda, repositorio y motor son reutilizables mediante servicios locales. R3 podrá sustituir o reorganizar las vistas en biblioteca/editor central/propiedades sin cambiar SQLite ni los maestros. Extraer los controladores grandes de `gui.py` al modificar cada pantalla y definir casos de uso explícitos para abrir revisión, modificar borrador, previsualizar y guardar. No prometer composición nativa de tablas/textos fijos: hoy el editor ajusta campos sobre PDF. Elegir Tkinter reorganizado o PySide6 tras validar el diseño y el coste de migración. No se ha implementado ese cambio.
+Biblioteca, búsqueda, repositorio y motor son reutilizables mediante servicios locales. R3 podrá sustituir o reorganizar las vistas en biblioteca/editor central/propiedades sin cambiar SQLite ni los maestros. Extraer los controladores grandes de `gui.py` al modificar cada pantalla y definir casos de uso explícitos para abrir revisión, modificar borrador, previsualizar y guardar. No prometer composición nativa de tablas/textos fijos: hoy el editor ajusta campos sobre PDF. R3A reorganiza Tkinter, con la decisión y limitaciones descritas al final de este documento. La migración a PySide6 no se ha iniciado.
 
 En 0.3.1 `LocalServices.render` vuelve a leer la revisión persistida, evitando emitir desde una selección antigua ya retirada. El motor mantiene también el control de aprobación; `Store.add_issue` rechaza el registro de revisiones no aprobadas. Integridad documental se comprueba antes de aprobar o clonar. Ninguno de estos controles convierte la auditoría SQLite en un registro inviolable.
 
 ## Distribución sin documentación confidencial
 
 El repositorio y portable no contienen maestros, etiquetas reales ni catálogo. SQLite, fuentes y PDFs se conservan únicamente en data/ o COVEX_LABEL_DATA. Una instalación nueva empieza vacía; la misma carpeta de datos mantiene maestros y configuraciones al actualizar. Tests usan generadores de documentos planos con aviso SYNTHETIC; nunca una redacción o reproducción de etiquetas reales. El historial remoto parte de una referencia documental, porque el historial anterior contenía originales. La referencia histórica no se presenta como copia binaria exacta de esa entrega. El build rechaza data, SQLite o una ruta COVEX_LABEL_DATA bajo el destino de reconstrucción. No hay actualizador que copie una base inicial sobre datos del usuario.
+
+
+## R3A: decisión de interfaz y conservación de sesión
+
+Se mantiene Tkinter/ttk en R3A. La reorganización moderna de Biblioteca y navegación se logra sin reemplazar servicios, motor ni almacenamiento. `studio_ui.py` contiene la cabecera horizontal y el contenedor de vistas; `library_ui.py` reutiliza LibraryService y presenta filtros, tabla e inspector en paneles ajustables/ocultables. La UI recibe imágenes y datos por LocalServices; no lee SQLite ni documentos directamente.
+
+Las pantallas se crean una vez y se conservan al navegar. Los filtros/selección de Biblioteca y datos de emisión permanecen en memoria. El Editor incorpora el componente de campos existente, reutilizable también en su ventana independiente, y conserva ajustes al salir y volver. Cambiar a otra revisión con datos/ajustes sin guardar requiere confirmación; no se transfieren lotes a otra etiqueta. Esto **no es autoguardado ni recuperación tras reinicio**: dichos trabajos persistidos pertenecen a R3B. El historial actualiza su listado al entrar; Biblioteca refresca registros/facetas conservando filtros.
+
+`LocalServices.emission_eligibility` consulta el estado persistido y las guardas de integridad existentes para habilitar Preparar emisión. No sustituye el preflight ni aprueba un documento. Las revisiones pendientes siguen accesibles para inspección/edición y PDF de prueba mediante Emisión; la emisión definitiva mantiene los controles existentes.
+
+R3A no añade entidad de variante ni migra la base (schema 3), y no cambia funciones de composición PDF. La estructura documental actual lista revisiones y permite consultar sus referencias; 00-R1 continúa pendiente. El modelo separado de variantes y trabajos, sincronización Editor/Emisión, autoguardado y recuperación se abordarán en R3B, y el Centro de emisión/preflight en R3C. R2.5 sigue pendiente: solo se conserva el comparador básico ya existente.
+
+### Tkinter frente a PySide6
+
+Tkinter: menor riesgo y dependencias, reutilización íntegra de diálogos y controles, portable ya probado. Permite renovar composición, tipografía UI, colores y paneles, pero exige más trabajo manual para herramientas de un editor complejo. PySide6: Qt Widgets aporta QMainWindow/QDockWidget/QSplitter y una base más rica para un Studio avanzado; requeriría adaptar pantallas/diálogos/eventos, fijar dependencias adicionales y validar plugins y tamaño del portable. La distribución Qt también exige revisar las condiciones de licencia de los módulos elegidos. No se añade Qt ni se afirma que esa migración esté aprobada.
+
+Ambas opciones permiten build Windows: se conserva el workflow PyInstaller onedir con dependencias/hashes existentes. Un cambio futuro a Qt mantendría motor/repositorio y exigiría verificar el empaquetado Qt en Windows, sin servidores ni base remota. Referencias oficiales: [ttk](https://docs.python.org/3/library/tkinter.ttk.html), [QMainWindow](https://doc.qt.io/qtforpython-6/PySide6/QtWidgets/QMainWindow.html), [PyInstaller Qt hooks](https://pyinstaller.org/en/v6.16.0/hooks-config.html).
+
+R3B y R3C solo comenzarán tras integración autorizada de su fase precedente. En ninguna fase se implementan ERP/SharePoint, firma electrónica o aprobación multiusuario. La aprobación real se realiza fuera de la aplicación; el registro administrativo y su evidencia no constituyen firma GMP.

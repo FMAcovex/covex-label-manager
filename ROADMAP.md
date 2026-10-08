@@ -8,7 +8,7 @@ Leyenda: **Implementada** = código verificado; **Parcial** = existe una parte i
 
 ## Prioridad y secuencia
 
-R1 cerrado técnicamente → R2 cerrado técnicamente → revisión del usuario y preparación de GitHub → R2.5 cuando se autorice → definición/validación visual de R3 → R4 → R5. No se ha desarrollado R2.5, R3, R4, R5 ni conexiones externas en esta entrega.
+R1/R2 consolidados en 0.3.1 → R3A (Biblioteca y navegación) → revisión e integración autorizada → R3B (Editor y trabajos) → revisión e integración autorizada → R3C (Emisión y controles). R2.5 continúa pendiente, sin descartarse; se programará expresamente. R4/R5 siguen posteriores. R3A se desarrolla en rama para revisión. No se ha desarrollado R2.5, R3B, R3C, R4, R5 ni conexiones externas.
 
 ## Revisiones acordadas
 
@@ -101,3 +101,17 @@ En cada revisión: actualizar fecha/versión, función y alcance real, pruebas/e
 ## Política de publicación y desarrollo oficial
 
 Solo código, pruebas sintéticas y documentación técnica. No maestros, etiquetas reales, catálogo, emisiones, bases, capturas reales ni historial que contenga esos documentos. 00-R1 sigue PENDING hasta aprobación documental local; un tag/PR/build no la aprueba. Una instalación nueva tiene biblioteca vacía. Todas las revisiones posteriores se realizan en ramas y PR, con pruebas y revisión antes de integrar en main. R3 no iniciado.
+
+
+## Secuencia R3 aprobada — 08/10/2026
+
+| Fase | Alcance aprobado | Estado |
+|---|---|---|
+| R3A | Inicio en Biblioteca; cabecera horizontal Biblioteca/Editor/Emisión/Historial/Configuración; tres paneles, filtros y búsqueda inmediata, favoritos/recientes, Ctrl+K, doble clic y acciones; conservación del trabajo durante navegación | Implementación en rama, pendiente de revisión visual e integración autorizada. Tkinter/ttk renovado. |
+| R3B | Editor central profesional, Vista/Preparar emisión/Ajuste avanzado; datos sincronizados; autoguardado local, recuperación/descartar/eliminar trabajos; maestro/revisión/variante/trabajo/emisión diferenciados; formatos reutilizables y controles sobre cambios estructurales | Aprobado, pendiente. No comenzado. |
+| R3C | Centro de emisión con hoja/preflight Correcto/Advertencia/Bloqueo, prueba frente a definitiva, historial operativo y evidencia externa de aprobación; distinguir PDF/solicitud de impresión/confirmación física | Aprobado, pendiente. No comenzado. |
+| R2.5 | Comparador visual de versiones, superposición y diferencias | Aprobado, pendiente. Se conserva acceso al comparador básico existente; no sustituye R2.5. |
+
+Cada fase tendrá rama/PR/pruebas/capturas propias y requiere autorización antes del merge. R3B parte de R3A ya integrada y R3C de R3B ya integrada. R3A no introduce guardado automático de trabajos ni nuevas migraciones y no cambia geometría PDF. Vista de tabla predeterminada; tarjetas opcionales pospuestas. No inventar metadatos/elementos editables; las limitaciones del formato fuente deben ser visibles.
+
+Aprobación externa: registrar responsable, fecha, referencia/evidencia y vigencia cuando se implemente su alcance en R3B/R3C, sin firma electrónica, autenticación compleja ni circuito multiusuario. Una modificación invalidante requerirá nueva aprobación; guardar/tag/build no aprueba. 00-R1 permanece pendiente.

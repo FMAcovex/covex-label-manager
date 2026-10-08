@@ -1,6 +1,6 @@
 # COVEX Label Manager 0.3.1
 
-Aplicación de escritorio autónoma, portable Windows, principalmente de un usuario. Biblioteca, revisiones documentales, campos variables sobre PDF, emisión A4, perfiles, historial y reimpresiones. Sin servidores ni integración ERP/SharePoint. R3 no implementado.
+Aplicación de escritorio autónoma, portable Windows, principalmente de un usuario. Biblioteca, revisiones documentales, campos variables sobre PDF, emisión A4, perfiles, historial y reimpresiones. Sin servidores ni integración ERP/SharePoint. R3A en desarrollo en rama: Biblioteca inicial y navegación Studio. R3B/R3C no implementados.
 
 ## Contenido autorizado
 
@@ -38,3 +38,6 @@ Pytest crea documentos ficticios temporales, sin originales ni datos de producci
 VERSION_HISTORY.md identifica 0.3.0 mediante v0.3.0-reference documental y 0.3.1 mediante v0.3.1. No importar el historial/bundle anterior con documentos originales. CONTRIBUTING.md exige ramas y PR para toda revisión posterior. ROADMAP.md distingue implementado, parcial, pendiente y propuesta; ARCHITECTURE.md describe límites y futura ampliación, sin conectores reales.
 
 Ver docs/PUBLICATION_REVIEW.md y docs/WINDOWS_VALIDATION.md. La auditoría local no es inviolable y este prototipo no está validado para uso GMP productivo. Generar PDF no certifica su impresión física.
+
+
+Revisión R3A: consulte `docs/R3A_REVIEW.md`. Las pantallas se conservan durante la sesión; no existe todavía recuperación automática de trabajos tras reinicio.

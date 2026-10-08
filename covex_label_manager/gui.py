@@ -115,14 +115,17 @@ class Application(tk.Tk):
         self.current_version_id=None
         self.bind_all('<Control-k>',lambda _:self._open_library_picker())
         self.bind_all('<Control-K>',lambda _:self._open_library_picker())
-        self.title('COVEX Label Manager  |  Desktop 0.3.1 R1-R2')
+        self.title('COVEX Label Manager  |  Studio · R3A · revisión')
         self.geometry('1390x850')
         self.minsize(1100,700)
         self.configure(bg=C['bg'])
         try:self.tk.call('tk','scaling',1.12)
         except tk.TclError:pass
         self._style()
-        self.current_page='inicio'
+        self.current_page='maestro'
+        self._pages={}
+        self._editor_view=None
+        self._editor_version_id=None
         self.current_label_id=None
         self._preview_image=None
         self._preview_after=None
@@ -149,13 +152,18 @@ class Application(tk.Tk):
         self.status_persona=tk.StringVar(value='')
         self.status_expiry=tk.StringVar(value='')
         self._chrome()
-        self.show('inicio')
+        self.show('maestro')
         self.protocol('WM_DELETE_WINDOW',self._quit)
 
     def _style(self):
         style=ttk.Style(self)
         if 'clam' in style.theme_names():style.theme_use('clam')
         style.configure('.',font=(UI_FONT,10))
+        style.configure('TButton',font=(UI_FONT,10),padding=(12,8),background='white',foreground=C['blue'],borderwidth=1,relief='flat')
+        style.map('TButton',background=[('active',C['cyan']),('disabled','#f3f4f6')],foreground=[('disabled','#9aa4b1')])
+        style.configure('TMenubutton',font=(UI_FONT,10,'bold'),padding=(12,8),background=C['blue'],foreground='white',relief='flat')
+        style.configure('TRadiobutton',font=(UI_FONT,10),background=C['bg'],foreground=C['ink'])
+        style.map('TRadiobutton',background=[('active',C['bg'])])
         style.configure('Covex.TEntry',padding=8,fieldbackground='#FFFFFF',foreground=C['ink'],bordercolor=C['line'],lightcolor=C['line'],darkcolor=C['line'])
         style.configure('Covex.TCombobox',padding=7,fieldbackground='#FFFFFF',foreground=C['ink'],bordercolor=C['line'])
         style.configure('Covex.Treeview',font=(UI_FONT,10),rowheight=36,background='#FFFFFF',foreground=C['ink'],fieldbackground='#FFFFFF',borderwidth=0)
@@ -166,53 +174,56 @@ class Application(tk.Tk):
         style.configure('Covex.Horizontal.TProgressbar',troughcolor='#E3E9F1',background=C['blue'])
 
     def _chrome(self):
-        self.sidebar=tk.Frame(self,width=232,bg=C['nav']);self.sidebar.pack(side='left',fill='y');self.sidebar.pack_propagate(False)
-        brand=tk.Frame(self.sidebar,bg=C['nav'],pady=25,padx=19);brand.pack(fill='x')
-        logo=tk.Canvas(brand,width=41,height=41,bg=C['nav'],highlightthickness=0)
-        logo.pack(side='left')
-        logo.create_oval(3,3,38,38,fill=C['blue'],outline='')
-        logo.create_text(20,20,text='C',font=(UI_FONT,22,'bold'),fill='white')
-        title=tk.Frame(brand,bg=C['nav']);title.pack(side='left',padx=10)
-        text(title,'COVEX',16,True,'white',C['nav']).pack(anchor='w')
-        text(title,'LABEL MANAGER',8,True,'#A8C5E3',C['nav']).pack(anchor='w')
-        tk.Frame(self.sidebar,height=1,bg='#35506F').pack(fill='x',padx=18,pady=(0,18))
-        self.nav_buttons={}
-        nav=[('inicio','Inicio'),('emitir','Emitir etiquetas'),('maestro','Maestro de etiquetas'),
-             ('centro','Centro de impresión'),('historial','Historial de emisiones'),('admin','Administración')]
-        for page,label in nav:
-            b=tk.Button(self.sidebar,text='  '+label,anchor='w',command=lambda x=page:self.show(x),
-               relief='flat',bd=0,font=(UI_FONT,10,'bold'),fg='#C8D7E8',bg=C['nav'],
-               activebackground=C['nav_alt'],activeforeground='white',cursor='hand2',padx=17,pady=14,highlightthickness=0)
-            b.pack(fill='x',padx=10,pady=2);self.nav_buttons[page]=b
-        tk.Frame(self.sidebar,bg=C['nav']).pack(fill='both',expand=True)
-        text(self.sidebar,'DESKTOP  |  v0.3.1 · R1/R2',9,True,'#7593B2',C['nav']).pack(anchor='w',padx=24,pady=(0,6))
-        text(self.sidebar,'Datos guardados localmente',9,False,'#7D9CB9',C['nav']).pack(anchor='w',padx=24,pady=(0,26))
-        self.main=tk.Frame(self,bg=C['bg']);self.main.pack(side='left',fill='both',expand=True)
-        self.top=tk.Frame(self.main,height=77,bg=C['white'],highlightbackground=C['line'],highlightthickness=1)
-        self.top.pack(fill='x');self.top.pack_propagate(False)
-        self.top_title=tk.Label(self.top,bg='white',fg=C['ink'],font=(UI_FONT,17,'bold'))
-        self.top_title.pack(side='left',padx=32,pady=18)
-        operator=tk.Frame(self.top,bg='white');operator.pack(side='right',padx=28)
-        text(operator,'ENTORNO LOCAL',8,True,C['green'],'white').pack(anchor='e')
-        self.top_user=text(operator,self.store.setting('operator'),10,True,C['ink'],'white');self.top_user.pack(anchor='e')
-        self.content=ScrolledFrame(self.main)
-        self.content.pack(fill='both',expand=True)
+        from .studio_ui import build_chrome
+        build_chrome(self)
 
-    def show(self,page):
+    def show(self,page,refresh=False):
+        # Keep views alive: switching screens must not recreate active input fields.
+        page={'biblioteca':'maestro','emision':'emitir','configuracion':'admin'}.get(page,page)
+        if page=='inicio':page='maestro'
+        previous=self.current_page
         self.current_page=page
-        self.top_title.configure(text={
-           'inicio':'Panel de inicio','emitir':'Emitir etiquetas','maestro':'Maestro de etiquetas',
-           'centro':'Centro de impresión','historial':'Historial de emisiones','admin':'Administración'}[page])
         for name,b in self.nav_buttons.items():
-            b.configure(bg=C['nav_alt'] if page==name else C['nav'],fg='white' if page==name else '#C8D7E8')
-        for w in self.content.body.winfo_children():w.destroy()
-        panel=self.content.body
-        if page=='inicio':self.page_home(panel)
-        if page=='emitir':self.page_emit(panel)
-        if page=='maestro':self.page_master(panel)
-        if page=='centro':self.page_print_center(panel)
-        if page=='historial':self.page_history(panel)
-        if page=='admin':self.page_admin(panel)
+            b.configure(bg=C['cyan'] if name==page else C['white'],
+                        fg=C['blue'] if name==page else C['muted'])
+        for view in self._pages.values():view.pack_forget()
+        if page not in self._pages:
+            if page=='maestro':
+                host=tk.Frame(self.workspace,bg=C['bg'])
+                self._pages[page]=host
+                self.page_master(host)
+            else:
+                host=ScrolledFrame(self.workspace)
+                self._pages[page]=host
+                builders={'emitir':self.page_emit,'editor':self.page_editor,
+                          'centro':self.page_print_center,'historial':self.page_history,'admin':self.page_admin}
+                builders[page](host.body)
+        self._pages[page].pack(fill='both',expand=True)
+        if page=='maestro':self.library_panel.refresh_facets();self.library_panel.refresh()
+        if page=='historial':self._refresh_history()
+        self.top_user.configure(text=self.store.setting('operator'))
+        # Existing settings/profile save actions return to their own screen.
+        if refresh and page in ('centro','admin'):
+            host=self._pages[page]
+            for widget in host.body.winfo_children():widget.destroy()
+            (self.page_admin if page=='admin' else self.page_print_center)(host.body)
+
+    def page_editor(self,parent):
+        self.header(parent,'Editor', 'Abra una revisión de la Biblioteca. Las herramientas actuales se conservan.',
+                    'Abrir Biblioteca',lambda:self.show('maestro'))
+        self.editor_host=tk.Frame(parent,bg=C['bg'],height=660)
+        self.editor_host.pack(fill='both',expand=True,padx=16,pady=(0,16))
+        self.editor_host.pack_propagate(False)
+        self.editor_empty=text(self.editor_host,'Seleccione una etiqueta para abrir su diseño.',12,color=C['muted'])
+        self.editor_empty.pack(pady=100)
+
+    def _refresh_history(self):
+        old=self.history_tree.selection()
+        self.history_tree.delete(*self.history_tree.get_children())
+        for i in self.store.issues():
+            self.history_tree.insert('','end',iid=str(i['id']),values=(i['id'],i['created_at'][:19],i['name'],
+                i['version'],i['count_containers'],i['copies_per_container'],i['operator'],i['source_issue_id'] or '-'))
+        if old and self.history_tree.exists(old[0]):self.history_tree.selection_set(old[0])
 
     def header(self,parent,title,subtitle,action_label=None,action=None):
         h=tk.Frame(parent,bg=C['bg']);h.pack(fill='x',padx=30,pady=(28,19))
@@ -278,9 +289,16 @@ class Application(tk.Tk):
         return self.store.version(self.current_version_id) if self.current_version_id else None
 
     def select_emission_version(self,row):
+        changed=self.current_version_id!=row['version_id']
+        if changed and (any(v.get().strip() for v in self.formvars.values()) or self.per_container or self.status_kind.get()!='ninguna'):
+            if not messagebox.askyesno('Cambiar trabajo',
+                'Los datos en preparación pertenecen a otra revisión. Cambiarla descartará esos datos. ¿Continuar?',parent=self):return
         self.current_version_id=row['version_id'];self.current_label_id=row['id']
         self.services.library.opened(row)
+        existed='emitir' in self._pages
         self.show('emitir')
+        if changed and existed:
+            self._emit_label_change();self.preview_issue()
 
     def _open_library_picker(self):
         if hasattr(self,'_quick_popup') and self._quick_popup.winfo_exists():
@@ -288,8 +306,8 @@ class Application(tk.Tk):
         popup=tk.Toplevel(self);self._quick_popup=popup
         popup.title('Biblioteca | Buscar y seleccionar etiqueta');popup.geometry('1100x740');popup.minsize(950,640)
         def chosen(row):
-            popup.destroy();self.select_emission_version(row)
-        panel=LibraryPanel(popup,self.services,chosen,chosen);panel.pack(fill='both',expand=True)
+            popup.destroy();self.editor(row["version_id"])
+        panel=LibraryPanel(popup,self.services,chosen,lambda row:(popup.destroy(),self.select_emission_version(row)));panel.pack(fill='both',expand=True)
         panel.search.focus_set();popup.bind('<Escape>',lambda _:popup.destroy())
         return 'break'
 
@@ -595,7 +613,7 @@ class Application(tk.Tk):
                 self.store.add_profile(p)
                 self.emit_profile.set(p['name'])
                 messagebox.showinfo('Perfil guardado','El perfil ya se puede usar en cualquier emisión.',parent=self)
-                self.show('centro')
+                self.show('centro',refresh=True)
             except (ValueError,LayoutError) as ex:messagebox.showerror('Error',str(ex),parent=self)
         commands=tk.Frame(body,bg='white');commands.pack(anchor='w',pady=12)
         button(commands,'Guardar perfil',save).pack(side='left',padx=(0,8))
@@ -639,17 +657,14 @@ class Application(tk.Tk):
         if hasattr(self,'library_panel'):self.library_panel.refresh()
 
     def page_master(self,parent):
-        self.header(parent,'Biblioteca de etiquetas',
-            'Explore diseños, revisiones y fuentes. Doble clic abre la ficha · Ctrl+K selecciona para emitir.',
-            '+ Importar etiqueta',self.import_label_dialog)
-        self.library_panel=LibraryPanel(parent,self.services,lambda row:self._master_detail(),self.select_emission_version)
-        self.library_panel.pack(fill='both',expand=True,padx=30,pady=(0,10))
+        self.library_panel=LibraryPanel(parent,self.services,lambda row:self.editor(row['version_id']),self.select_emission_version)
+        self.library_panel.pack(fill='both',expand=True,padx=16,pady=14)
         self.master_tree=self.library_panel.tree
-        actions=tk.Frame(parent,bg=C['bg']);actions.pack(fill='x',padx=30,pady=(0,16))
-        for i,(label,cmd) in enumerate([
-          ('Editar campos',self._master_edit),('Nueva versión',self._master_clone),('Activar revisión',self._master_approve),
-          ('Metadatos y fuente',self._edit_metadata),('Importar carpeta',self.import_folder_dialog),('Comparación básica',self._master_compare)]):
-            button(actions,label,cmd,'soft').grid(row=i//3,column=i%3,sticky='w',padx=(0,9),pady=3)
+        self.library_panel.set_actions([
+            ('Importar etiqueta',self.import_label_dialog),('Importar carpeta',self.import_folder_dialog),
+            ('Ficha y documentos',self._master_detail),('Nueva revisión',self._master_clone),
+            ('Registrar aprobación externa',self._master_approve),('Metadatos y fuente',self._edit_metadata),
+            ('Comparación básica existente',self._master_compare)])
 
     def _selected_master(self):
         row=self.library_panel.selected() if hasattr(self,'library_panel') else None
@@ -994,7 +1009,7 @@ class Application(tk.Tk):
         if not messagebox.askyesno('Verificación','¿Ha cotejado físicamente la etiqueta de estado con su Word autorizado y comprobado sus requisitos?',parent=self):return
         try:
             self.store.approve_status_master(kind,reviewer,evidence)
-            self.show('admin')
+            self.show('admin',refresh=True)
         except Exception as ex:messagebox.showerror('No activado',str(ex),parent=self)
 
     def _backup(self):
@@ -1012,11 +1027,23 @@ class Application(tk.Tk):
             if not messagebox.askyesno('Actualizar CM',
                   f'Se han identificado {len(rows)} filas. Se anadiran sin borrar registros anteriores.\n\nContinuar?',parent=self):return
             self.store.import_materials(rows)
-            self.show('admin')
+            self.show('admin',refresh=True)
         except Exception as ex:messagebox.showerror('CM no importado',str(ex),parent=self)
 
     def editor(self,version_id):
-        AdvancedEditor(self,version_id)
+        if self._editor_view and self._editor_view.winfo_exists():
+            if self._editor_version_id==version_id:
+                self.show('editor');return
+            view=self._editor_view
+            dirty=(view.fields!=json.loads(view.version['fields_json']) or view.crop!=json.loads(view.version['crop_json'])
+                   or view.status_area!=json.loads(view.version['status_area_json'] or '[]'))
+            if dirty and not messagebox.askyesno('Cambiar diseño','Hay ajustes sin guardar. ¿Descartarlos y abrir otra revisión?',parent=self):return
+            view.destroy()
+        self.show('editor')
+        if self.editor_empty.winfo_exists():self.editor_empty.destroy()
+        self._editor_version_id=version_id
+        self._editor_view=AdvancedEditor(self,version_id,parent=self.editor_host)
+        self._editor_view.pack(fill='both',expand=True)
 
     def _quit(self):
         self.store.close();self.destroy()
@@ -1126,9 +1153,11 @@ class VesselDialog(tk.Toplevel):
         except ValueError as ex:messagebox.showerror('Datos individuales',str(ex),parent=self)
 
 
-class AdvancedEditor(tk.Toplevel):
-    def __init__(self,app,version_id):
-        super().__init__(app)
+class AdvancedEditor(tk.Frame):
+    def __init__(self,app,version_id,parent=None):
+        self.window=tk.Toplevel(app) if parent is None else None
+        super().__init__(parent or self.window)
+        if self.window:self.pack(fill='both',expand=True)
         self.app=app;self.store=app.store;self.version_id=version_id
         self.version=self.store.version(version_id)
         self.editable=self.version['state']=='PENDING'
@@ -1138,8 +1167,10 @@ class AdvancedEditor(tk.Toplevel):
         self.selected=None
         self.image=None
         self._drag=None
-        self.title('Editor avanzado  |  '+self.version['name'])
-        self.configure(bg=C['bg']);self.geometry('1210x850');self.minsize(960,690)
+        if self.window:
+            self.window.title('Editor avanzado  |  '+self.version['name'])
+            self.window.geometry('1210x850');self.window.minsize(960,690)
+        self.configure(bg=C['bg'])
         top=tk.Frame(self,bg='white',padx=23,pady=18);top.pack(fill='x')
         text(top,'Editor visual de campos  |  '+self.version['name'],16,True,bg='white').pack(side='left')
         text(top,'EDICION DE BORRADOR' if self.editable else 'VERSION APROBADA - SOLO LECTURA',10,True,
@@ -1186,6 +1217,12 @@ class AdvancedEditor(tk.Toplevel):
         text(props,'Coordenadas en milímetros sobre el recorte; campos calculados desde las posiciones visibles del Word. El original permanece inalterado.',
              9,color=C['muted'],bg='white',wraplength=265).pack(anchor='w',pady=(10,0))
         self._refresh_list();self.draw()
+
+    def destroy(self):
+        window=self.window
+        self.window=None
+        super().destroy()
+        if window and window.winfo_exists():window.destroy()
 
     def _refresh_list(self):
         self.lst.delete(0,'end')
@@ -1460,6 +1497,7 @@ class AdvancedEditor(tk.Toplevel):
         try:
             self.store.replace_pending_fields(self.version_id,self.fields,self.crop,self.status_area)
             messagebox.showinfo('Guardado','Cambios guardados en la version pendiente.\nReviselos antes de activar la plantilla.',parent=self)
+            self.version=self.store.version(self.version_id)
             self.app.show('maestro')
         except Exception as ex:messagebox.showerror('Error al guardar',str(ex),parent=self)
 
@@ -1467,3 +1505,4 @@ class AdvancedEditor(tk.Toplevel):
 def start():
     app=Application()
     app.mainloop()
+

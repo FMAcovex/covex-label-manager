@@ -44,6 +44,16 @@ class LocalServices:
         current=self._repository.version(version['id'])
         if current is None:raise ValueError('Versión no encontrada.')
         return render_emission(current,self._repository.root,*args,**kwargs)
+    def emission_eligibility(self,version_id):
+        """Library preparation gate; full emission checks still run in the engine."""
+        from .integrity import verify_documents,verify_renderable
+        version=self.version(version_id)
+        if not version:return False,'Revisión inexistente.'
+        if version['state']!='APPROVED':return False,'Requiere revisión vigente. Puede abrir el editor y generar PDF de prueba desde Emisión.'
+        try:
+            verify_documents(version,self._repository.root);verify_renderable(version)
+        except (ValueError,OSError) as ex:return False,str(ex)
+        return True,'Revisión vigente; los datos y límites se comprobarán antes de emitir.'
     def sheet_plan(self,profile,count):
         from .engine import plan_sheet
         return plan_sheet(profile,count)
@@ -96,3 +106,4 @@ class LocalServices:
                         archive.write(f,rel)
         self.audit('BACKUP','ZIP',target.name)
         return target
+
