@@ -92,6 +92,7 @@ Fuentes revisadas: main 0.3.1 bd6e92e y PR #2/R3A e1ac607 (no integrada). La pru
 | C07 | Últimos movimientos de auditoría local | audit_entries / page_admin | Configuración → Actividad | Actual; no inviolable |
 | C08 | UID estable, migración aditiva y copia previa | Store schema/user_version | Persistencia existente | Motor sin cambios |
 | C09 | Actualizar sin sobrescribir data | paths / build guard / docs | Distribución / actualización | Actual; sin nuevo actualizador |
+| C10 | Recuentos de etiquetas/vigentes/pendientes/emisiones/materiales y accesos rápidos del Inicio 0.3.1 | page_home / Store.stats | Configuración → Resumen; accesos por cabecera, sin recuperar tarjetas administrativas de inicio | Actual en main; tarjetas retiradas en R3A, resumen a conservar |
 
 ## No confundir pendientes con capacidades actuales
 

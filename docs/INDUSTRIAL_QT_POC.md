@@ -20,7 +20,7 @@ Editor: lienzo dominante, elementos izquierda, propiedades derecha, posición/ta
 
 Reutiliza **LocalServices, LibraryService, Store y LocalServices.thumbnail**. Qt no ejecuta SQL ni lee maestros directamente. DemoSession genera PDFs/metadatos/revisiones ficticias e invoca servicios exclusivamente sobre base temporal. UI recibe servicio, nunca datos de producción.
 
-Funciones no adaptadas muestran alcance y accesos actuales. FUNCTIONAL_PRESERVATION_MATRIX.md inventaría las capacidades que deben conservarse. Tkinter permanece íntegro y su workflow independiente se mantiene.
+Funciones no adaptadas muestran alcance y accesos actuales. FUNCTIONAL_PRESERVATION_MATRIX.md recoge las capacidades que deben conservarse. Tkinter permanece íntegro y su workflow independiente se mantiene.
 
 ## Comparación
 

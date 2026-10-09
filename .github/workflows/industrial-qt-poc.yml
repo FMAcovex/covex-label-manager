@@ -7,6 +7,8 @@ on:
       - 'qt_visual_poc.py'
       - '*PRUEBA_QT.bat'
       - '.github/workflows/industrial-qt-poc.yml'
+      - 'docs/INDUSTRIAL_QT_POC.md'
+      - 'docs/FUNCTIONAL_PRESERVATION_MATRIX.md'
 permissions:
   contents: read
 jobs:
