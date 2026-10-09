@@ -13,7 +13,7 @@ from ..qt_legacy import launch_legacy
 class FunctionalWindow(StudioWindow):
     def __init__(self,session):
         self.legacy_process=None;self.demo=getattr(session,'fictional',False)
-        self.original_fields={};self.dirty=False;self._initializing=True
+        self.original_fields={};self.dirty=False;self._initializing=True;self._filter_expanded_preference=None
         super().__init__(session)
         self._initializing=False
         self.setWindowTitle('COVEX Label Manager · R3A Qt · Transición')
@@ -21,7 +21,7 @@ class FunctionalWindow(StudioWindow):
             if 'PRUEBA VISUAL' in note.text():note.setText('DATOS FICTICIOS' if self.demo else 'R3A Qt · Local')
         self.statusBar().showMessage('Biblioteca Qt funcional · Ajuste avanzado completo e impresión disponibles en la versión anterior')
         remember,expanded=self.api.filter_preferences();self.remember_filters.blockSignals(True);self.remember_filters.setChecked(remember);self.remember_filters.blockSignals(False)
-        self.advanced.setVisible(expanded);self.advanced_button.setChecked(expanded)
+        self.advanced.setVisible(expanded);self.advanced_button.setChecked(expanded);self._filter_expanded_preference=expanded
         self.table_shortcut=QShortcut(QKeySequence('Return'),self.table)
         self.table_shortcut.activated.connect(self.open_editor)
         self.legacy_timer=QTimer(self);self.legacy_timer.timeout.connect(self.poll_legacy);self.legacy_timer.start(500)
@@ -38,7 +38,7 @@ class FunctionalWindow(StudioWindow):
                 widget.clicked.disconnect();widget.clicked.connect(replacements[widget.text()])
         self.active_filter_text=label('','subtle');page.layout().insertWidget(3,self.active_filter_text)
         self.remember_filters=QCheckBox('Recordar panel abierto/cerrado')
-        self.remember_filters.toggled.connect(self.save_filter_preference)
+        self.remember_filters.toggled.connect(self.remember_filter_choice)
         self.advanced.layout().insertWidget(1,self.remember_filters)
         self.prepare_button=button('Preparar emisión',lambda:self.open_legacy('emitir'),'primary','print')
         self.test_button=button('PDF de prueba',lambda:self.open_legacy('emitir',mode='test'))
@@ -52,11 +52,14 @@ class FunctionalWindow(StudioWindow):
         active=[f'{FILTERS[key]}: {c.currentText()}' for key,c in self.filters.items() if c.currentData()]
         self.active_filter_text.setText('Filtros activos · '+' · '.join(active) if active else '')
         self.active_filter_text.setVisible(bool(active));self.active_filter_text.setToolTip('\n'.join(active))
+    def remember_filter_choice(self,*_):
+        self._filter_expanded_preference=not self.advanced.isHidden();self.save_filter_preference()
     def save_filter_preference(self,*_):
-        self.api.remember_filters(self.remember_filters.isChecked(),not self.advanced.isHidden())
+        expanded=self._filter_expanded_preference if self._filter_expanded_preference is not None else not self.advanced.isHidden()
+        self.api.remember_filters(self.remember_filters.isChecked(),expanded)
     def toggle_advanced(self):
         super().toggle_advanced()
-        if hasattr(self,'remember_filters') and not getattr(self,'_resizing',False):self.save_filter_preference()
+        if hasattr(self,'remember_filters') and not getattr(self,'_resizing',False):self._filter_expanded_preference=not self.advanced.isHidden();self.save_filter_preference()
     def resizeEvent(self,event):
         self._resizing=True
         try:super().resizeEvent(event)

@@ -138,3 +138,14 @@ def test_guarded_ui_approval_and_clone(studio,monkeypatch):
     w.approve_revision();assert s.services.version(vid)['state']=='APPROVED'
     monkeypatch.setattr(w,'ask_form',lambda *a,**k:{'version':'fictional-R1','notes':'Fictional clone review'})
     w.clone_revision();assert w.row['version']=='fictional-R1' and w.row['state']=='PENDING'
+
+
+def test_compact_auto_fold_does_not_forget_manual_preference(studio):
+    w,s,app=studio
+    w.resize(1500,980);app.processEvents()
+    w.toggle_advanced();w.remember_filters.setChecked(True)
+    assert s.services.filter_preferences()==(True,True)
+    w.resize(1100,760);app.processEvents()
+    assert w.advanced.isHidden()
+    w.save_filter_preference()
+    assert s.services.filter_preferences()==(True,True)
