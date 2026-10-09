@@ -1,0 +1,115 @@
+"""Optional Qt regression suite; all data and PDFs are fictional and isolated."""
+import copy
+import json
+import pytest
+pytest.importorskip('PySide6')
+from PySide6.QtWidgets import QApplication,QMessageBox
+from covex_label_manager.qt_ui.demo import DemoSession
+from covex_label_manager.qt_ui.functional import FunctionalWindow
+from covex_label_manager.qt_legacy import launch_legacy
+
+@pytest.fixture
+def studio():
+    app=QApplication.instance() or QApplication([])
+    session=DemoSession();session.fictional=True
+    w=FunctionalWindow(session);w.show();app.processEvents()
+    yield w,session,app
+    w.dirty=False;w.legacy_process=None;w.legacy_timer.stop();w.poll_timer.stop();w.hide();w.deleteLater();app.processEvents();session.close()
+
+def test_filter_preference_and_hidden_summary(studio):
+    w,s,app=studio
+    assert w.advanced.isHidden()
+    w.toggle_advanced();w.remember_filters.setChecked(True);w.save_filter_preference()
+    w.filters['language'].setCurrentIndex(1);w.toggle_advanced()
+    assert 'Idioma:' in w.active_filter_text.text() and w.active_filter_text.isVisible()
+    assert s.services.filter_preferences()==(True,False)
+    w.toggle_advanced();w.save_filter_preference()
+    other=FunctionalWindow(s);other.show();app.processEvents()
+    assert other.advanced.isVisible() and other.remember_filters.isChecked()
+    other.dirty=False;other.legacy_timer.stop();other.poll_timer.stop();other.hide();other.deleteLater();app.processEvents()
+
+def test_three_actions_have_documentary_states(studio):
+    w,s,app=studio
+    assert not w.prepare_button.isEnabled() and w.test_button.isEnabled()
+    approved=next(v['id'] for v in s.services.versions(w.row['id']) if v['state']=='APPROVED')
+    w.select_version(approved)
+    assert w.prepare_button.isEnabled() and w.test_button.isEnabled()
+
+def test_open_editor_is_not_emission(studio):
+    w,s,app=studio
+    previous=len(s.services.issues());w.open_editor();app.processEvents()
+    assert w.stack.currentWidget() is w.editor
+    assert len(s.services.issues())==previous
+
+def test_dirty_work_persists_navigation_and_saves(studio):
+    w,s,app=studio;w.open_editor();before=json.loads(s.services.version(w.current_editor_id)['fields_json'])
+    w.spins['x'].setValue(w.spins['x'].value()+1);new=w.fields[0]['x']
+    assert w.dirty
+    w.navigate('library');w.navigate('editor')
+    assert w.fields[0]['x']==new and json.loads(s.services.version(w.current_editor_id)['fields_json'])==before
+    assert w.save_work() and not w.dirty
+    assert json.loads(s.services.version(w.current_editor_id)['fields_json'])[0]['x']==new
+
+def test_cancel_revision_change_retains_dirty_work(studio,monkeypatch):
+    w,s,app=studio;w.open_editor();old=w.current_editor_id
+    w.spins['x'].setValue(w.spins['x'].value()+1)
+    monkeypatch.setattr(QMessageBox,'question',lambda *a,**k:QMessageBox.StandardButton.Cancel)
+    w.select_version(next(r['version_id'] for r in w.rows if r['version_id']!=old));w.open_editor()
+    assert w.current_editor_id==old and w.dirty
+
+def test_stale_documentary_state_blocks_saved_work(studio,monkeypatch):
+    w,s,app=studio;w.open_editor();w.spins['x'].setValue(w.spins['x'].value()+1)
+    old=json.loads(s.services.version(w.current_editor_id)['fields_json'])
+    s.services.approve(w.current_editor_id,'Demo reviewer','Fictional approval reference')
+    monkeypatch.setattr(QMessageBox,'warning',lambda *a,**k:None)
+    assert not w.save_work()
+    assert json.loads(s.services.version(w.current_editor_id)['fields_json'])==old
+
+def test_metadata_source_validation_and_persistence(studio):
+    w,s,app=studio
+    with pytest.raises(ValueError):s.services.library.update_metadata(w.row['id'],{'country':'Fictitious'},'')
+    s.services.library.update_metadata(w.row['id'],{'country':'Fictitious'},'Fictional supplier declaration')
+    w.refresh_facets();w.refresh()
+    assert w.row['country']=='Fictitious'
+
+def test_clone_is_pending_and_approval_retires_previous(studio):
+    w,s,app=studio
+    previous=next(v['id'] for v in s.services.versions(w.row['id']) if v['state']=='APPROVED')
+    new=s.services.clone_version(previous,'00-R1','Fictional revision')
+    assert s.services.version(new)['state']=='PENDING'
+    assert not s.services.eligibility(new)[0] and s.services.eligibility(new,False)[0]
+    s.services.approve(new,'Demo reviewer','Fictional approval reference')
+    assert s.services.version(previous)['state']=='RETIRED'
+    assert not s.services.eligibility(previous)[0] and not s.services.eligibility(previous,False)[0]
+
+def test_integrity_blocks_bridge_before_process(studio,monkeypatch):
+    w,s,app=studio
+    approved=next(v['id'] for v in s.services.versions(w.row['id']) if v['state']=='APPROVED')
+    version=s.services.version(approved);s.services.asset_path(version['master_pdf']).write_bytes(b'corrupt demo PDF')
+    started=[]
+    monkeypatch.setattr('covex_label_manager.qt_legacy.subprocess.Popen',lambda *a,**k:started.append(a))
+    with pytest.raises(ValueError):launch_legacy(s.services,'emitir',approved)
+    assert not started
+
+def test_bridge_selects_same_data_and_explicit_test(studio,monkeypatch):
+    w,s,app=studio;calls=[]
+    monkeypatch.setattr('covex_label_manager.qt_legacy.subprocess.Popen',lambda cmd,env:calls.append((cmd,env)))
+    launch_legacy(s.services,'emitir',w.row['version_id'],'test')
+    command,env=calls[0]
+    assert command[-2:]==['--version-id',str(w.row['version_id'])]
+    assert '--mode' in command and 'test' in command
+    assert env['COVEX_LABEL_DATA']==s.services.location()
+
+def test_import_pdf_remains_pending(studio,tmp_path):
+    w,s,app=studio
+    source=s.services.open_document(w.row['version_id'])
+    version=s.services.import_label(source,dict(name='Fictional import',version='00',origin='CLIENTE',customer='Demo customer'))
+    assert s.services.version(version)['state']=='PENDING'
+    assert not s.services.eligibility(version)[0]
+
+def test_missing_metadata_is_not_invented(studio):
+    w,s,app=studio
+    source=s.services.open_document(w.row['version_id'])
+    vid=s.services.import_label(source,dict(name='No deduced metadata',version='00'))
+    row=next(r for r in s.services.library.entries() if r['version_id']==vid)
+    assert not row.get('country') and not row.get('language') and not row.get('product')

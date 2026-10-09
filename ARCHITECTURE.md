@@ -77,3 +77,17 @@ En 0.3.1 `LocalServices.render` vuelve a leer la revisión persistida, evitando 
 ## Distribución sin documentación confidencial
 
 El repositorio y portable no contienen maestros, etiquetas reales ni catálogo. SQLite, fuentes y PDFs se conservan únicamente en data/ o COVEX_LABEL_DATA. Una instalación nueva empieza vacía; la misma carpeta de datos mantiene maestros y configuraciones al actualizar. Tests usan generadores de documentos planos con aviso SYNTHETIC; nunca una redacción o reproducción de etiquetas reales. El historial remoto parte de una referencia documental, porque el historial anterior contenía originales. La referencia histórica no se presenta como copia binaria exacta de esa entrega. El build rechaza data, SQLite o una ruta COVEX_LABEL_DATA bajo el destino de reconstrucción. No hay actualizador que copie una base inicial sobre datos del usuario.
+
+
+## Repositorio operativo y transición R3A Qt
+
+FMAcovex/covex-label-manager es el repositorio privado oficial, main 0.3.1 y Actions Windows operativos. No se integra directamente PR #2 ni #3. `feature/r3a-qt-functional` mantiene `main.py`, `gui.py`, motor, esquema SQLite y rutas existentes sin cambios.
+
+- `main_qt.py`: entrada opcional Qt, separada del ejecutable distribuido; modo demo/verificación explícito y temporal.
+- `qt_ui/`: widgets Industrial Moderno y controlador de Biblioteca/trabajo activo. No lee SQLite, maestros ni carpetas por su cuenta: utiliza servicios.
+- `qt_transition.py`: fachada local pequeña que amplía servicios existentes con elegibilidad documental, acceso a documentos y preferencias. Sin API/red/infraestructura.
+- `qt_legacy.py` y `legacy_qt_bridge.py`: aplicación Tk en proceso independiente, misma carpeta de datos y revisión seleccionada. Un solo compañero a la vez; Qt bloquea edición mientras esté abierto y refresca al cerrarse. Tk y Qt no comparten bucles de eventos. La distribución anterior conserva su entrada original.
+- Configuración de campos Qt: cambios en memoria, guardado explícito de pendiente mediante `replace_pending_fields`, detección de estado o configuración externos antes de guardar, Guardar/Descartar/Cancelar al cambiar/cerrar. Sin autoguardado ni recuperación R3B. El ajuste completo de recorte/estado/Word sigue en Tk.
+- Configuraciones Qt usan nuevas claves `qt_remember_filters`/`qt_filters_expanded` en la tabla settings existente. No se modifica esquema ni se reemplazan maestros, preferencias anteriores o histórico.
+
+El paquete experimental contiene Qt y compañero Tk; ninguno incluye data o documentos originales. El compañero recibe COVEX_LABEL_DATA desde la ubicación de servicios Qt. Se prueba con datos ficticios y con PDF de prueba marcado sin alta de emisión, también para revisiones vigentes. Conservación del 100 % exige la matriz de 87 capacidades, regresión y aceptación del propietario antes de sustituir la distribución. Integraciones futuras continúan documentadas conceptualmente, sin conexiones reales ni infraestructura nueva.
