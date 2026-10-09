@@ -64,7 +64,7 @@ jobs:
           if (Test-Path $result) { Copy-Item $result "test-results/qt-packaged-$scale.json" }
           if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { if (Test-Path $result) { Get-Content $result }; throw 'Packaged Qt check failed' }
           $check = Get-Content $result -Raw | ConvertFrom-Json
-          if (!$check.ok -or $check.count -lt 35) { throw 'Qt interaction check incomplete' }
+          if (!$check.ok -or $check.count -lt 48) { throw 'Qt interaction check incomplete' }
           if (!$check.legacy_bridge.ok) { throw 'Legacy bridge not verified' }
           Copy-Item $result "test-results/qt-packaged-$scale.json"
           }
@@ -87,3 +87,4 @@ jobs:
             test-results/
           retention-days: 14
           if-no-files-found: error
+

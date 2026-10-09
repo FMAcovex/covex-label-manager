@@ -109,3 +109,10 @@ La aplicación distribuida 0.3.1 sigue siendo Tkinter y main permanece intacta. 
 Los nuevos ajustes R3A son filtros secundarios plegables con preferencia opcional y resumen activo, tabla prioritaria/configurable, inspector agrupado, tres acciones separadas (Editor / Preparar emisión / PDF de prueba), y retención con Guardar/Descartar/Cancelar. Un PDF de prueba nunca genera emisión definitiva, incluso al partir de una revisión vigente. 00-R1 permanece pendiente salvo registro explícito de aprobación externa documentada; ni clonación ni despliegue conceden aprobación.
 
 Pruebas de rama: núcleo existente + pruebas Qt/servicio de estados, integridad, metadatos, importación PDF, variantes, guardado, trabajo activo, cancelación y puente. CI añade Qt real y ejecutables Qt/Tk con PDF de prueba marcado, retención y ausencia de registro definitivo. Estados Qt de esta tabla no acreditan todavía aceptación interactiva COVEX, Word ni impresión física.
+
+
+## Ajustes finales de usabilidad — dirección visual aprobada 09/10/2026
+
+Se conservan las 87 filas y su clasificación (33 Qt, 7 parciales, 40 anteriores, 7 motor). B01/B12: Historial y Configuración compactos tienen descripción emergente y nombre accesible, identificando Tkinter. B09/E15: «Vista N%» y descripción del zoom relativo a Ajustar; no es escala física ni modifica el PDF. M02: Preparar emisión pendiente/retirada usa fondo neutro deshabilitado, conservando las guardas existentes. E11: Guardar solo se habilita con cambios, revisión pendiente y compañero cerrado; sin cambios/solo lectura/bloqueo tiene presentación neutra y motivo.
+
+La dirección visual Industrial Moderno de Biblioteca/Editor está aprobada definitivamente por el propietario. Estos ajustes no amplían R3A ni inician R3B/R3C. La aceptación de uso en equipos COVEX/Word/impresión sigue pendiente. Capturas de pendiente, vigente habilitada, retirada, guardado limpio/con cambios y editor solo lectura se generan en los tres factores Qt y se incluyen en el artefacto de la revisión.

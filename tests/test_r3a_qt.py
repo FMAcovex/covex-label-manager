@@ -159,3 +159,27 @@ def test_enter_opens_only_from_table_not_search(studio):
     assert w.stack.currentWidget() is w.library
     w.table.setFocus();app.processEvents();QTest.keyClick(w.table,Qt.Key.Key_Return);app.processEvents()
     assert w.stack.currentWidget() is w.editor
+
+
+def test_save_state_tracks_dirty_work_and_legacy_lock(studio):
+    w,s,app=studio;w.open_editor()
+    assert not w.save_button.isEnabled() and 'Sin cambios' in w.save_button.toolTip()
+    w.spins['x'].setValue(w.spins['x'].value()+1)
+    assert w.save_button.isEnabled()
+    w.legacy_process=object();w.update_dirty()
+    assert not w.save_button.isEnabled() and 'bloqueada' in w.save_button.toolTip()
+    assert not w.save_work()
+    w.legacy_process=None;w.recheck_actions()
+    assert w.save_button.isEnabled() and w.save_work()
+    assert not w.save_button.isEnabled()
+
+def test_disabled_prepare_click_cannot_open_legacy(studio,monkeypatch):
+    from PySide6.QtCore import Qt
+    from PySide6.QtTest import QTest
+    w,s,app=studio;started=[]
+    monkeypatch.setattr('covex_label_manager.qt_ui.functional.launch_legacy',lambda *a,**k:started.append(a))
+    for vid in [w.session.initial_id,next(r['version_id'] for r in w.rows if r['state']=='RETIRED')]:
+        w.select_version(vid);app.processEvents()
+        assert not w.prepare_button.isEnabled()
+        QTest.mouseClick(w.prepare_button,Qt.MouseButton.LeftButton)
+    assert not started

@@ -91,7 +91,10 @@ class FunctionalWindow(StudioWindow):
         test_ok,test_reason=self.api.eligibility(vid,False) if vid else (False,'Seleccione una revisión.')
         self.prepare_button.setEnabled(ok and not busy);self.prepare_button.setToolTip(reason or 'Abrir emisión en la versión anterior, con esta revisión.')
         self.test_button.setEnabled(test_ok and not busy);self.test_button.setToolTip(test_reason or 'Abrir preparación de prueba en la versión anterior. No registra emisión definitiva.')
-        if hasattr(self,'save_button'):self.save_button.setEnabled(self.dirty and not busy and self.current_editor_id is not None and self.api.version(self.current_editor_id)['state']=='PENDING')
+        if hasattr(self,'save_button'):
+            editable=self.current_editor_id is not None and self.api.version(self.current_editor_id)['state']=='PENDING'
+            self.save_button.setEnabled(self.dirty and not busy and editable)
+            self.save_button.setToolTip('Edición bloqueada mientras está abierta la versión anterior.' if busy else ('Revisión vigente o retirada: solo lectura.' if not editable else ('Guardar los cambios pendientes del borrador.' if self.dirty else 'Sin cambios pendientes de guardar.')))
     def open_legacy(self,target='maestro',mode='production'):
         if self.legacy_process is not None:
             QMessageBox.information(self,'Versión anterior abierta','Continúe en la ventana de la versión anterior y ciérrela antes de abrir otra tarea.');return
@@ -240,7 +243,7 @@ class FunctionalWindow(StudioWindow):
     def update_dirty(self):
         if self._initializing or self.current_editor_id is None:return
         self.dirty=self.fields!=self.original_fields.get(self.current_editor_id,self.fields)
-        if hasattr(self,'save_button'):self.save_button.setEnabled(self.dirty and self.editor_version['state']=='PENDING')
+        self.recheck_actions()
         if hasattr(self,'edit_status'):self.edit_status.setText('Cambios sin guardar.' if self.dirty else ('Configuración guardada. Sin autoguardado.' if self.editor_version['state']=='PENDING' else 'Revisión vigente o retirada: solo lectura.'))
     def save_work(self):
         if self.current_editor_id is None or self.legacy_process:return False
@@ -279,3 +282,4 @@ class FunctionalWindow(StudioWindow):
             QMessageBox.information(self,'Trabajo activo','Cierre la versión anterior antes de cerrar Qt.');event.ignore();return
         if not self.resolve_work():event.ignore();return
         self.save_filter_preference();event.accept()
+

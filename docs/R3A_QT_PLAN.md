@@ -26,3 +26,10 @@ El Editor Qt representa los campos variables del PDF: posición, tamaño, identi
 Pytest del núcleo y Qt; comprobaciones Qt reales en fuente/EXE; compañero Tk empaquetado con emisión de un PDF marcado PRUEBA, sin emisión definitiva, revisión transferida y formulario retenido. Windows CI usa factores Qt 1/1.25/1.5 y ventanas amplias/compactas; registra dimensiones efectivas condicionadas por el escritorio virtual. No acredita DPI nativo, cambio entre monitores, Windows 10/11 COVEX, conversión Word, impresión física ni validación GMP. Estas pruebas reales siguen pendientes.
 
 No R3B/R3C, integraciones externas, servidores, modelos nuevos de variante/producto, autoguardado, recuperación ni cambios al motor/SQLite. Usar la matriz 87 como condición de conservación y verificar cada fila antes de sustituir la distribución.
+
+
+## Cierre de usabilidad solicitado 09/10/2026
+
+Dirección visual Biblioteca/Editor Industrial Moderno PySide6 aprobada definitivamente. Los botones principales deshabilitados usan fondo neutro y no responden visualmente como acciones disponibles. Guardar indica si faltan cambios, el documento es de solo lectura o el compañero está abierto. «Vista N%» aclara el zoom relativo al ajuste a pantalla y su descripción indica que no es escala física de impresión. Historial y Configuración compactos tienen tooltip y nombre accesible; el tooltip identifica la versión anterior Tkinter.
+
+Verificación adicional real en fuente y EXE: presentación neutra/habilitada, estados pendiente/vigente/retirada, guardado con/sin cambios y solo lectura, aclaración del zoom y navegación compacta. Se entregan capturas específicas por estado. La PR se presenta para revisión final sin integrar; main y R3B/R3C permanecen intactos.

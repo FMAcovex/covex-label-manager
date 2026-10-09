@@ -11,11 +11,12 @@ QFrame#header QLabel { color: white; }
 QLabel#brand { font-size: 17px; font-weight: 700; letter-spacing: 1px; }
 QLabel#headerNote { color: #B9D0D0; font-size: 11px; }
 QPushButton { background: white; border: 1px solid #DCE5E7; border-radius: 7px; padding: 9px 14px; font-weight: 600; }
-QPushButton:hover { border-color: #147D71; background: #F0F8F6; }
-QPushButton:pressed { background: #DBEEE9; }
+QPushButton:hover:enabled { border-color: #147D71; background: #F0F8F6; }
+QPushButton:pressed:enabled { background: #DBEEE9; }
 QPushButton:disabled { color: #98ABAF; background: #EFF3F4; border-color: #E5EBED; }
 QPushButton#primary { background: #147D71; color: white; border-color: #147D71; }
-QPushButton#primary:hover { background: #10695F; }
+QPushButton#primary:hover:enabled { background: #10695F; }
+QPushButton#primary:disabled { color: #73858A; background: #E7ECEE; border-color: #D4DEE1; }
 QPushButton#nav { color: #C9DCDD; background: transparent; border: none; padding: 12px 17px; border-radius: 6px; }
 QPushButton#nav:checked { color: white; background: #2C535A; }
 QPushButton#nav:hover { color: white; background: #284C53; }
@@ -94,3 +95,4 @@ def icon(kind, color='#607B80'):
         p.drawEllipse(QRectF(5,5,14,14));p.drawEllipse(QRectF(10,10,4,4))
         for x,y,x2,y2 in ((12,2,12,5),(12,19,12,22),(2,12,5,12),(19,12,22,12)):p.drawLine(x,y,x2,y2)
     p.end();return QIcon(pix)
+

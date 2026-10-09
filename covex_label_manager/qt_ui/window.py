@@ -52,7 +52,9 @@ class Preview(QGraphicsView):
         scale=self.transform().m11()
         if .02<scale*factor<8:self.auto_fit=False;self.scale(factor,factor);self.update_zoom_label()
     def update_zoom_label(self):
-        if self.zoom_label:self.zoom_label.setText(f"{self.transform().m11()/max(.001,self.fit_scale)*100:.0f}%")
+        if self.zoom_label:
+            self.zoom_label.setToolTip('Zoom de visualización relativo a Ajustar (100 %). No indica tamaño físico ni escala de impresión; no cambia el PDF.')
+            self.zoom_label.setText(f"Vista {self.transform().m11()/max(.001,self.fit_scale)*100:.0f}%")
     def wheelEvent(self,event):
         self.zoom(1.12 if event.angleDelta().y()>0 else 1/1.12);event.accept()
     def resizeEvent(self,event):
@@ -172,7 +174,7 @@ class StudioWindow(QMainWindow):
         controls=QHBoxLayout();controls.setSpacing(5)
         controls.addWidget(button('−',lambda:self.preview.zoom(1/1.2)))
         controls.addWidget(button('+',lambda:self.preview.zoom(1.2)))
-        self.preview.zoom_label=label('100%','subtle');controls.addWidget(self.preview.zoom_label)
+        self.preview.zoom_label=label('Vista 100%','subtle');controls.addWidget(self.preview.zoom_label)
         controls.addWidget(button('Ajustar',self.preview.fit));controls.addWidget(button('Ampliar',self.enlarge))
         for i in range(controls.count()):
             widget=controls.itemAt(i).widget()
@@ -310,8 +312,9 @@ class StudioWindow(QMainWindow):
         view=Preview();view.set_image(self.api.thumbnail(self.api.version(self.row['version_id']),width_px=1800))
         lay.addWidget(view,1);controls=QHBoxLayout()
         controls.addWidget(button('−',lambda:view.zoom(1/1.2)));controls.addWidget(button('+',lambda:view.zoom(1.2)))
+        view.zoom_label=label('Vista 100%','subtle');controls.addWidget(view.zoom_label)
         controls.addWidget(button('Ajustar documento',view.fit));controls.addStretch();controls.addWidget(button('Cerrar',dialog.accept))
-        lay.addLayout(controls);lay.addWidget(label('Proporciones conservadas · Zoom: rueda · Arrastra para desplazar el documento','subtle'))
+        lay.addLayout(controls);lay.addWidget(label('Proporciones conservadas · Zoom de visualización, no escala de impresión · Rueda para ampliar · Arrastra para desplazar','subtle'))
         QTimer.singleShot(0,view.fit);dialog.exec()
     def quick_search(self):
         self.navigate('library');self.search.setFocus();self.search.selectAll()
@@ -360,7 +363,7 @@ class StudioWindow(QMainWindow):
                 if compact and self.advanced.isVisible():self.toggle_advanced()
             self.brand_title.setText('COVEX / LABELS' if event.size().width()<1300 else 'COVEX  /  LABEL MANAGER')
             for key,title in [('history','Historial'),('settings','Configuración')]:
-                self.nav[key].setText('' if compact else title);self.nav[key].setToolTip(title)
+                self.nav[key].setText('' if compact else title);self.nav[key].setToolTip(title+' · Acceso a la versión anterior Tkinter');self.nav[key].setAccessibleName(title)
             if hasattr(self,'editor_advanced_button'):
                 self.editor_note.setVisible(not short)
                 self.editor_title.setStyleSheet('font-size:21px;' if short else '')
@@ -387,7 +390,7 @@ class StudioWindow(QMainWindow):
         toolbar=box();tl=QHBoxLayout(toolbar);tl.setContentsMargins(12,8,12,8)
         tl.addWidget(label('LIENZO','section'));self.editor_fit_button=button('Ajustar a pantalla',lambda:self.canvas.fit(),ico='expand');tl.addWidget(self.editor_fit_button)
         tl.addWidget(button('−',lambda:self.canvas.zoom(1/1.2)));tl.addWidget(button('+',lambda:self.canvas.zoom(1.2)))
-        self.canvas_zoom_label=label('100%','subtle');tl.addWidget(self.canvas_zoom_label)
+        self.canvas_zoom_label=label('Vista 100%','subtle');tl.addWidget(self.canvas_zoom_label)
         tl.addStretch();self.editor_advanced_button=button('Herramientas avanzadas',self.toggle_editor_advanced,ico='settings')
         self.editor_advanced_button.setCheckable(True);tl.addWidget(self.editor_advanced_button)
         self.editor_reset_button=button('Restablecer campos',self.reset_layout);tl.addWidget(self.editor_reset_button);lay.addWidget(toolbar)
@@ -501,3 +504,4 @@ class StudioWindow(QMainWindow):
         if self.current_editor_id is None:return
         self.layouts[self.current_editor_id]=copy.deepcopy(json.loads(self.editor_version['fields_json']))
         self.fields=self.layouts[self.current_editor_id];self.draw_editor()
+
