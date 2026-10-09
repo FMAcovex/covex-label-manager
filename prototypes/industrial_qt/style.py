@@ -49,6 +49,9 @@ QListWidget { background: white; border: none; outline: none; }
 QListWidget::item { padding: 12px 10px; border-radius: 5px; }
 QListWidget::item:selected { background: #E4F1ED; color: #116C62; }
 QDoubleSpinBox { background: white; border: 1px solid #DCE5E7; border-radius: 5px; padding: 7px; }
+QTabWidget::pane { border: none; border-top: 1px solid #E0E8EA; background: white; }
+QTabBar::tab { padding: 10px 8px; color: #72868C; background: white; border-bottom: 2px solid transparent; }
+QTabBar::tab:selected { color: #147D71; border-bottom: 2px solid #147D71; font-weight: 600; }
 QToolButton { background: white; border: 1px solid #DCE5E7; border-radius: 5px; padding: 8px; }
 QToolButton:hover { background: #E4F1ED; }
 QCheckBox { spacing: 8px; }

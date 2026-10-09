@@ -30,7 +30,14 @@ jobs:
       - run: python -m pip check
       - run: python -m pytest -q --junitxml=test-results/core.xml
       - name: Interact with real Qt widgets and capture fictional windows
-        run: python qt_visual_poc.py --capture test-results/industrial-qt --self-check test-results/qt-source.json
+        shell: pwsh
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            python qt_visual_poc.py --capture "test-results/scale-$scale" --self-check "test-results/qt-source-$scale.json"
+            if ($LASTEXITCODE -ne 0) { throw "Qt source check failed at $scale" }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
       - run: python scripts/check_build_destination.py dist/COVEXLabelManager_Visual_Qt
       - run: >-
           python -m PyInstaller --noconfirm --clean --onedir --windowed
@@ -40,12 +47,16 @@ jobs:
       - name: Check packaged Qt UI and existing services
         shell: pwsh
         run: |
-          $result = Join-Path $env:RUNNER_TEMP 'qt-packaged-check.json'
+          foreach ($scale in @('1', '1.25', '1.5')) {
+          $env:QT_SCALE_FACTOR = $scale
+          $result = Join-Path $env:RUNNER_TEMP "qt-packaged-check-$scale.json"
           $process = Start-Process -FilePath dist/COVEXLabelManager_Visual_Qt/COVEXLabelManager_Visual_Qt.exe -ArgumentList @('--self-check', $result) -Wait -PassThru
           if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { throw 'Packaged Qt check failed' }
           $check = Get-Content $result -Raw | ConvertFrom-Json
-          if (!$check.ok -or $check.count -lt 22) { throw 'Qt interaction check incomplete' }
-          Copy-Item $result test-results/qt-packaged.json
+          if (!$check.ok -or $check.count -lt 41) { throw 'Qt interaction check incomplete' }
+          Copy-Item $result "test-results/qt-packaged-$scale.json"
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
       - name: Archive proof separately from production
         shell: pwsh
         run: |

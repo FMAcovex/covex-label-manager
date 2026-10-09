@@ -51,3 +51,23 @@ Estimación orientativa de ingeniería, no precio/compromiso: Biblioteca/navegac
 Recomiendo **PySide6 para la futura interfaz**, condicionado a aprobar esta dirección visual. Más adecuado para lienzo, paneles, atajos y adaptación profesional, reutilizando servicios/motor/SQLite. Aprobar Biblioteca/Editor primero; después delimitar R3A Qt y acceso a legacy hasta verificar el 100 %. No integrar PR #2 ni iniciar R3B/R3C ahora.
 
 Referencias oficiales consultadas 09/10/2026: [Qt deployment](https://doc.qt.io/qtforpython-6/deployment/index.html), [Qt/PyInstaller](https://doc.qt.io/qtforpython-6/deployment/deployment-pyinstaller.html), [PyInstaller hooks](https://pyinstaller.org/en/v6.16.0/hooks-config.html), [PySide6](https://pypi.org/project/PySide6/).
+
+
+## Revisión de usabilidad aprobable — octubre 2026
+
+La dirección visual y PySide6 están aprobados como objetivo de R3, condicionados a preservar todas las funciones. Esta revisión continúa siendo una prueba aislada en PR #3: no migra la aplicación ni autoriza su integración. PR #2 permanece sin integrar y main sin cambios. La matriz de 87 capacidades sigue siendo obligatoria, sin eliminar filas ni declarar funciones migradas por tener un botón informativo.
+
+- Biblioteca: tabla principal sin barra lateral permanente. Categoría, Origen y Estado visibles; siete filtros avanzados en panel plegable, con contador de filtros activos aun estando cerrado. Todas, Favoritas y Recientes permanecen a mano.
+- Código, Denominación, Versión y Estado siempre presentes, en ese orden. Denominación aprovecha el ancho libre. Extras adaptados al ancho real de la tabla y configurables en Columnas; la selección conserva identidad al ordenar. Inspector y ficha completa mantienen todos los metadatos, identificadores y referencias.
+- Pocos resultados: tabla de altura reducida y ayuda contextual para continuar con la selección. Búsqueda sin resultados desactiva acciones documentales y no conserva una selección falsa.
+- Inspector: Información, Versiones y Documentos. Abrir Editor, Favorita y accesos de emisión visibles. Panel ocultable y reabrible; compacto lo pliega automáticamente al entrar, sin bloquear su reapertura. Las acciones documentales avanzadas siguen claramente identificadas como no migradas.
+- PDF: proporciones conservadas en ajuste, rueda y botones de zoom. Ajustar vuelve al documento completo; 100 % indica el ajuste actual, no tamaño físico de impresión. Vista ampliada con ajuste y controles propios; al aumentar zoom se desplaza el documento deliberadamente, sin recortarlo ni alterar su geometría.
+- Editor: lienzo central predominante, herramientas contextuales avanzadas desplegables sin abandonar el documento y paneles ocultables mediante Paneles. Propiedades y elementos desplazan únicamente su contenido cuando la altura disponible lo exige. En ventanas bajas se compactan cabecera, títulos y controles. Texto fijo del PDF y propiedades temporales continúan siendo una demostración, no composición nativa ni guardado.
+
+### Verificación de resolución y escala
+
+Se ejecutan comprobaciones reales sobre Qt Widgets y nuevamente sobre el EXE en Windows Server 2022 con QT_SCALE_FACTOR 1, 1.25 y 1.5. Se verifican ventanas equivalentes a 1920×1080 y 1366×768, descontando un margen de marco, presencia de columnas prioritarias, proporciones, documento completo al ajustar, paneles, metadatos configurables y no modificación de plantillas.
+
+Estos factores ejercitan el escalado de Qt en Windows CI. **No equivalen a cambiar la configuración nativa de pantalla de Windows a 100/125/150 %**, ni prueban cambio entre monitores, escalado mixto o aceptación en Windows 10/11 de COVEX. Esas pruebas reales siguen pendientes antes de aceptar R3A Qt funcional. Las capturas son QWidget.grab de ventanas ejecutadas, no imágenes generadas ni montajes.
+
+Secuencia siguiente: validación visual de esta revisión; después rama y PR propias para R3A Qt funcional, reutilizando lo útil de PR #2 y #3 y verificando la matriz de 87 capacidades. R3B/R3C no iniciadas. Motor PDF, SQLite, servicios, configuraciones, datos reales e historial permanecen intactos.
