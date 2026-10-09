@@ -198,7 +198,7 @@ class FunctionalWindow(StudioWindow):
         # Existing full tools stay real in the companion application, not a fake Qt catalog.
         for child in self.editor_advanced.findChildren(QPushButton):
             if child.text() in ('Reajuste y escalado','Recorte y anclaje Word','Seguridad y límites'):
-                child.setText({'Reajuste y escalado':'Reajuste y escalado','Recorte y anclaje Word':'Recorte y anclaje','Seguridad y límites':'Seguridad y límites'}[child.text()]);child.setToolTip('Abrir ajuste avanzado completo en la versión anterior.');child.clicked.disconnect();child.clicked.connect(lambda:self.open_legacy('editor'))
+                child.setText({'Reajuste y escalado':'Reajuste y escalado','Recorte y anclaje Word':'Recorte y anclaje','Seguridad y límites':'Seguridad y límites'}[child.text()]);child.setToolTip('Abrir ajuste avanzado completo en la versión anterior.');child.clicked.disconnect();target='centro' if child.text()=='Seguridad y límites' else 'editor';child.clicked.connect(lambda checked=False,t=target:self.open_legacy(t))
         for note in self.editor_advanced.findChildren(QLabel):
             if 'Accesos previstos' in note.text():note.setText('Herramientas en la versión anterior:')
             elif 'Herramientas no migradas' in note.text():note.setText('Abren una ventana de la versión anterior.')

@@ -73,6 +73,7 @@ jobs:
         shell: pwsh
         run: |
           Copy-Item docs/R3A_QT_PLAN.md dist/COVEXLabelManager_Qt/LEEME.md
+          Copy-Item scripts/PROBAR_DEMO_QT.bat dist/COVEXLabelManager_Qt/
           Copy-Item docs/FUNCTIONAL_PRESERVATION_MATRIX.md dist/COVEXLabelManager_Qt/
           Compress-Archive -Path dist/COVEXLabelManager_Qt -DestinationPath COVEXLabelManager_Qt.zip
           Get-FileHash COVEXLabelManager_Qt.zip -Algorithm SHA256 | Format-List | Out-File test-results/qt-ZIP_SHA256.txt

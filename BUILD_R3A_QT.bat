@@ -14,3 +14,4 @@ if errorlevel 1 exit /b 1
 .venv-qt\Scripts\python -m PyInstaller --noconfirm --clean --onedir --windowed --name COVEXLabelManager_Legacy --add-data "resources;resources" --exclude-module PySide6 legacy_qt_bridge.py
 if errorlevel 1 exit /b 1
 xcopy /E /I /Y dist\COVEXLabelManager_Legacy dist\COVEXLabelManager_Qt\legacy
+copy scripts\PROBAR_DEMO_QT.bat dist\COVEXLabelManager_Qt\

@@ -9,7 +9,7 @@ Base: main 0.3.1. Rama feature/r3a-qt-functional. No integrar sin autorización.
 
 ## Ejecutar y actualizar
 
-En fuentes: INICIAR_R3A_QT.bat, opcional --demo para datos ficticios. En portable experimental: extraer carpeta completa y abrir COVEXLabelManager_Qt.exe --demo. Para revisar datos existentes use una COPIA completa de data con aplicación cerrada y establezca COVEX_LABEL_DATA a esa copia antes de arrancar; no copiar originales al repositorio. Puede usar --data-dir en Qt. Los modos --capture/--self-check ignoran datos reales y generan una sesión ficticia desechable.
+En fuentes: INICIAR_R3A_QT.bat, opcional --demo para datos ficticios. En portable experimental: extraer carpeta completa y hacer doble clic en PROBAR_DEMO_QT.bat (no carga datos reales). Para revisar datos existentes use una COPIA completa de data con aplicación cerrada y establezca COVEX_LABEL_DATA a esa copia antes de arrancar; no copiar originales al repositorio. Puede usar --data-dir en Qt. Los modos --capture/--self-check ignoran datos reales y generan una sesión ficticia desechable.
 
 La carpeta legacy es obligatoria para herramientas no migradas. No abrir otra instancia de la aplicación distribuida simultáneamente sobre los mismos datos. Cierre el compañero para volver a editar Qt. La ventana anterior conserva su formulario de emisión al navegar; cambiar de revisión descarta la configuración específica previa para no heredar datos de otro producto. Esto no equivale a guardar o recuperar un trabajo tras cerrar la aplicación.
 

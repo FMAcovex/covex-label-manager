@@ -85,7 +85,7 @@ def run_legacy(target,version_id=None,mode='production',smoke_report=None):
             try:
                 before=len(api.issues());app.emit_count.set('1');app.emit_copies.set(1)
                 for key,var in app.formvars.items():
-                    if key not in ('numero','texto_fijo'):var.set('DEMO')
+                    if key not in ('numero','texto_fijo'):var.set({'pn':'0,350','pb':'0,500'}.get(key,'DEMO'))
                 entered=app._emit_values();app.show('historial');app.show('emitir')
                 assert app._emit_values()==entered,'Emission work was rebuilt'
                 output=api.output_path('cache','fictional-bridge-test.pdf')
