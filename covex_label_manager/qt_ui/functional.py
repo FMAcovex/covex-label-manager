@@ -215,6 +215,8 @@ class FunctionalWindow(StudioWindow):
     def open_editor(self):
         if not self.row:return
         vid=self.row['version_id']
+        try:self.api.open_document(vid)
+        except (ValueError,OSError) as ex:QMessageBox.warning(self,'Documento no disponible',str(ex));return
         if self.current_editor_id!=vid:
             if not self.resolve_work():return
             self.layouts.pop(vid,None);self.original_fields.pop(vid,None)
@@ -247,7 +249,7 @@ class FunctionalWindow(StudioWindow):
             for f in self.fields:
                 if f['x']<0 or f['y']<0 or f['w']<=0 or f['h']<=0 or f['x']+f['w']>1.00001 or f['y']+f['h']>1.00001:raise ValueError('Campo fuera de límites.')
             self.api.replace_pending_fields(self.current_editor_id,self.fields)
-            self.original_fields[self.current_editor_id]=copy.deepcopy(self.fields);self.update_dirty();self.refresh();return True
+            self.editor_version=dict(self.api.version(self.current_editor_id));self.original_fields[self.current_editor_id]=copy.deepcopy(self.fields);self.update_dirty();self.refresh();return True
         except (ValueError,PermissionError,OSError) as ex:QMessageBox.warning(self,'No guardado',str(ex));return False
     def resolve_work(self):
         if not self.dirty:return True

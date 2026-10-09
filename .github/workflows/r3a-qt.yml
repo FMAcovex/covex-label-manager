@@ -61,7 +61,8 @@ jobs:
           $env:QT_SCALE_FACTOR = $scale
           $result = Join-Path $env:RUNNER_TEMP "qt-packaged-check-$scale.json"
           $process = Start-Process -FilePath dist/COVEXLabelManager_Qt/COVEXLabelManager_Qt.exe -ArgumentList @('--self-check', $result, '--verify-bridge') -Wait -PassThru
-          if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { throw 'Packaged Qt check failed' }
+          if (Test-Path $result) { Copy-Item $result "test-results/qt-packaged-$scale.json" }
+          if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { if (Test-Path $result) { Get-Content $result }; throw 'Packaged Qt check failed' }
           $check = Get-Content $result -Raw | ConvertFrom-Json
           if (!$check.ok -or $check.count -lt 35) { throw 'Qt interaction check incomplete' }
           if (!$check.legacy_bridge.ok) { throw 'Legacy bridge not verified' }

@@ -42,7 +42,9 @@ def main():
                     if a.self_check:a.self_check.parent.mkdir(parents=True,exist_ok=True);a.self_check.write_text(json.dumps(result,indent=2),encoding='utf-8')
                 except Exception:
                     import traceback
-                    traceback.print_exc();app.exit(1);return
+                    traceback.print_exc()
+                    if a.self_check:a.self_check.parent.mkdir(parents=True,exist_ok=True);a.self_check.write_text(json.dumps({'ok':False,'error':traceback.format_exc()}),encoding='utf-8')
+                    app.exit(1);return
                 app.exit(0)
             QTimer.singleShot(250,verify)
         return app.exec()

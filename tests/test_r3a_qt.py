@@ -113,3 +113,28 @@ def test_missing_metadata_is_not_invented(studio):
     vid=s.services.import_label(source,dict(name='No deduced metadata',version='00'))
     row=next(r for r in s.services.library.entries() if r['version_id']==vid)
     assert not row.get('country') and not row.get('language') and not row.get('product')
+
+
+def test_native_add_remove_and_identifiers(studio,monkeypatch):
+    from PySide6.QtWidgets import QInputDialog
+    w,s,app=studio;w.open_editor();before=len(w.fields)
+    monkeypatch.setattr(QInputDialog,'getText',lambda *a,**k:('fictional_new_key',True))
+    w.add_field();assert len(w.fields)==before+1 and w.dirty
+    assert w.save_work()
+    w.field_list.setCurrentRow(before)
+    monkeypatch.setattr(QMessageBox,'question',lambda *a,**k:QMessageBox.StandardButton.Yes)
+    w.remove_field();assert len(w.fields)==before and w.save_work()
+
+def test_approval_dialog_cancel_does_not_approve(studio,monkeypatch):
+    w,s,app=studio;vid=w.row['version_id']
+    monkeypatch.setattr(w,'ask_form',lambda *a,**k:{'reviewer':'Demo reviewer','evidence':'Fictional approval reference'})
+    monkeypatch.setattr(QMessageBox,'question',lambda *a,**k:QMessageBox.StandardButton.No)
+    w.approve_revision();assert s.services.version(vid)['state']=='PENDING'
+
+def test_guarded_ui_approval_and_clone(studio,monkeypatch):
+    w,s,app=studio;vid=w.row['version_id']
+    monkeypatch.setattr(w,'ask_form',lambda *a,**k:{'reviewer':'Demo reviewer','evidence':'Fictional approval reference'})
+    monkeypatch.setattr(QMessageBox,'question',lambda *a,**k:QMessageBox.StandardButton.Yes)
+    w.approve_revision();assert s.services.version(vid)['state']=='APPROVED'
+    monkeypatch.setattr(w,'ask_form',lambda *a,**k:{'version':'fictional-R1','notes':'Fictional clone review'})
+    w.clone_revision();assert w.row['version']=='fictional-R1' and w.row['state']=='PENDING'
