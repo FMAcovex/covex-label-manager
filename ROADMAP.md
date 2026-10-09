@@ -101,3 +101,17 @@ En cada revisión: actualizar fecha/versión, función y alcance real, pruebas/e
 ## Política de publicación y desarrollo oficial
 
 Solo código, pruebas sintéticas y documentación técnica. No maestros, etiquetas reales, catálogo, emisiones, bases, capturas reales ni historial que contenga esos documentos. 00-R1 sigue PENDING hasta aprobación documental local; un tag/PR/build no la aprueba. Una instalación nueva tiene biblioteca vacía. Todas las revisiones posteriores se realizan en ramas y PR, con pruebas y revisión antes de integrar en main. R3 no iniciado.
+
+
+## Secuencia aprobada para R3 — revisión 09/10/2026
+
+Repositorio privado operativo: FMAcovex/covex-label-manager; main conserva 0.3.1. Toda revisión se desarrolla en rama y PR, sin commits directos ni integración sin autorización.
+
+| Etapa | Decisión | Estado verificado |
+|---|---|---|
+| R3A Qt | Aprobados Industrial Moderno/Biblioteca y PySide6; conservar 87 capacidades | Rama independiente: Biblioteca funcional, navegación retenida, trabajo activo y acceso explícito a herramientas Tk. Pruebas y CI de rama; aceptación final e integración pendientes. No sustituye portable distribuido. |
+| R3B | Aprobada como siguiente fase del plan | Pendiente; no iniciada. Diseño/alcance se validarán antes de ampliar editor, sincronización o recuperación. |
+| R3C | Aprobada como fase posterior | Pendiente; no iniciada. No se amplía el centro de emisión ahora. |
+| R2.5 | Comparador visual/superposición/diferencias | Pendiente; no descartado. Comparación básica continúa en versión anterior. |
+
+PR #2 Tk y #3 prueba Qt siguen abiertas y sin integrar. Se reutilizan el criterio de vistas retenidas y la composición visual; se descartan la reconstrucción de pantallas al navegar, los datos ficticios como persistencia de producción y botones que simulen módulos migrados. La prueba ficticia sigue disponible exclusivamente por modo demo/verificación. Integraciones, R4/R5 y ampliaciones R3B/R3C no se desarrollan en esta rama.

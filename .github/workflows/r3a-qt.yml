@@ -1,0 +1,90 @@
+name: R3A Qt functional transition
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'covex_label_manager/qt*'
+      - 'covex_label_manager/qt_ui/**'
+      - 'tests/test_r3a_qt.py'
+      - 'requirements-qt*'
+      - 'legacy_qt_bridge.py'
+      - 'main_qt.py'
+      - '*R3A_QT.bat'
+      - '.github/workflows/r3a-qt.yml'
+      - 'docs/R3A_QT_PLAN.md'
+      - 'docs/FUNCTIONAL_PRESERVATION_MATRIX.md'
+permissions:
+  contents: read
+jobs:
+  visual-proof:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11.9'
+          architecture: x64
+      - run: python scripts/check_repository_content.py
+      - run: >-
+          python -m pip install --require-hashes --only-binary=:all:
+          -r requirements-windows.lock -r requirements-qt-windows.lock
+      - run: python -m pip check
+      - run: python -m pytest -q --junitxml=test-results/core.xml
+      - name: Interact with real Qt widgets and capture fictional windows
+        shell: pwsh
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            python main_qt.py --capture "test-results/scale-$scale" --self-check "test-results/qt-source-$scale.json"
+            if ($LASTEXITCODE -ne 0) { throw "Qt source check failed at $scale" }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
+      - run: python scripts/check_build_destination.py dist/COVEXLabelManager_Qt
+      - run: >-
+          python -m PyInstaller --noconfirm --clean --onedir --windowed
+          --name COVEXLabelManager_Qt --exclude-module tkinter
+          --add-data "covex_label_manager/qt_ui/chevron.svg;covex_label_manager/qt_ui"
+          --exclude-module PySide6.QtQml --exclude-module PySide6.QtQuick --add-data "resources;resources" main_qt.py
+      - run: python scripts/check_build_destination.py dist/COVEXLabelManager_Legacy
+      - run: >-
+          python -m PyInstaller --noconfirm --clean --onedir --windowed
+          --name COVEXLabelManager_Legacy --add-data "resources;resources"
+          --exclude-module PySide6 legacy_qt_bridge.py
+      - run: Copy-Item dist/COVEXLabelManager_Legacy dist/COVEXLabelManager_Qt/legacy -Recurse
+      - name: Check packaged Qt UI and existing services
+        shell: pwsh
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+          $env:QT_SCALE_FACTOR = $scale
+          $result = Join-Path $env:RUNNER_TEMP "qt-packaged-check-$scale.json"
+          $process = Start-Process -FilePath dist/COVEXLabelManager_Qt/COVEXLabelManager_Qt.exe -ArgumentList @('--self-check', $result, '--verify-bridge') -Wait -PassThru
+          if (Test-Path $result) { Copy-Item $result "test-results/qt-packaged-$scale.json" }
+          if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { if (Test-Path $result) { Get-Content $result }; throw 'Packaged Qt check failed' }
+          $check = Get-Content $result -Raw | ConvertFrom-Json
+          if (!$check.ok -or $check.count -lt 48) { throw 'Qt interaction check incomplete' }
+          if (!$check.legacy_bridge.ok) { throw 'Legacy bridge not verified' }
+          Copy-Item $result "test-results/qt-packaged-$scale.json"
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
+      - name: Archive proof separately from production
+        shell: pwsh
+        run: |
+          Copy-Item docs/R3A_QT_PLAN.md dist/COVEXLabelManager_Qt/LEEME.md
+          Copy-Item scripts/PROBAR_DEMO_QT.bat dist/COVEXLabelManager_Qt/
+          Copy-Item docs/FUNCTIONAL_PRESERVATION_MATRIX.md dist/COVEXLabelManager_Qt/
+          Compress-Archive -Path dist/COVEXLabelManager_Qt -DestinationPath COVEXLabelManager_Qt.zip
+          Get-FileHash COVEXLabelManager_Qt.zip -Algorithm SHA256 | Format-List | Out-File test-results/qt-ZIP_SHA256.txt
+          Get-ChildItem dist/COVEXLabelManager_Qt -Recurse -File | Measure-Object -Property Length -Sum | Format-List | Out-File test-results/qt-package-size.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: R3A-Qt-Transition-${{ github.sha }}
+          path: |
+            COVEXLabelManager_Qt.zip
+            test-results/
+          retention-days: 14
+          if-no-files-found: error
+
