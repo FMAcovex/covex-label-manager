@@ -161,12 +161,14 @@ class StudioProof(QMainWindow):
         outer_il.addWidget(scroll,1);il=vbox(details,0,10);il.addWidget(label('DISEÑO SELECCIONADO','section'))
         self.doc_title=label('','panelTitle');self.doc_title.setWordWrap(True);il.addWidget(self.doc_title)
         self.badge=label('','badge');il.addWidget(self.badge,0,Qt.AlignmentFlag.AlignLeft)
-        self.preview=Preview();self.preview.setMinimumHeight(185);self.preview.setMaximumHeight(225);il.addWidget(self.preview)
+        self.preview=Preview();self.preview.setMinimumHeight(140);self.preview.setMaximumHeight(180);il.addWidget(self.preview)
         il.addWidget(button('Ampliar vista previa',self.enlarge,ico='expand'))
         self.meta=label('');self.meta.setWordWrap(True);self.meta.setTextFormat(Qt.TextFormat.PlainText);il.addWidget(self.meta)
-        il.addWidget(label('REVISIÓN DOCUMENTAL','section'))
+        revision_label=label('REVISIÓN DOCUMENTAL','section');il.addWidget(revision_label)
         self.revision=QComboBox();self.revision.currentIndexChanged.connect(self.revision_changed);il.addWidget(self.revision)
         self.doc_note=label('','subtle');self.doc_note.setWordWrap(True);il.addWidget(self.doc_note);il.addStretch()
+        # Revision/state remain visible before scrollable document details.
+        il.insertWidget(3,revision_label);il.insertWidget(4,self.revision)
         il=outer_il
         self.favorite_button=button('Añadir a favoritas',self.favorite,ico='star');il.addWidget(self.favorite_button)
         il.addWidget(button('Abrir en Editor',self.open_editor,'primary','arrow'))
