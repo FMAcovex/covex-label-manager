@@ -149,3 +149,13 @@ def test_compact_auto_fold_does_not_forget_manual_preference(studio):
     assert w.advanced.isHidden()
     w.save_filter_preference()
     assert s.services.filter_preferences()==(True,True)
+
+
+def test_enter_opens_only_from_table_not_search(studio):
+    from PySide6.QtCore import Qt
+    from PySide6.QtTest import QTest
+    w,s,app=studio
+    w.search.setFocus();app.processEvents();QTest.keyClick(w.search,Qt.Key.Key_Return);app.processEvents()
+    assert w.stack.currentWidget() is w.library
+    w.table.setFocus();app.processEvents();QTest.keyClick(w.table,Qt.Key.Key_Return);app.processEvents()
+    assert w.stack.currentWidget() is w.editor

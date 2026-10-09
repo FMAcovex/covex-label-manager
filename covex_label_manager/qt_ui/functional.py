@@ -22,7 +22,7 @@ class FunctionalWindow(StudioWindow):
         self.statusBar().showMessage('Biblioteca Qt funcional · Ajuste avanzado completo e impresión disponibles en la versión anterior')
         remember,expanded=self.api.filter_preferences();self.remember_filters.blockSignals(True);self.remember_filters.setChecked(remember);self.remember_filters.blockSignals(False)
         self.advanced.setVisible(expanded);self.advanced_button.setChecked(expanded);self._filter_expanded_preference=expanded
-        self.table_shortcut=QShortcut(QKeySequence('Return'),self.table)
+        self.table_shortcut=QShortcut(QKeySequence('Return'),self.table);self.table_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         self.table_shortcut.activated.connect(self.open_editor)
         self.legacy_timer=QTimer(self);self.legacy_timer.timeout.connect(self.poll_legacy);self.legacy_timer.start(500)
         self.poll_timer=QTimer(self);self.poll_timer.timeout.connect(self.recheck_actions);self.poll_timer.start(1500)
