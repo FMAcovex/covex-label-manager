@@ -305,7 +305,7 @@ class StudioWindow(QMainWindow):
         if self.row:self.api.library.favorite(self.row);self.refresh()
     def enlarge(self):
         if not self.row:return
-        dialog=QDialog(self);dialog.setWindowTitle('Vista ampliada · Documento ficticio');dialog.resize(1000,740)
+        dialog=QDialog(self);dialog.setWindowTitle('Vista ampliada del documento');dialog.resize(1000,740)
         lay=vbox(dialog);lay.addWidget(label(self.row['name'],'panelTitle'))
         view=Preview();view.set_image(self.api.thumbnail(self.api.version(self.row['version_id']),width_px=1800))
         lay.addWidget(view,1);controls=QHBoxLayout()
@@ -325,7 +325,7 @@ class StudioWindow(QMainWindow):
         menu.exec(self.cursor().pos())
     def document_details(self):
         if not self.row:return
-        dialog=QDialog(self);dialog.setWindowTitle('Ficha documental · Datos ficticios');dialog.resize(680,540)
+        dialog=QDialog(self);dialog.setWindowTitle('Ficha documental');dialog.resize(680,540)
         lay=vbox(dialog);lay.addWidget(label(self.row['name'],'panelTitle'))
         text='\n'.join(f'{key}: {value}' for key,value in self.row.items() if value is not None)
         info=QLabel(text);info.setWordWrap(True);info.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -370,12 +370,12 @@ class StudioWindow(QMainWindow):
                 elif event.oldSize().width()<1100:self.tools_scroll.show()
                 self.editor_advanced_button.setText('Avanzadas' if compact else 'Ajuste avanzado')
                 self.editor_fit_button.setText('Ajustar' if compact else 'Ajustar a pantalla')
-                self.editor_reset_button.setText('Restablecer' if compact else 'Restablecer ejemplo')
+                self.editor_reset_button.setText('Restablecer' if compact else 'Restablecer campos')
             QTimer.singleShot(0,self.adapt_columns)
     def build_catalog(self):
         page=QWidget();lay=vbox(page,32);self.catalog_title=label('Funciones actuales','title');lay.addWidget(self.catalog_title)
         self.catalog_text=label('');self.catalog_text.setWordWrap(True);lay.addWidget(self.catalog_text)
-        info=label('Conservación obligatoria\n\n• Maestros, revisiones, variantes y aprobación documental externa\n• Importación PDF / Word / carpeta, metadatos y catálogo CM\n• Campos, recorte, anclaje Word, reajuste avanzado y espacio de estado\n• Emisión A4, numeración, pesos/lotes por envase y etiquetas de estado\n• Seguridad y preflight, perfiles, calibración y reimpresión controlada\n• Historial, integridad, auditoría local, configuraciones y backups\n\nLa prueba no emite, importa ni aprueba documentos de producción.','panelTitle')
+        info=label('Conservación obligatoria\n\n• Maestros, revisiones, variantes y aprobación documental externa\n• Importación PDF / Word / carpeta, metadatos y catálogo CM\n• Campos, recorte, anclaje Word, reajuste avanzado y espacio de estado\n• Emisión A4, numeración, pesos/lotes por envase y etiquetas de estado\n• Seguridad y preflight, perfiles, calibración y reimpresión controlada\n• Historial, integridad, auditoría local, configuraciones y backups\n\nEstas funciones se conservan en la aplicación durante la transición.','panelTitle')
         info.setWordWrap(True);lay.addWidget(info);lay.addWidget(button('Volver a Biblioteca',lambda:self.navigate('library')));lay.addStretch()
         return page
 
@@ -390,7 +390,7 @@ class StudioWindow(QMainWindow):
         self.canvas_zoom_label=label('100%','subtle');tl.addWidget(self.canvas_zoom_label)
         tl.addStretch();self.editor_advanced_button=button('Herramientas avanzadas',self.toggle_editor_advanced,ico='settings')
         self.editor_advanced_button.setCheckable(True);tl.addWidget(self.editor_advanced_button)
-        self.editor_reset_button=button('Restablecer ejemplo',self.reset_layout);tl.addWidget(self.editor_reset_button);lay.addWidget(toolbar)
+        self.editor_reset_button=button('Restablecer campos',self.reset_layout);tl.addWidget(self.editor_reset_button);lay.addWidget(toolbar)
         split=QSplitter();split.setHandleWidth(14)
         tools=box();self.editor_tools=tools;tools.setMinimumWidth(170);tools.setMaximumWidth(230);ll=vbox(tools,16)
         ll.addWidget(label('ELEMENTOS','section'));ll.addWidget(label('Campos variables','panelTitle'))

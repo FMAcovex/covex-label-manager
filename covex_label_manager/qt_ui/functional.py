@@ -37,7 +37,8 @@ class FunctionalWindow(StudioWindow):
             if widget.text() in replacements:
                 widget.clicked.disconnect();widget.clicked.connect(replacements[widget.text()])
         self.active_filter_text=label('','subtle');page.layout().insertWidget(3,self.active_filter_text)
-        self.remember_filters=QCheckBox('Recordar panel abierto/cerrado')
+        self.remember_filters=QCheckBox('Recordar apertura')
+        self.remember_filters.setToolTip('Recordar si los filtros avanzados estaban abiertos o cerrados entre inicios.')
         self.remember_filters.toggled.connect(self.remember_filter_choice)
         self.advanced.layout().insertWidget(1,self.remember_filters)
         self.prepare_button=button('Preparar emisión',lambda:self.open_legacy('emitir'),'primary','print')
@@ -227,7 +228,7 @@ class FunctionalWindow(StudioWindow):
     def select_field(self,index):
         super().select_field(index)
         if hasattr(self,'key_input') and 0<=index<len(self.fields):
-            self.key_input.setText(self.fields[index]['key']);self.key_input.setEnabled(self.editor_version['state']=='PENDING')
+            self.key_input.setText(self.fields[index]['key']);self.key_input.setEnabled(self.editor_version['state']=='PENDING');self.update_dirty()
     def change_key(self,value):
         index=self.field_list.currentRow()
         if not self.loading and index>=0:self.fields[index]['key']=value;self.update_dirty()
