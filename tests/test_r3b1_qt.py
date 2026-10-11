@@ -191,7 +191,9 @@ def test_representative_payloads_after_layout_changes(studio,operation,physical_
     render_emission(version,s.services._repository.root,values,profile,[1,12345],12345,1,path,test_mode=True,
                     per_container={'12345':dict(pn='0,3558',pb='0,4558',cantidad='99999,999')})
     with fitz.open(path) as pdf:
-        text=' '.join(p.get_text() for p in pdf)
+        # Arial's PDF Unicode map extracts its hyphen glyph as U+00AD on Windows.
+        # Normalize this representation only; do not discard or shorten payload text.
+        text=' '.join(p.get_text() for p in pdf).replace('\u00ad','-')
         for value in [values['lote'],values['pn'],values['pb'],values['cantidad'],'12345/12345','0,3558','99999,999']:
             assert value in text
         assert 'PRUEBA' in text
