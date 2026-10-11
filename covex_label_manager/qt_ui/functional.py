@@ -10,7 +10,7 @@ from .window import StudioWindow,STATE,FILTERS,label,button,vbox
 from ..contracts import METADATA_FIELDS
 from ..qt_legacy import launch_legacy
 
-class FunctionalWindow(StudioWindow):
+class BaseFunctionalWindow(StudioWindow):
     def __init__(self,session):
         self.legacy_process=None;self.demo=getattr(session,'fictional',False)
         self.original_fields={};self.dirty=False;self._initializing=True;self._filter_expanded_preference=None
@@ -282,4 +282,11 @@ class FunctionalWindow(StudioWindow):
             QMessageBox.information(self,'Trabajo activo','Cierre la versión anterior antes de cerrar Qt.');event.ignore();return
         if not self.resolve_work():event.ignore();return
         self.save_filter_preference();event.accept()
+
+
+from .advanced_editor import AdvancedEditorMixin
+
+
+class FunctionalWindow(AdvancedEditorMixin, BaseFunctionalWindow):
+    """R3B1 tools on the approved R3A library and legacy transition controller."""
 

@@ -1,0 +1,578 @@
+"""R3B1 pending-layout tools, preserving the Industrial Moderno shell."""
+import copy
+import json
+from PySide6.QtCore import Qt, QRectF, QTimer
+from PySide6.QtGui import QColor, QPen, QBrush, QKeySequence, QShortcut
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QDialog,
+    QDialogButtonBox, QDoubleSpinBox, QCheckBox, QComboBox, QLineEdit, QListWidget,
+    QAbstractItemView, QMessageBox, QGraphicsRectItem, QGraphicsItem, QPushButton, QLabel,
+    QSplitter)
+from .window import Preview, pixmap, label, button, vbox
+from ..editor_layout import (LayoutHistory, layout_from_version, version_with_layout,
+    validate_layout, recrop, move_field, align_fields, scale_fields, anchor_field,
+    relocate_anchors, source_identity, check_locked_changes, MM_PER_POINT)
+
+
+def spin(value, maximum=10000, suffix=' mm', minimum=0):
+    result = QDoubleSpinBox(); result.setDecimals(3); result.setRange(minimum, maximum)
+    result.setSuffix(suffix); result.setValue(value)
+    return result
+
+
+class RectangleView(Preview):
+    def __init__(self, image, bounds, changed):
+        super().__init__(); self.set_image(image); self.bounds = bounds; self.changed = changed
+        self.iw, self.ih = image.size; self.start = None; self.outline = None
+        self.setDragMode(Preview.DragMode.NoDrag)
+
+    def point(self, event):
+        p = self.mapToScene(event.position().toPoint()); b = self.bounds
+        return (b[0]+max(0, min(p.x(), self.iw))/self.iw*(b[2]-b[0]),
+                b[1]+max(0, min(p.y(), self.ih))/self.ih*(b[3]-b[1]))
+
+    def paint_rect(self, rect):
+        b = self.bounds; x0,y0,x1,y1 = rect
+        if self.outline: self.scene().removeItem(self.outline)
+        self.outline = self.scene().addRect(QRectF((x0-b[0])*self.iw/(b[2]-b[0]),
+            (y0-b[1])*self.ih/(b[3]-b[1]), (x1-x0)*self.iw/(b[2]-b[0]),
+            (y1-y0)*self.ih/(b[3]-b[1])), QPen(QColor('#147D71'), 2), QBrush(QColor(20,125,113,25)))
+        self.outline.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton: self.start = self.point(event); event.accept()
+        else: super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self.start:
+            x,y = self.point(event); a,b = self.start
+            self.changed([min(x,a),min(y,b),max(x,a),max(y,b)])
+            event.accept()
+        else: super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if self.start:
+            self.mouseMoveEvent(event); self.start = None; event.accept()
+        else: super().mouseReleaseEvent(event)
+
+
+class RectangleDialog(QDialog):
+    def __init__(self, parent, title, image, bounds, rect, min_side=0):
+        super().__init__(parent); self.setWindowTitle(title); self.resize(920,650)
+        self.bounds = bounds; self.min_side = min_side; self.busy = False
+        layout = vbox(self); layout.addWidget(label(title,'panelTitle'))
+        layout.addWidget(label('Arrastra sobre el documento o introduce límites en mm. La fuente permanece intacta.','subtle'))
+        body = QHBoxLayout(); self.view = RectangleView(image,bounds,self.from_drag); body.addWidget(self.view,1)
+        panel = QWidget(); pl = vbox(panel,8); form = QFormLayout(); self.inputs=[]
+        for name, value in zip(('Izquierda','Superior','Derecha','Inferior'),rect):
+            entry = spin(value*MM_PER_POINT); entry.valueChanged.connect(self.from_form)
+            form.addRow(name,entry); self.inputs.append(entry)
+        pl.addLayout(form); self.error = label('','subtle'); pl.addWidget(self.error); pl.addStretch()
+        body.addWidget(panel); layout.addLayout(body,1)
+        self.extra = QVBoxLayout(); layout.addLayout(self.extra)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept_valid); buttons.rejected.connect(self.reject); layout.addWidget(buttons)
+        self.from_form()
+
+    def from_drag(self, rect):
+        self.busy = True
+        for entry,value in zip(self.inputs,rect): entry.setValue(value*MM_PER_POINT)
+        self.busy = False; self.from_form()
+
+    def from_form(self):
+        if self.busy: return
+        self.rect = [s.value()/MM_PER_POINT for s in self.inputs]
+        self.view.paint_rect(self.rect)
+        self.error.setText(f'Tamaño seleccionado: {(self.rect[2]-self.rect[0])*MM_PER_POINT:.3f} × {(self.rect[3]-self.rect[1])*MM_PER_POINT:.3f} mm')
+
+    def accept_valid(self):
+        b = self.bounds; r = self.rect
+        if not (b[0] <= r[0] < r[2] <= b[2]+.001 and b[1] <= r[1] < r[3] <= b[3]+.001):
+            self.error.setText('Los límites deben estar dentro del documento.'); return
+        if min(r[2]-r[0],r[3]-r[1]) < self.min_side:
+            self.error.setText('El recorte necesita al menos 7,06 mm por lado.'); return
+        self.accept()
+
+
+class EditorFieldItem(QGraphicsRectItem):
+    def __init__(self, field, index, width, height, crop, editable, released):
+        self.index = index; self.field = copy.deepcopy(field); self.iw = width; self.ih = height
+        self.offset = -field['font_pt']*1.06*height/(crop[3]-crop[1]) if field.get('draw') in ('baseline','continuation') else 0
+        vh = max(field['h']*height, -self.offset*1.3) if self.offset else field['h']*height
+        super().__init__(0,0,field['w']*width,vh)
+        self.setPen(QPen(QColor('#147D71'),1.5,Qt.PenStyle.DashLine))
+        self.setBrush(QBrush(QColor(20,125,113,18)))
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable,editable and not field.get('locked'))
+        self.setPos(field['x']*width,field['y']*height+self.offset); self.released = released
+
+    def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event); self.released()
+
+
+class AdvancedEditorMixin:
+    def __init__(self, session):
+        self.design = None; self.expected_layout = None; self.output_profile = None
+        self._drawing = False; self._selection_sync = False
+        super().__init__(session)
+        self.setWindowTitle('COVEX Label Manager · R3B1 Qt · Editor avanzado')
+        for note in self.header.findChildren(QLabel):
+            if 'R3A Qt' in note.text(): note.setText('R3B1 Qt · Local')
+        self.statusBar().showMessage('Editor avanzado Qt · Emisión y otras secciones indicadas continúan en Tkinter')
+
+    def build_editor(self):
+        page = super().build_editor()
+        # Replace only the advanced tool contents, keeping the approved shell.
+        layout = self.editor_advanced.layout()
+        while layout.count():
+            item = layout.takeAt(0)
+            if item.widget(): item.widget().setParent(None)
+            elif item.layout():
+                while item.layout().count():
+                    child = item.layout().takeAt(0)
+                    if child.widget(): child.widget().setParent(None)
+        self.tool_sections = {}; self.design_buttons = []
+        def section(title):
+            toggle = QPushButton('▸ '+title); toggle.setCheckable(True)
+            content = QWidget(); cl = vbox(content,0,6); content.hide()
+            toggle.toggled.connect(lambda checked,c=content,t=toggle,n=title:(c.setVisible(checked),t.setText(('▾ ' if checked else '▸ ')+n)))
+            layout.addWidget(toggle); layout.addWidget(content); self.tool_sections[title]=(toggle,content)
+            return cl
+        def action(cl,text,callback):
+            b = button(text,callback); b.setToolTip(text); cl.addWidget(b); self.design_buttons.append(b); return b
+        doc = section('Documento')
+        action(doc,'Recorte visual / mm',self.edit_crop)
+        anchor_button=action(doc,'Anclar a referencia',self.edit_anchor); anchor_button.setToolTip('Anclar campo al texto extraído del PDF o Word convertido; sin editar el original.')
+        action(doc,'Relocalizar referencias',self.relocate)
+        fld = section('Campo')
+        action(fld,'Agregar campo',self.add_field); action(fld,'Quitar campo',self.remove_field)
+        fld.addWidget(self.required); fld.addWidget(self.locked)
+        self.draw_mode = QComboBox()
+        for name,key in [('Caja de texto','textbox'),('Línea base','baseline'),('Continuación','continuation'),('Párrafo','paragraph')]: self.draw_mode.addItem(name,key)
+        self.draw_mode.setToolTip('Modo de dibujo conservado por el motor PDF. Continuación requiere configuración de segunda línea.')
+        self.draw_mode.activated.connect(self.change_draw_mode); fld.addWidget(self.draw_mode)
+        action(fld,'Borrado y continuación',self.edit_auxiliary)
+        comp = section('Composición')
+        self.alignment = QComboBox()
+        for title,key in [('Izquierda','left'),('Centro horizontal','center_x'),('Derecha','right'),('Arriba','top'),('Centro vertical','center_y'),('Abajo','bottom'),('Distribuir horizontalmente','distribute_x'),('Distribuir verticalmente','distribute_y')]: self.alignment.addItem(title,key)
+        comp.addWidget(self.alignment); action(comp,'Aplicar a selección',self.align_selection)
+        action(comp,'Reajuste proporcional',self.edit_scale)
+        self.format_button = button('Formato físico y prueba',self.edit_output); self.format_button.setToolTip('Formato físico de salida y PDF de prueba mediante el motor existente'); comp.addWidget(self.format_button)
+        state = section('Estado y límites')
+        action(state,'Zona de estado visual / mm',self.edit_status_area)
+        state.addWidget(button('Seguridad de salida',self.edit_output))
+        state.addWidget(label('La emisión definitiva y el centro completo de impresión siguen en Tkinter.','subtle'))
+        legacy_button=button('Editor Tkinter',lambda:self.open_legacy('editor')); legacy_button.setToolTip('Abrir Editor de la versión anterior; misma revisión y carpeta de datos.'); state.addWidget(legacy_button)
+        self.field_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.field_list.itemSelectionChanged.connect(self.list_selection)
+        self.field_list.setToolTip('Ctrl: varios campos. Mayús: intervalo. Los campos bloqueados no se transforman.')
+        self.editor_tools.layout().setAlignment(Qt.AlignmentFlag.AlignTop)
+        for entry in self.spins.values(): entry.setDecimals(3)
+        self.font_size.setRange(3,80)
+        self.save_button.setText('Guardar diseño pendiente')
+        self.editor_reset_button.setText('Restablecer diseño')
+        self.editor_reset_button.setToolTip('Restablecer campos, recorte y zona de estado al diseño guardado; se puede deshacer.')
+        page.layout().itemAt(page.layout().count()-1).widget().setText('Fuente fija protegida · Diseño: guardado explícito · Sin autoguardado de trabajos ni sincronización de variables')
+        toolbar = page.layout().itemAt(1).widget().layout()
+        self.undo_button = button('Deshacer',self.undo_edit); self.redo_button = button('Rehacer',self.redo_edit)
+        toolbar.insertWidget(1,self.undo_button); toolbar.insertWidget(2,self.redo_button)
+        self.undo_shortcut = QShortcut(QKeySequence('Ctrl+Z'),page); self.undo_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.undo_shortcut.activated.connect(self.undo_edit)
+        self.redo_shortcut = QShortcut(QKeySequence('Ctrl+Shift+Z'),page); self.redo_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.redo_shortcut.activated.connect(self.redo_edit)
+        return page
+
+    def resizeEvent(self,event):
+        super().resizeEvent(event)
+        self.nav['emission'].setToolTip('Emisión · Acceso a la versión anterior Tkinter')
+        if hasattr(self,'editor_reset_button'):
+            self.editor_reset_button.setText('Restablecer' if event.size().width()<1200 else 'Restablecer diseño')
+
+    def editable(self):
+        if self.design is None or self.legacy_process: return False
+        v = self.api.version(self.current_editor_id)
+        return v is not None and v['state'] == 'PENDING'
+
+    def selected_indices(self):
+        return sorted({i.row() for i in self.field_list.selectedIndexes()})
+
+    def open_editor(self):
+        if not self.row: return
+        vid = self.row['version_id']
+        try: self.api.open_document(vid)
+        except (ValueError,OSError) as ex: QMessageBox.warning(self,'Documento no disponible',str(ex)); return
+        if vid != self.current_editor_id:
+            if not self.resolve_work(): return
+            self.current_editor_id = vid; self.editor_version = dict(self.api.version(vid))
+            self.expected_layout = layout_from_version(self.editor_version); self.design = LayoutHistory(self.expected_layout)
+            self.expected_source = source_identity(self.editor_version)
+            self.output_profile = None
+            self.sync_design(); self.api.library.opened(self.row); self.draw_editor(fit=True)
+        self.navigate('editor'); self.update_dirty()
+
+    def sync_design(self):
+        self.fields = self.design.state['fields']; self.layouts[self.current_editor_id] = self.fields
+        self.original_fields[self.current_editor_id] = copy.deepcopy(self.design.clean['fields'])
+        self.editor_version = version_with_layout(self.editor_version,self.design.state)
+
+    def draw_editor(self, fit=False):
+        if self.design is None: return
+        indices = self.selected_indices(); self._drawing = True; self.loading = True
+        self.sync_design(); v = self.editor_version
+        self.editor_title.setText(v['name']+'  /  '+v['version'])
+        self.editor_note.setText(('Diseño pendiente' if v['state']=='PENDING' else 'Revisión vigente o retirada · Solo lectura')+
+                                 f" · {v['base_w_mm']:.2f} × {v['base_h_mm']:.2f} mm de origen")
+        scene = self.canvas.scene(); scene.clear(); self.field_items=[]
+        try:
+            self.api.editor_page_rect(self.current_editor_id)
+            im = self.api.thumbnail(v,width_px=1500)
+        except (ValueError,OSError,RuntimeError) as ex:
+            scene.addText('Documento no disponible: '+str(ex)); self.field_list.clear()
+            self.loading=False; self._drawing=False; self.disable_properties(); self.update_dirty(); return
+        scene.addPixmap(pixmap(im)); self.image_w,self.image_h=im.size
+        area = self.design.state['area']
+        if area:
+            x,y,w,h = area
+            scene.addRect(QRectF(x*im.width,y*im.height,w*im.width,h*im.height),QPen(QColor('#AE5BC0'),2,Qt.PenStyle.DashLine))
+            text = scene.addText('RESERVA ESTADO'); text.setDefaultTextColor(QColor('#85369A')); text.setPos(x*im.width,y*im.height)
+            text.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        self.field_list.clear()
+        for i,f in enumerate(self.fields):
+            item = EditorFieldItem(f,i,im.width,im.height,self.design.state['crop'],self.editable(),self.drag_finished)
+            scene.addItem(item); self.field_items.append(item); self.field_list.addItem(f['label'])
+            text = scene.addText(f['key']); text.setDefaultTextColor(QColor('#147D71')); text.setParentItem(item); text.setPos(4,-3)
+            text.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        scene.setSceneRect(QRectF(-45,-45,im.width+90,im.height+90))
+        indices = [i for i in indices if i < len(self.fields)] or ([0] if self.fields else [])
+        for i in indices: self.field_list.item(i).setSelected(True); self.field_items[i].setSelected(True)
+        self.loading=False; self._drawing=False
+        if indices: self.select_field(indices[0])
+        else: self.disable_properties()
+        if fit: QTimer.singleShot(0,self.canvas.fit)
+        self.update_dirty()
+
+    def disable_properties(self):
+        for widget in [self.name_input,self.key_input,self.font_size,self.bold,self.required,self.locked,self.draw_mode,*self.spins.values()]: widget.setEnabled(False)
+        self.field_title.setText('Selecciona un campo')
+
+    def scene_selection(self):
+        if self.loading or self._selection_sync: return
+        selected = [x.index for x in self.canvas.scene().selectedItems() if isinstance(x,EditorFieldItem)]
+        self._selection_sync=True
+        self.field_list.blockSignals(True); self.field_list.clearSelection()
+        for i in selected: self.field_list.item(i).setSelected(True)
+        self.field_list.blockSignals(False); self._selection_sync=False
+        if selected: self.show_properties(min(selected))
+        else: self.disable_properties()
+
+    def list_selection(self):
+        if self.loading or self._selection_sync: return
+        self._selection_sync=True; selected=self.selected_indices()
+        for i,item in enumerate(self.field_items): item.setSelected(i in selected)
+        self._selection_sync=False
+        if selected: self.show_properties(selected[0])
+        else: self.disable_properties()
+
+    def select_field(self, index):
+        if self.loading or self.design is None or not 0 <= index < len(self.fields): return
+        if index not in self.selected_indices():
+            self.field_list.blockSignals(True); self.field_list.clearSelection(); self.field_list.item(index).setSelected(True); self.field_list.blockSignals(False)
+        self.list_selection(); self.show_properties(index)
+
+    def show_properties(self, index):
+        self.property_index=index; self.loading=True; f=self.fields[index]
+        self.field_title.setText(f['label']); self.name_input.setText(f['label']); self.key_input.setText(f['key'])
+        for key,entry in self.spins.items(): entry.setValue(f[key]*self.editor_version['base_w_mm' if key in ('x','w') else 'base_h_mm'])
+        self.font_size.setValue(f['font_pt']); self.bold.setChecked(f.get('bold',False))
+        self.required.setChecked(f.get('required',False)); self.locked.setChecked(f.get('locked',False))
+        self.draw_mode.setCurrentIndex(self.draw_mode.findData(f.get('draw','textbox')))
+        enabled=self.editable()
+        for widget in [self.name_input,self.key_input,self.font_size,self.bold,self.required,self.locked,self.draw_mode]: widget.setEnabled(enabled)
+        for entry in self.spins.values(): entry.setEnabled(enabled and not f.get('locked'))
+        self.loading=False
+
+    def command(self, title, candidate):
+        if not self.editable(): return False
+        try:
+            validate_layout(candidate,self.api.editor_page_rect(self.current_editor_id))
+            check_locked_changes(self.design.state,candidate)
+            changed=self.design.push(candidate,title)
+            if changed: self.draw_editor()
+            return changed
+        except (ValueError,PermissionError,OSError) as ex:
+            QMessageBox.warning(self,'Cambio no realizado',str(ex)); self.draw_editor(); return False
+
+    def apply_operation(self, title, operation):
+        if not self.editable(): return False
+        try: return self.command(title,operation())
+        except (ValueError,PermissionError,OSError) as ex:
+            QMessageBox.warning(self,'Cambio no realizado',str(ex)); return False
+
+    def change_geometry(self,*_):
+        if self.loading or not self.editable() or not hasattr(self,'property_index'): return
+        index=self.property_index; candidate=copy.deepcopy(self.design.state); f=candidate['fields'][index]
+        if f.get('locked'): return
+        x=self.spins['x'].value()/self.editor_version['base_w_mm']; y=self.spins['y'].value()/self.editor_version['base_h_mm']
+        move_field(f,x-f['x'],y-f['y'],candidate['crop'])
+        f['w']=self.spins['w'].value()/self.editor_version['base_w_mm']; f['h']=self.spins['h'].value()/self.editor_version['base_h_mm']
+        self.command('Geometría en mm',candidate)
+
+    def change_name(self,value):
+        if self.loading or not self.editable() or not hasattr(self,'property_index'): return
+        candidate=copy.deepcopy(self.design.state); candidate['fields'][self.property_index]['label']=value
+        self.command('Nombre del campo',candidate)
+
+    def change_key(self,value):
+        if self.loading or not self.editable() or not hasattr(self,'property_index'): return
+        candidate=copy.deepcopy(self.design.state); candidate['fields'][self.property_index]['key']=value
+        self.command('Identificador del campo',candidate)
+
+    def change_flags(self,*_):
+        if self.loading or not self.editable() or not hasattr(self,'property_index'): return
+        candidate=copy.deepcopy(self.design.state)
+        candidate['fields'][self.property_index].update(bold=self.bold.isChecked(),required=self.required.isChecked(),locked=self.locked.isChecked(),font_pt=self.font_size.value())
+        self.command('Propiedades de texto / bloqueo',candidate)
+
+    def change_draw_mode(self,*_):
+        if self.loading or not self.editable(): return
+        candidate=copy.deepcopy(self.design.state); f=candidate['fields'][self.property_index]
+        mode=self.draw_mode.currentData(); f['draw']=mode
+        if mode=='continuation': f.setdefault('second_x',f['x']); f.setdefault('next_w',f['w']); f.setdefault('max_lines',3)
+        self.command('Modo de dibujo',candidate)
+
+    def moved(self,index):
+        # Kept for callers of the R3A controller; graphical gestures commit on release.
+        self.drag_finished()
+
+    def drag_finished(self):
+        if not self.editable(): self.draw_editor(); return
+        candidate=copy.deepcopy(self.design.state)
+        for item in self.field_items:
+            f=candidate['fields'][item.index]
+            dx=item.pos().x()/self.image_w-f['x']; dy=(item.pos().y()-item.offset)/self.image_h-f['y']
+            if abs(dx)>1e-9 or abs(dy)>1e-9:
+                try: move_field(f,dx,dy,candidate['crop'])
+                except ValueError: self.draw_editor(); return
+        self.command('Mover selección',candidate)
+
+    def update_dirty(self):
+        if self._initializing or self.design is None: return
+        self.dirty=self.design.dirty; self.recheck_actions()
+        self.edit_status.setText('Cambios de diseño sin guardar.' if self.dirty else ('Diseño guardado. Sin autoguardado.' if self.editable() else 'Revisión vigente o retirada: solo lectura.'))
+
+    def recheck_actions(self):
+        super().recheck_actions()
+        if not hasattr(self,'undo_button'): return
+        enabled=self.editable()
+        self.undo_button.setEnabled(enabled and bool(self.design.undo_states)); self.redo_button.setEnabled(enabled and bool(self.design.redo_states))
+        for b in self.design_buttons: b.setEnabled(enabled)
+        if self.design:
+            current=self.api.version(self.current_editor_id); self.editor_version['state']=current['state']
+            if not enabled: self.disable_properties()
+
+    def undo_edit(self):
+        if self.editable(): self.design.undo(); self.draw_editor()
+
+    def redo_edit(self):
+        if self.editable(): self.design.redo(); self.draw_editor()
+
+    def reset_layout(self):
+        if self.design is None: return
+        self.command('Restablecer diseño guardado',copy.deepcopy(self.design.clean))
+
+    def save_work(self):
+        if not self.editable(): return False
+        try:
+            self.api.save_editor_layout(self.current_editor_id,self.design.state,self.expected_layout,self.expected_source)
+            self.expected_layout=copy.deepcopy(self.design.state); self.design.mark_clean()
+            self.editor_version=dict(self.api.version(self.current_editor_id)); self.sync_design()
+            self.refresh(); self.draw_editor(); return True
+        except (ValueError,PermissionError,OSError) as ex:
+            QMessageBox.warning(self,'No guardado',str(ex)); return False
+
+    def resolve_work(self):
+        if self.design is None or not self.design.dirty: return True
+        answer=QMessageBox.question(self,'Diseño sin guardar','Guardar el diseño pendiente antes de cambiar de revisión, cerrar o abrir Tkinter?',
+            QMessageBox.StandardButton.Save|QMessageBox.StandardButton.Discard|QMessageBox.StandardButton.Cancel,QMessageBox.StandardButton.Cancel)
+        if answer==QMessageBox.StandardButton.Cancel: return False
+        if answer==QMessageBox.StandardButton.Save: return self.save_work()
+        self.design=LayoutHistory(self.design.clean); self.draw_editor(); return True
+
+    def poll_legacy(self):
+        if self.legacy_process is None or self.legacy_process.poll() is None: return
+        code=self.legacy_process.returncode; self.legacy_process=None
+        self.set_mutations_enabled(True); self.refresh_facets(); self.refresh()
+        if self.current_editor_id is not None:
+            self.editor_version=dict(self.api.version(self.current_editor_id)); self.expected_layout=layout_from_version(self.editor_version)
+            self.expected_source=source_identity(self.editor_version)
+            self.design=LayoutHistory(self.expected_layout); self.draw_editor(fit=True)
+        self.recheck_actions(); self.statusBar().showMessage('Tkinter cerrado; diseño recargado.' if code==0 else f'Tkinter terminó con código {code}. Revisar antes de continuar.')
+
+    def add_field(self):
+        if not self.editable(): return
+        from PySide6.QtWidgets import QInputDialog
+        key,ok=QInputDialog.getText(self,'Nuevo campo','Identificador único:')
+        if not ok or not key.strip(): return
+        candidate=copy.deepcopy(self.design.state)
+        candidate['fields'].append(dict(key=key.strip(),label=key.strip(),x=.1,y=.1,w=.4,h=.08,font_pt=12,bold=False,required=False,locked=False))
+        self.command('Agregar campo',candidate)
+
+    def remove_field(self):
+        indices=self.selected_indices()
+        if not self.editable() or not indices: return
+        if QMessageBox.question(self,'Quitar campos',f'Quitar {len(indices)} campo(s) del diseño pendiente?')!=QMessageBox.StandardButton.Yes: return
+        candidate=copy.deepcopy(self.design.state)
+        candidate['fields']=[f for i,f in enumerate(candidate['fields']) if i not in indices]
+        self.command('Quitar campos',candidate)
+
+    def edit_crop(self):
+        if not self.editable(): return
+        try:
+            image,rect,_=self.api.master_preview(self.editor_version,width=950,height=700)
+            dialog=RectangleDialog(self,'Recorte del documento',image,list(rect),self.design.state['crop'],20)
+            if dialog.exec()==QDialog.DialogCode.Accepted:
+                self.apply_operation('Recorte',lambda:recrop(self.design.state,dialog.rect))
+                self.canvas.fit()
+        except (ValueError,OSError) as ex: QMessageBox.warning(self,'Recorte no disponible',str(ex))
+
+    def edit_status_area(self):
+        if not self.editable(): return
+        c=self.design.state['crop']; w=c[2]-c[0]; h=c[3]-c[1]
+        a=self.design.state['area'] or [.08,.77,.84,.15]; rect=[a[0]*w,a[1]*h,(a[0]+a[2])*w,(a[1]+a[3])*h]
+        image=self.api.thumbnail(self.editor_version,width_px=1000)
+        dialog=RectangleDialog(self,'Reserva para etiqueta de estado',image,[0,0,w,h],rect)
+        use=QCheckBox('Usar zona de estado'); use.setChecked(True); dialog.extra.addWidget(use)
+        master=QComboBox(); master.addItem('Sin referencia de proporción',None)
+        for m in self.api.status_masters(): master.addItem(m['name']+' / '+m['version']+' / '+m['state'],dict(m))
+        dialog.extra.addWidget(master)
+        if dialog.exec()!=QDialog.DialogCode.Accepted: return
+        r=dialog.rect; area=[r[0]/w,r[1]/h,(r[2]-r[0])/w,(r[3]-r[1])/h] if use.isChecked() else []
+        m=master.currentData()
+        if area and m:
+            mc=json.loads(m['crop_json']); ratio=(mc[2]-mc[0])/(mc[3]-mc[1]); actual=(r[2]-r[0])/(r[3]-r[1])
+            if abs(actual/ratio-1)>.01:
+                if QMessageBox.question(self,'Proporción de estado',f'Reserva con proporción distinta del maestro seleccionado ({ratio:.3f}). Puede dejar espacios blancos. Conservar como diseño pendiente?')!=QMessageBox.StandardButton.Yes: return
+        candidate=copy.deepcopy(self.design.state); candidate['area']=area; self.command('Zona de estado',candidate)
+
+    def edit_anchor(self):
+        indices=self.selected_indices()
+        if not self.editable() or len(indices)!=1:
+            QMessageBox.information(self,'Anclaje','Seleccione un único campo editable.'); return
+        try:
+            spans=self.api.editor_spans(self.current_editor_id)
+            if not spans: raise ValueError('PDF sin texto extraíble. Ubique el campo manualmente; no se realiza OCR.')
+            image,rect,_=self.api.master_preview(self.editor_version,width=1000,height=650)
+            dialog=QDialog(self); dialog.setWindowTitle('Referencia PDF / Word convertido'); dialog.resize(1000,650)
+            layout=vbox(dialog); layout.addWidget(label('Selecciona el texto fijo inmediatamente anterior al campo. Las coincidencias repetidas requieren elección explícita.','subtle'))
+            search=QLineEdit(); search.setPlaceholderText('Buscar texto de referencia'); layout.addWidget(search)
+            body=QSplitter(); ls=QListWidget(); view=RectangleView(image,list(rect),lambda *_:None); body.addWidget(ls); body.addWidget(view); body.setSizes([300,650]); layout.addWidget(body,1)
+            for i,sp in enumerate(spans):
+                ls.addItem(f"{sp['bbox'][0]*MM_PER_POINT:.1f}, {sp['bbox'][1]*MM_PER_POINT:.1f} mm · {sp['text']}")
+                ls.item(i).setData(Qt.ItemDataRole.UserRole,i)
+            search.textChanged.connect(lambda text:[ls.item(i).setHidden(text.casefold() not in spans[i]['text'].casefold()) for i in range(len(spans))])
+            ls.currentRowChanged.connect(lambda i:view.paint_rect(spans[i]['bbox']) if i>=0 else None)
+            buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel)
+            buttons.accepted.connect(lambda:dialog.accept() if ls.currentRow()>=0 and not ls.currentItem().isHidden() else None); buttons.rejected.connect(dialog.reject); layout.addWidget(buttons)
+            if dialog.exec()==QDialog.DialogCode.Accepted:
+                pos=ls.currentItem().data(Qt.ItemDataRole.UserRole); sp=spans[pos]
+                occurrence=sum(s['text']==sp['text'] for s in spans[:pos])
+                self.apply_operation('Anclar a texto',lambda:anchor_field(self.design.state,indices[0],sp,occurrence,self.editor_version['pdf_sha256']))
+        except (ValueError,OSError) as ex: QMessageBox.warning(self,'Anclaje no disponible',str(ex))
+
+    def relocate(self):
+        if not self.editable(): return
+        anchored=any(f.get('anchor') for f in self.fields)
+        if QMessageBox.question(self,'Relocalización','Relocalizar anclas explícitas conservando desplazamientos?' if anchored else 'Recalcular con plantilla reconocida ACETONA/EDROFONIO? Sustituye campos y zona de estado; puede deshacerse.')!=QMessageBox.StandardButton.Yes: return
+        operation=(lambda:relocate_anchors(self.design.state,self.api.editor_spans(self.current_editor_id),self.editor_version['pdf_sha256'])) if anchored else (lambda:self.api.editor_template_layout(self.current_editor_id,self.design.state['crop']))
+        self.apply_operation('Relocalizar referencias',operation)
+
+    def align_selection(self):
+        self.apply_operation('Alinear selección',lambda:align_fields(self.design.state,self.selected_indices(),self.alignment.currentData()))
+
+    def edit_scale(self):
+        if not self.editable(): return
+        dialog=QDialog(self); dialog.setWindowTitle('Reajuste proporcional de campos'); layout=vbox(dialog)
+        layout.addWidget(label('Transforma campos variables autorizados. El fondo fijo y el tamaño físico de salida no cambian.','subtle'))
+        factor=spin(100,1000,' %',1); layout.addWidget(factor)
+        font=QCheckBox('Escalar también tipografía'); font.setChecked(True); layout.addWidget(font)
+        area=QCheckBox('Incluir zona de estado'); layout.addWidget(area)
+        buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept); buttons.rejected.connect(dialog.reject); layout.addWidget(buttons)
+        if dialog.exec()==QDialog.DialogCode.Accepted:
+            self.apply_operation('Reajuste proporcional',lambda:scale_fields(self.design.state,self.selected_indices(),factor.value()/100,font.isChecked(),area.isChecked()))
+
+    def edit_auxiliary(self):
+        indices=self.selected_indices()
+        if not self.editable() or len(indices)!=1: return
+        f=self.fields[indices[0]]; w=self.editor_version['base_w_mm']; h=self.editor_version['base_h_mm']
+        dialog=QDialog(self); dialog.setWindowTitle('Borrado y continuación del campo'); layout=vbox(dialog)
+        layout.addWidget(label('Zona de borrado autorizada en el PDF derivado; no modifica el original. Coordenadas desde el recorte.','subtle'))
+        enabled=QCheckBox('Usar zona de borrado'); enabled.setChecked(bool(f.get('erase'))); layout.addWidget(enabled)
+        form=QFormLayout(); entries=[]
+        erase=f.get('erase') or [f['x'],f['y'],f['w'],f['h']]
+        for name,val,dim in zip(('Borrado X','Borrado Y','Borrado ancho','Borrado alto'),erase,(w,h,w,h)):
+            entry=spin(val*dim); form.addRow(name,entry); entries.append(entry)
+        sx=spin(f.get('second_x',f['x'])*w); nw=spin(f.get('next_w',f['w'])*w); lines=spin(f.get('max_lines',3),20,' líneas',1); lines.setDecimals(0)
+        form.addRow('Segunda línea X',sx); form.addRow('Ancho continuación',nw); form.addRow('Máximo de líneas',lines); layout.addLayout(form)
+        buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept); buttons.rejected.connect(dialog.reject); layout.addWidget(buttons)
+        if dialog.exec()!=QDialog.DialogCode.Accepted: return
+        candidate=copy.deepcopy(self.design.state); field=candidate['fields'][indices[0]]
+        if field.get('locked'): QMessageBox.information(self,'Campo bloqueado','Desbloquee el campo para modificar su geometría auxiliar.'); return
+        if enabled.isChecked(): field['erase']=[s.value()/d for s,d in zip(entries,(w,h,w,h))]
+        else: field.pop('erase',None)
+        if field.get('draw')=='continuation': field.update(second_x=sx.value()/w,next_w=nw.value()/w,max_lines=int(lines.value()))
+        self.command('Borrado / continuación',candidate)
+
+    def edit_output(self):
+        if self.design is None or self.legacy_process: return
+        dialog=QDialog(self); dialog.setWindowTitle('Formato físico y prueba PDF'); dialog.resize(690,630); layout=vbox(dialog)
+        layout.addWidget(label('Escala física proporcional del motor existente. No es zoom ni cambia el diseño. Estos ajustes no transfieren datos a Emisión Tkinter.','subtle'))
+        profiles=[dict(p) for p in self.api.profile_list()]; combo=QComboBox(); combo.addItem('Medidas del diseño',None)
+        for p in profiles: combo.addItem(p['name'],p)
+        layout.addWidget(combo)
+        profile=self.output_profile or dict(name='',width_mm=self.editor_version['base_w_mm'],height_mm=self.editor_version['base_h_mm'],paper='A4',orientation='portrait',margin_mm=8,gap_mm=3,offset_x_mm=0,offset_y_mm=0,start_slot=1,crop_marks=0,printer_name='',safety_mm=0)
+        form=QFormLayout(); inputs={}
+        for key,title in [('width_mm','Ancho de casilla'),('height_mm','Alto de casilla'),('margin_mm','Margen A4'),('gap_mm','Separación'),('safety_mm','Seguridad interior')]:
+            entry=spin(profile[key],1000,minimum=.1 if key in ('width_mm','height_mm') else 0); form.addRow(title,entry); inputs[key]=entry
+        orientation=QComboBox(); orientation.addItem('A4 vertical','portrait'); orientation.addItem('A4 horizontal','landscape'); orientation.setCurrentIndex(orientation.findData(profile['orientation'])); form.addRow('Hoja',orientation)
+        name=QLineEdit(profile.get('name','')); form.addRow('Nombre para guardar perfil',name); layout.addLayout(form)
+        summary=label('','subtle'); layout.addWidget(summary)
+        def current():
+            p=copy.deepcopy(profile); p.update({k:e.value() for k,e in inputs.items()}); p['orientation']=orientation.currentData(); p['name']=name.text().strip(); return p
+        def update(*_):
+            p=current(); bw=self.editor_version['base_w_mm']; bh=self.editor_version['base_h_mm']; factor=min(p['width_mm']/bw,p['height_mm']/bh)
+            try:
+                plan=self.api.sheet_plan(p,1)
+                summary.setText(f"Etiqueta impresa: {bw*factor:.3f} × {bh*factor:.3f} mm · Escala {factor*100:.2f}% · {plan.capacity} casillas. Verificar impresión al 100 %.")
+            except ValueError as ex: summary.setText(str(ex))
+        def choose(index):
+            chosen=combo.itemData(index)
+            if chosen:
+                profile.update(chosen)
+                for k,e in inputs.items(): e.setValue(profile[k])
+                name.setText(profile['name']); orientation.setCurrentIndex(orientation.findData(profile['orientation']))
+            update()
+        combo.currentIndexChanged.connect(choose)
+        for e in inputs.values(): e.valueChanged.connect(update)
+        orientation.currentIndexChanged.connect(update); update()
+        def proof():
+            try:
+                self.output_profile=current(); path,warnings=self.api.preview_editor_layout(self.current_editor_id,self.design.state,self.output_profile)
+                image,count=self.api.preview_pdf(path,maxwidth=1000)
+                preview=QDialog(dialog); preview.setWindowTitle('PDF de prueba — sin emisión definitiva'); preview.resize(800,800); pl=vbox(preview)
+                pl.addWidget(label('Renderizado por el motor PDF con datos variables vacíos. No prueba datos de trabajo ni registra historial.','subtle'))
+                view=Preview(); view.set_image(image); pl.addWidget(view,1)
+                pl.addWidget(label(str(warnings),'subtle')); close=QDialogButtonBox(QDialogButtonBox.StandardButton.Close); close.rejected.connect(preview.reject); pl.addWidget(close); preview.exec()
+            except (ValueError,OSError) as ex: QMessageBox.warning(dialog,'Prueba no generada',str(ex))
+        def save_profile():
+            p=current()
+            try:
+                if not p['name']: raise ValueError('Nombre de perfil obligatorio.')
+                self.api.sheet_plan(p,1)
+                if any(x['name']==p['name'] for x in profiles):
+                    if QMessageBox.question(dialog,'Actualizar perfil','Actualizar el perfil existente? No cambia ni aprueba el diseño.')!=QMessageBox.StandardButton.Yes: return
+                self.api.add_profile(p); self.output_profile=p; summary.setText('Perfil guardado. Selecciónelo explícitamente en Emisión Tkinter; sus datos variables no se transfieren.')
+            except (ValueError,OSError) as ex: QMessageBox.warning(dialog,'Perfil no guardado',str(ex))
+        layout.addWidget(button('Ver PDF de prueba',proof)); layout.addWidget(button('Guardar perfil de salida',save_profile))
+        buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel); buttons.accepted.connect(dialog.accept); buttons.rejected.connect(dialog.reject); layout.addWidget(buttons)
+        if dialog.exec()==QDialog.DialogCode.Accepted: self.output_profile=current()

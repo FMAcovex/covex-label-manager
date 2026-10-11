@@ -1,4 +1,4 @@
-name: R3A Qt functional transition
+name: Qt editor and functional transition
 on:
   workflow_dispatch:
   pull_request:
@@ -6,12 +6,17 @@ on:
       - 'covex_label_manager/qt*'
       - 'covex_label_manager/qt_ui/**'
       - 'tests/test_r3a_qt.py'
+      - 'tests/test_r3b1_qt.py'
+      - 'tests/test_editor_layout.py'
+      - 'covex_label_manager/editor_layout.py'
+      - 'covex_label_manager/storage.py'
       - 'requirements-qt*'
       - 'legacy_qt_bridge.py'
       - 'main_qt.py'
       - '*R3A_QT.bat'
       - '.github/workflows/r3a-qt.yml'
       - 'docs/R3A_QT_PLAN.md'
+      - 'docs/R3B1_QT_EDITOR.md'
       - 'docs/FUNCTIONAL_PRESERVATION_MATRIX.md'
 permissions:
   contents: read
@@ -64,7 +69,7 @@ jobs:
           if (Test-Path $result) { Copy-Item $result "test-results/qt-packaged-$scale.json" }
           if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { if (Test-Path $result) { Get-Content $result }; throw 'Packaged Qt check failed' }
           $check = Get-Content $result -Raw | ConvertFrom-Json
-          if (!$check.ok -or $check.count -lt 48) { throw 'Qt interaction check incomplete' }
+          if (!$check.ok -or $check.count -lt 74) { throw 'Qt editor interaction check incomplete' }
           if (!$check.legacy_bridge.ok) { throw 'Legacy bridge not verified' }
           Copy-Item $result "test-results/qt-packaged-$scale.json"
           }
@@ -73,6 +78,7 @@ jobs:
         shell: pwsh
         run: |
           Copy-Item docs/R3A_QT_PLAN.md dist/COVEXLabelManager_Qt/LEEME.md
+          Copy-Item docs/R3B1_QT_EDITOR.md dist/COVEXLabelManager_Qt/R3B1_EDITOR.md
           Copy-Item scripts/PROBAR_DEMO_QT.bat dist/COVEXLabelManager_Qt/
           Copy-Item docs/FUNCTIONAL_PRESERVATION_MATRIX.md dist/COVEXLabelManager_Qt/
           Compress-Archive -Path dist/COVEXLabelManager_Qt -DestinationPath COVEXLabelManager_Qt.zip
@@ -81,7 +87,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: R3A-Qt-Transition-${{ github.sha }}
+          name: R3B1-Qt-Editor-${{ github.sha }}
           path: |
             COVEXLabelManager_Qt.zip
             test-results/

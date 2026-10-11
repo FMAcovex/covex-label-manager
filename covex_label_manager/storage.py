@@ -414,6 +414,30 @@ class Store:
                (json.dumps(fields),json.dumps(crop),round((crop[2]-crop[0])*mm,2),round((crop[3]-crop[1])*mm,2),json.dumps(status_area),version_id))
         self.audit('CHANGE_DRAFT',version_id,'Campos y recorte')
 
+    def save_pending_layout(self, version_id, layout, expected, expected_source):
+        """Atomic full-layout compare/update for Qt; the schema remains unchanged."""
+        from .editor_layout import layout_from_version, validate_layout, source_identity, MM_PER_POINT
+        from .integrity import verify_documents
+        import fitz
+        with self.txn() as c:
+            c.execute('BEGIN IMMEDIATE')
+            v = self.version(version_id)
+            if v is None or v['state'] != 'PENDING':
+                raise PermissionError('Solo se guarda el diseño de una revisión pendiente.')
+            if layout_from_version(v) != expected:
+                raise ValueError('El diseño cambió fuera de Qt; vuelva a abrirlo antes de guardar.')
+            if source_identity(v) != expected_source:
+                raise ValueError('El documento de referencia cambió; vuelva a abrirlo antes de guardar.')
+            verify_documents(v, self.root)
+            with fitz.open(self.root/v['master_pdf']) as document:
+                validate_layout(layout, list(document[0].rect))
+            crop = layout['crop']
+            c.execute('UPDATE versions SET fields_json=?,crop_json=?,status_area_json=?,base_w_mm=?,base_h_mm=? WHERE id=?',
+                      (json.dumps(layout['fields']), json.dumps(crop), json.dumps(layout['area']),
+                       round((crop[2]-crop[0])*MM_PER_POINT, 2), round((crop[3]-crop[1])*MM_PER_POINT, 2), version_id))
+            c.execute('INSERT INTO audit(at,event,subject,detail) VALUES(?,?,?,?)',
+                      (now(), 'CHANGE_DRAFT', str(version_id), 'Diseño Qt: campos, recorte y zona de estado'))
+
     def approve(self,version_id,reviewer,evidence):
         v=self.version(version_id)
         if not v or v['state']!='PENDING':
