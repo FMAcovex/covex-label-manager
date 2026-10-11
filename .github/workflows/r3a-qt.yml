@@ -69,7 +69,7 @@ jobs:
           if (Test-Path $result) { Copy-Item $result "test-results/qt-packaged-$scale.json" }
           if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { if (Test-Path $result) { Get-Content $result }; throw 'Packaged Qt check failed' }
           $check = Get-Content $result -Raw | ConvertFrom-Json
-          if (!$check.ok -or $check.count -lt 74) { throw 'Qt editor interaction check incomplete' }
+          if (!$check.ok -or $check.count -lt 80) { throw 'Qt editor interaction check incomplete' }
           if (!$check.legacy_bridge.ok) { throw 'Legacy bridge not verified' }
           Copy-Item $result "test-results/qt-packaged-$scale.json"
           }

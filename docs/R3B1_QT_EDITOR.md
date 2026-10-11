@@ -10,11 +10,11 @@ El Editor conserva el lienzo y la estética Industrial Moderno. Herramientas agr
 |---|---|
 | Recorte | Selección sobre página fuente o límites en mm; rebase conserva anclas absolutas, borrados, continuación y estado. Rechaza excluir campos/estado. Fuente sin modificar. |
 | Anclaje | Selección explícita de texto extraído del PDF, incluido Word convertido. Guarda hash, página, texto, caja, ocurrencia y desplazamiento; no OCR ni edición Word. |
-| Relocalización | Resuelve anclas explícitas verificables sin deriva y rechaza fuente cambiada/referencia ambigua. Sin anclas: solo plantillas ACETONA/EDROFONIO, con confirmación de sustitución y posibilidad de deshacer. |
+| Relocalización | Resuelve anclas explícitas verificables sin deriva y rechaza fuente cambiada/referencia ambigua. No adapta automáticamente el diseño a cualquier nueva revisión Word/PDF. Sin anclas: solo plantillas ACETONA/EDROFONIO, con confirmación de sustitución y posibilidad de deshacer. |
 | Zona de estado | Reserva visual y límites mm; puede quitarse. Aviso de proporción respecto del maestro de estado elegido, no de una proporción universal fija. No aprueba material ni documento. |
 | Campos/auxiliares | Geometría mm, tipografía y flags existentes; modos textbox/baseline/continuation/paragraph. Ajustes de borrado y segunda línea preservan atributos JSON anteriores. No recomponen textos fijos, tablas o imágenes. |
 | Composición | Alineación a límites/centros y distribución de espacios; reajuste proporcional opcional de fuente y estado. Campos bloqueados impiden transformaciones, eliminación/cambio de clave hasta desbloquear. Recortar conserva su posición absoluta. |
-| Deshacer/rehacer | Snapshots completos de campos, recorte y estado; un arrastre es una operación. Ctrl+Z/Ctrl+Mayús+Z y botones. Guardar marca el punto limpio; undo posterior vuelve a estado pendiente. Historial delimitado al cambiar revisión o recargar Tkinter. |
+| Deshacer/rehacer | Snapshots completos de campos, recorte y estado; un arrastre es una operación. Ctrl+Z/Ctrl+Mayús+Z y botones. Guardar marca el punto limpio; undo posterior vuelve a estado pendiente. Historial solo en memoria: delimitado al cambiar revisión, recargar Tkinter o cerrar la aplicación; al reabrir se recupera el diseño guardado, no la historia de comandos. |
 | Formato de salida | Tamaño físico, orientación A4, márgenes, separación y seguridad; selección/guardado de perfiles existentes. El motor conserva proporciones y muestra tamaño efectivo. Seleccionar el perfil explícitamente en Emisión Tkinter; no se transfieren variables ni configuración de trabajo. |
 | Prueba PDF | Motor existente sobre el diseño en memoria, datos variables vacíos y numeración de prueba, con marca de prueba. No modifica diseño guardado, no aprueba ni registra emisión histórica. El PDF se guarda en cache local. |
 
@@ -33,7 +33,9 @@ Tkinter y su entrada permanecen disponibles. Emisión definitiva, historial, imp
 - Suite completa con fixtures sintéticos, incluidos regresión R3A, núcleo y pruebas nuevas `test_editor_layout.py`/`test_r3b1_qt.py`.
 - Pruebas de rebase absoluto, exclusión, borrado/continuación, bloqueo, anclas/ambigüedad, historia completa, guardado transaccional y estados obsoletos.
 - Concordancia de origen/línea base y tamaño tipográfico en PDF con geometría calculada; tolerancia 0,02 puntos (aprox. 0,0071 mm) para la prueba sintética, sin extrapolar a impresión física.
-- 74 verificaciones de widgets por escala 1/1,25/1,5: 48 anteriores y 26 nuevas; capturas de diseño pendiente, cambios, anclaje, composición, bloqueo, vigente/retirada y compacto.
+- 80 verificaciones de widgets por escala 1/1,25/1,5: 48 anteriores y 32 R3B1; incluye capturas de los diálogos reales de recorte, anclaje, reajuste, zona de estado, formato físico y previsualización PDF, además de los estados del Editor.
+- Regresión PDF con lote largo, cantidades, pesos decimales y numeración de cinco dígitos; recorte/anclaje/movimiento/reajuste y dos formatos físicos. Desbordamientos deliberados se rechazan sin PDF ni emisión histórica.
+- Cierre real de ventana y conexión SQLite, reapertura y igualdad completa de campos, anclas, recorte, geometría auxiliar y zona de estado; undo/redo antes y después de guardar, y en la nueva sesión.
 - Workflow Qt aplica suite, verifica fuentes y ejecutable en tres escalas, empaqueta Qt y compañero Tkinter, verifica puente y publica ZIP/capturas/JSON. Workflow núcleo conserva compilación portable original.
 
 Resultados exactos y enlaces a CI/artefactos se entregan en la PR sobre su commit final. Todas las evidencias públicas del repositorio son sintéticas. Pruebas reales de Word, impresión física, Windows 10/11 y equipos COVEX siguen pendientes; esto no es validación GMP. 00-R1 continúa PENDING. No implementa R3B2/R3B3/R3C ni integraciones Business Central/SharePoint.

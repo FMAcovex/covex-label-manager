@@ -142,7 +142,7 @@ class AdvancedEditorMixin:
         doc = section('Documento')
         action(doc,'Recorte visual / mm',self.edit_crop)
         anchor_button=action(doc,'Anclar a referencia',self.edit_anchor); anchor_button.setToolTip('Anclar campo al texto extraído del PDF o Word convertido; sin editar el original.')
-        action(doc,'Relocalizar referencias',self.relocate)
+        relocate_button=action(doc,'Relocalizar referencias',self.relocate); relocate_button.setToolTip('Solo anclas verificables de la misma fuente o plantillas reconocidas ACETONA/EDROFONIO. No adapta automáticamente nuevas revisiones Word/PDF.')
         fld = section('Campo')
         action(fld,'Agregar campo',self.add_field); action(fld,'Quitar campo',self.remove_field)
         fld.addWidget(self.required); fld.addWidget(self.locked)
@@ -155,8 +155,8 @@ class AdvancedEditorMixin:
         self.alignment = QComboBox()
         for title,key in [('Izquierda','left'),('Centro horizontal','center_x'),('Derecha','right'),('Arriba','top'),('Centro vertical','center_y'),('Abajo','bottom'),('Distribuir horizontalmente','distribute_x'),('Distribuir verticalmente','distribute_y')]: self.alignment.addItem(title,key)
         comp.addWidget(self.alignment); action(comp,'Aplicar a selección',self.align_selection)
-        action(comp,'Reajuste proporcional',self.edit_scale)
-        self.format_button = button('Formato físico y prueba',self.edit_output); self.format_button.setToolTip('Formato físico de salida y PDF de prueba mediante el motor existente'); comp.addWidget(self.format_button)
+        scale_button=action(comp,'Reajuste proporcional',self.edit_scale); scale_button.setToolTip('Reajusta los campos seleccionados; no cambia el tamaño físico de la etiqueta ni el zoom de visualización.')
+        self.format_button = button('Formato físico y prueba',self.edit_output); self.format_button.setToolTip('Escalado físico proporcional de la etiqueta completa para impresión y PDF de prueba. Independiente del reajuste de campos y del zoom de visualización.'); comp.addWidget(self.format_button)
         state = section('Estado y límites')
         action(state,'Zona de estado visual / mm',self.edit_status_area)
         state.addWidget(button('Seguridad de salida',self.edit_output))
@@ -481,7 +481,9 @@ class AdvancedEditorMixin:
     def relocate(self):
         if not self.editable(): return
         anchored=any(f.get('anchor') for f in self.fields)
-        if QMessageBox.question(self,'Relocalización','Relocalizar anclas explícitas conservando desplazamientos?' if anchored else 'Recalcular con plantilla reconocida ACETONA/EDROFONIO? Sustituye campos y zona de estado; puede deshacerse.')!=QMessageBox.StandardButton.Yes: return
+        message=('Relocalizar solo anclas verificables de la misma fuente, conservando desplazamientos?' if anchored else 'Recalcular solo con plantilla reconocida ACETONA/EDROFONIO? Sustituye campos y zona de estado; puede deshacerse.')
+        message+='\nNo adapta automáticamente el diseño a cualquier nueva revisión Word/PDF.'
+        if QMessageBox.question(self,'Relocalización',message)!=QMessageBox.StandardButton.Yes: return
         operation=(lambda:relocate_anchors(self.design.state,self.api.editor_spans(self.current_editor_id),self.editor_version['pdf_sha256'])) if anchored else (lambda:self.api.editor_template_layout(self.current_editor_id,self.design.state['crop']))
         self.apply_operation('Relocalizar referencias',operation)
 

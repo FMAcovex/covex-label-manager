@@ -166,3 +166,113 @@ def test_output_dialog_opens_with_real_sheet_plan(studio,monkeypatch):
         opened.append(text); return QDialog.DialogCode.Rejected
     monkeypatch.setattr(QDialog,'exec',cancel)
     w.edit_output(); assert any('Etiqueta impresa:' in x and 'casillas' in x for x in opened)
+
+
+@pytest.mark.parametrize('operation',['crop','anchor','move','scale'])
+@pytest.mark.parametrize('physical_size',[(100,70),(140,100)])
+def test_representative_payloads_after_layout_changes(studio,operation,physical_size):
+    """Real engine, long lot, EU masses, quantity and five-digit vessel numbers."""
+    import fitz
+    from covex_label_manager.engine import render_emission
+    from covex_label_manager.editor_layout import version_with_layout,move_field,scale_fields
+    w,s,app=studio; w.open_editor(); layout=copy.deepcopy(w.design.state)
+    layout['fields'].append(dict(key='cantidad',label='Cantidad sintética',x=.6,y=.79,w=.28,h=.07,font_pt=10))
+    if operation=='crop': layout=recrop(layout,[5,5,427,295])
+    elif operation=='anchor':
+        span=next(x for x in s.services.editor_spans(w.current_editor_id) if x['text']=='LOTE')
+        layout=anchor_field(layout,0,span,0,w.editor_version['pdf_sha256'])
+    elif operation=='move': move_field(layout['fields'][0],.02,.02,layout['crop'])
+    else: layout=scale_fields(layout,list(range(len(layout['fields']))),.95)
+    version=version_with_layout(w.editor_version,layout)
+    profile=dict(width_mm=physical_size[0],height_mm=physical_size[1],margin_mm=8,gap_mm=3,safety_mm=0)
+    path=s.services.output_path('cache',f'payload-{operation}-{physical_size[0]}.pdf')
+    values=dict(lote='LOT-2026-SINTETICO-ABC-000123',pn='1000000,125',pb='1000010,875',cantidad='123456,789')
+    before=dict(s.services.version(w.current_editor_id)); issues=len(s.services.issues())
+    render_emission(version,s.services._repository.root,values,profile,[1,12345],12345,1,path,test_mode=True,
+                    per_container={'12345':dict(pn='0,3558',pb='0,4558',cantidad='99999,999')})
+    with fitz.open(path) as pdf:
+        text=' '.join(p.get_text() for p in pdf)
+        for value in [values['lote'],values['pn'],values['pb'],values['cantidad'],'12345/12345','0,3558','99999,999']:
+            assert value in text
+        assert 'PRUEBA' in text
+    assert dict(s.services.version(w.current_editor_id))==before
+    assert len(s.services.issues())==issues
+
+
+@pytest.mark.parametrize('operation',['crop','anchor','move','scale'])
+@pytest.mark.parametrize('overflow_field',['lote','cantidad','pn','numero'])
+def test_pdf_rejects_overflow_after_layout_changes(studio,operation,overflow_field):
+    from covex_label_manager.engine import render_emission,LayoutError
+    from covex_label_manager.editor_layout import version_with_layout,move_field,scale_fields
+    w,s,app=studio; w.open_editor(); layout=copy.deepcopy(w.design.state)
+    layout['fields'].append(dict(key='cantidad',label='Cantidad',x=.6,y=.88,w=.2,h=.07,font_pt=12))
+    target=next(f for f in layout['fields'] if f['key']==overflow_field)
+    target['draw']='baseline'
+    if overflow_field in ('pn','numero'): target['w']=.012
+    if operation=='crop': layout=recrop(layout,[5,5,427,295])
+    elif operation=='anchor':
+        span=next(x for x in s.services.editor_spans(w.current_editor_id) if x['text']=='LOTE')
+        layout=anchor_field(layout,0,span,0,w.editor_version['pdf_sha256'])
+    elif operation=='move': move_field(layout['fields'][0],.02,.02,layout['crop'])
+    else: layout=scale_fields(layout,list(range(len(layout['fields']))),.8)
+    path=s.services.output_path('cache','must-not-exist.pdf'); issues=len(s.services.issues())
+    with pytest.raises(LayoutError,match='no cabe'):
+        render_emission(version_with_layout(w.editor_version,layout),s.services._repository.root,
+                        dict(lote='X'*200 if overflow_field=='lote' else 'LOT-SYN',cantidad='X'*200 if overflow_field=='cantidad' else '1',
+                             pn='9999999' if overflow_field=='pn' else '1',pb='99999999'),
+                        dict(width_mm=100,height_mm=70),[12345],12345,1,path,test_mode=True)
+    assert not path.exists() and len(s.services.issues())==issues
+
+
+def test_saved_pending_layout_survives_window_and_database_reopen(studio,monkeypatch):
+    from types import SimpleNamespace
+    from covex_label_manager.storage import Store
+    from covex_label_manager.qt_transition import TransitionServices
+    from covex_label_manager.qt_ui.functional import FunctionalWindow
+    from covex_label_manager.editor_layout import layout_from_version,move_field
+    w,s,app=studio; w.open_editor(); initial=copy.deepcopy(w.design.state); vid=w.current_editor_id
+    monkeypatch.setattr(QMessageBox,'warning',lambda *a,**k:None)
+    span=next(x for x in s.services.editor_spans(vid) if x['text']=='LOTE')
+    candidate=anchor_field(initial,0,span,0,w.editor_version['pdf_sha256'])
+    candidate['fields'][1].update(draw='continuation',erase=[.1,.59,.33,.1],second_x=.1,next_w=.3,max_lines=2)
+    candidate=recrop(candidate,[5,5,430,295]); candidate['area']=[.7,.82,.2,.1]
+    assert w.command('Full pending design',candidate)
+    w.undo_edit(); assert w.design.state==initial
+    w.redo_edit(); assert w.design.state==candidate
+    assert w.save_work(); w.undo_edit(); assert w.dirty and w.design.state==initial
+    w.redo_edit(); assert not w.dirty and w.design.state==candidate
+    assert w.close(); w.legacy_timer.stop(); w.poll_timer.stop()
+    root=s.services._repository.root; s.services.close()
+    services=TransitionServices(Store(root,seed=False)); s.services=services
+    reopened=FunctionalWindow(SimpleNamespace(services=services,initial_id=vid,fictional=True))
+    try:
+        reopened.show(); reopened.open_editor(); app.processEvents()
+        assert reopened.editor_version['state']=='PENDING'
+        assert reopened.design.state==candidate==layout_from_version(services.version(vid))
+        # Undo history is session-local, not a persistent design/work archive.
+        assert not reopened.undo_button.isEnabled() and not reopened.redo_button.isEnabled()
+        changed=copy.deepcopy(candidate); move_field(changed['fields'][0],-.01,0,changed['crop'])
+        assert reopened.command('Move after reopening',changed)
+        reopened.undo_edit(); assert reopened.design.state==candidate and not reopened.dirty
+        reopened.redo_edit(); assert reopened.design.state==changed and reopened.dirty
+        assert reopened.save_work()
+        reopened.undo_edit(); assert reopened.design.state==candidate and reopened.dirty
+        reopened.redo_edit(); assert reopened.design.state==changed and not reopened.dirty
+    finally:
+        reopened.dirty=False; reopened.legacy_timer.stop(); reopened.poll_timer.stop()
+        reopened.close(); reopened.deleteLater(); app.processEvents()
+
+
+def test_relocation_confirmation_and_scale_descriptions(studio,monkeypatch):
+    from PySide6.QtWidgets import QPushButton
+    w,s,app=studio; w.open_editor(); messages=[]
+    monkeypatch.setattr(QMessageBox,'question',lambda parent,title,message,*a:(messages.append(message),QMessageBox.StandardButton.No)[1])
+    w.relocate()
+    span=next(x for x in s.services.editor_spans(w.current_editor_id) if x['text']=='LOTE')
+    assert w.command('Anchor',anchor_field(w.design.state,0,span,0,w.editor_version['pdf_sha256']))
+    w.relocate()
+    assert 'plantilla reconocida' in messages[0] and 'anclas verificables' in messages[1]
+    assert all('No adapta automáticamente' in m and 'Word/PDF' in m for m in messages)
+    buttons={b.text():b for b in w.editor_advanced.findChildren(QPushButton)}
+    assert 'campos seleccionados' in buttons['Reajuste proporcional'].toolTip()
+    assert 'etiqueta completa' in w.format_button.toolTip()

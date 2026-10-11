@@ -2,7 +2,8 @@
 import copy
 import json
 from PySide6.QtTest import QTest
-from PySide6.QtCore import Qt, QPoint
+from PySide6.QtCore import Qt, QPoint, QTimer
+from PySide6.QtWidgets import QDialog, QListWidget, QPushButton
 from .advanced_editor import RectangleDialog
 from ..editor_layout import recrop, anchor_field, relocate_anchors, align_fields, scale_fields
 
@@ -23,6 +24,33 @@ def exercise_advanced(w,app,captures=None):
     w.tool_sections['Documento'][0].setChecked(True); settle()
     check(w.tool_sections['Documento'][1].isVisible(),'Native document section opens')
     snap('R3B1_Editor_Documento_Pendiente.png')
+    def capture_dialog(method,title,prepare=None):
+        errors=[]; seen=[]
+        def visit():
+            dialog=app.activeModalWidget()
+            try:
+                assert isinstance(dialog,QDialog),'Expected native modal dialog'
+                if prepare: prepare(dialog)
+                settle(); seen.append(dialog.windowTitle())
+                if captures: assert dialog.grab().save(str(captures/title))
+            except Exception as error: errors.append(str(error))
+            finally:
+                if dialog: dialog.reject()
+        QTimer.singleShot(150,visit); method()
+        check(bool(seen) and not errors,'Native dialog captured: '+title+' '+str(errors))
+    def select_anchor(dialog):
+        ls=dialog.findChild(QListWidget)
+        row=next(i for i in range(ls.count()) if 'LOTE' in ls.item(i).text())
+        ls.setCurrentRow(row)
+    capture_dialog(w.edit_crop,'R3B1_Dialogo_Recorte_Visual.png',lambda d:d.from_drag([5,5,427,295]))
+    capture_dialog(w.edit_anchor,'R3B1_Dialogo_Anclaje.png',select_anchor)
+    capture_dialog(w.edit_scale,'R3B1_Dialogo_Reajuste_Proporcional.png')
+    capture_dialog(w.edit_status_area,'R3B1_Dialogo_Zona_Estado.png',lambda d:d.from_drag([300,245,400,280]))
+    def preview_from_output(dialog):
+        # Capture the actual nested preview; cancel both dialogs without saving a profile.
+        capture_dialog(lambda:next(b for b in dialog.findChildren(QPushButton) if b.text()=='Ver PDF de prueba').click(),
+                       'R3B1_Dialogo_PDF_Prueba.png')
+    capture_dialog(w.edit_output,'R3B1_Dialogo_Formato_Fisico.png',preview_from_output)
     image,bounds,_=w.api.master_preview(w.editor_version)
     dialog=RectangleDialog(w,'Recorte sintético',image,list(bounds),original['crop'],20)
     dialog.show(); settle(); dialog.from_drag([5,5,427,295]); dialog.accept_valid()
