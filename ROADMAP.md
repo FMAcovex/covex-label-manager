@@ -1,6 +1,6 @@
 # COVEX Label Manager — Plan maestro vivo
 
-Versión de aplicación: 0.3.1 (consolidación de R1/R2; referencia histórica `v0.3.0-reference` sin originales). Revisado: 08/10/2026.
+Versión de aplicación: 0.3.1 (consolidación de R1/R2; referencia histórica `v0.3.0-reference` sin originales). Revisado: 11/10/2026. R3A Qt integrada como hito de desarrollo por squash de PR #4 en `5d27de30ce98ee89f17485225e3a45b92f544484`; no equivale a validación GMP.
 
 Este inventario contrasta las propuestas aceptadas del chat con README, traspaso, código, pruebas y muestras del proyecto recuperado. **Aprobada** significa acordada como requisito; no significa implementada ni validada GMP. Solo se consideran implementadas las funciones verificadas en este paquete. La comprobación física en Windows/impresora sigue pendiente.
 
@@ -8,7 +8,7 @@ Leyenda: **Implementada** = código verificado; **Parcial** = existe una parte i
 
 ## Prioridad y secuencia
 
-R1 cerrado técnicamente → R2 cerrado técnicamente → revisión del usuario y preparación de GitHub → R2.5 cuando se autorice → definición/validación visual de R3 → R4 → R5. No se ha desarrollado R2.5, R3, R4, R5 ni conexiones externas en esta entrega.
+R1/R2 consolidados → R3A Qt integrada y aprobada como hito de desarrollo → propuesta R3B1/R3B2/R3B3 → autorización e implementación por bloques → R3C cuando se autorice. R2.5, R4 y R5 conservan su alcance pendiente; no se implementan ahora. Sin conexiones externas.
 
 ## Revisiones acordadas
 
@@ -29,8 +29,8 @@ R1 cerrado técnicamente → R2 cerrado técnicamente → revisión del usuario 
 | R2 | Separar COVEX, cliente e incorporación | Aprobada | Origen COVEX/CLIENTE independiente de procedencia de importación y del estado documental. Fuentes históricas desconocidas se muestran sin registro. |
 | R2 | Incorporar metadatos posteriormente | Aprobada | Valores opcionales con referencia fuente obligatoria, sin modificar PDFs ni la aprobación de versiones. Contrato extensible para ampliar claves. |
 | R2.5 | Comparador con superposición y diferencias gráficas | Aprobada | Pendiente. La v0.2 solo tenía imágenes en paralelo y comparación de configuración. El trabajo preliminar apartado no está incluido en esta entrega. |
-| R3 | Identidad visual Label Studio, editor central y propiedades contextuales | Aprobada como fase | Pendiente de propuesta y validación visual antes de implementación. R2 introduce identidad de biblioteca, sin rediseñar toda la aplicación. |
-| R3 | Migración de Tkinter a PySide6 | Propuesta aceptada como dirección | Pendiente de decisión técnica de R3. Actualmente Tkinter. No se requiere para el funcionamiento local de R1/R2. |
+| R3 | Identidad visual Label Studio, editor central y propiedades contextuales | Aprobada como fase | Industrial Moderno aprobado definitivamente en Biblioteca y Editor; R3A Qt integrada. R3B amplía capacidades sin nuevo rediseño general. |
+| R3 | Migración de Tkinter a PySide6 | Aprobada como tecnología objetivo | PySide6 en R3A integrada; Tkinter y puente conservados para capacidades aún no migradas. |
 | R4 | Centro de impresión y perfiles | Aprobada | Parcial: pantalla, formatos A4, orientación, márgenes, separación, perfiles e impresora ya existentes. No se desarrollan nuevas funciones R4 ahora. |
 | R4 | Calibración por impresora | Aprobada | Parcial: hoja de prueba y desplazamientos X/Y guardados en perfiles. Validación física pendiente. |
 | R4 | Aprovechamiento de hojas usadas | Aprobada | Parcial: casilla inicial; marcar posiciones ocupadas arbitrarias visualmente está pendiente. |
@@ -55,7 +55,7 @@ R1 cerrado técnicamente → R2 cerrado técnicamente → revisión del usuario 
 | Plantillas | Importar Word, PDF e imagen | Aprobada | Implementada; Word requiere Word/LibreOffice. Importación multipágina requiere preparar la página específica. Selector/separación de subetiquetas general pendiente. |
 | Plantillas | Etiquetas de cliente cerradas o con campos autorizados | Aprobada | Implementada mediante origen CLIENTE, original conservado y campos opcionales. Gestión ampliada de referencias/aceptación por producto pendiente. |
 | Diseño | Escalado proporcional rápido | Aprobada | Implementada: ajuste sin deformar el conjunto a área elegida y perfiles reutilizables. |
-| Diseño | Reajuste avanzado | Aprobada | Parcial: editor de campos, posiciones en mm, recorte, anclas PDF y zona de estado; R1 variante derivada específica. Recolocar libremente textos fijos, tablas, pictogramas e imágenes requiere R3. |
+| Diseño | Reajuste avanzado | Aprobada | Parcial: editor de campos, posiciones en mm, recorte, anclas PDF y zona de estado; R1 variante derivada específica. R3B1 migra herramientas de campos; edición libre de textos fijos, tablas, pictogramas e imágenes queda fuera hasta verificar viabilidad e impacto documental. |
 | Diseño | Variantes por envase/material con aprobación independiente | Aprobada | Parcial: R1 usa revisión pendiente identificada. Modelo general de variantes separado de revisión documental pendiente. |
 | Diseño | Reglas, cuadrícula, zoom, alineación y objetos bloqueados | Aprobada | Parcial: coordenadas y bloqueo de posición; herramientas completas de composición pendientes. |
 | Emisión | Datos variables, numeración correlativa y dos copias | Aprobada | Implementada. |
@@ -68,7 +68,7 @@ R1 cerrado técnicamente → R2 cerrado técnicamente → revisión del usuario 
 | Trazabilidad | Auditoría inviolable, permisos y firma electrónica | Propuesta de evolución | Pendiente de alcance. La auditoría local SQLite no es inviolable ni multiusuario. |
 | Persistencia | Actualizar sin perder maestros, ajustes ni historial | Aprobada | Implementada con carpeta `data` separada, migración aditiva y snapshot previo. |
 | Persistencia | Copia de seguridad y restauración | Aprobada | Parcial: ZIP consistente; restauración manual con aplicación cerrada. Asistente de restauración pendiente. |
-| Entrega | Portable Windows sin servidor | Aprobada | Fuentes y compilación `--onedir` preparados; EXE sin compilar/verificar en este entorno. |
+| Entrega | Portable Windows sin servidor | Aprobada | Portable R3A construido y comprobado en CI Windows; aceptación real Windows 10/11 y equipos COVEX pendiente. |
 | Calidad | Verificación Windows, A4 al 100%, validación de uso previsto | Aprobada | Pendiente; no declarar este prototipo como validado GMP. |
 
 ## Arquitectura e integraciones futuras
@@ -96,22 +96,38 @@ En cada revisión: actualizar fecha/versión, función y alcance real, pruebas/e
 | Geometría | Comprobación histórica privada de la consolidación; no se publican los maestros ni sus reproducciones. |
 | GitHub | Cuenta FMAcovex comprobada. No aparece repositorio Label Manager. Repositorio privado creado y verificado. Incorporación por PR; comprobar estado real de CI. |
 | Construcción Windows | Un workflow, dependencias transitivas con hashes y comprobación del núcleo empaquetado preparados. Actions #3 satisfactorio en Windows Server 2022: 49 tests pasan, 1 omitido, build y núcleo empaquetado pasan. Aceptación Windows 10/11, Word e impresión pendientes. |
-| R3 | No implementado. Próximo paso: diseñar y aprobar visualmente biblioteca, editor central y propiedades; decidir tecnología de interfaz antes de programar. |
+| R3 | Situación histórica al 08/10, superada: R3A Qt integrada el 09/10 y diseño aprobado. R3B permanece en planificación, sin implementación autorizada. |
 
 ## Política de publicación y desarrollo oficial
 
-Solo código, pruebas sintéticas y documentación técnica. No maestros, etiquetas reales, catálogo, emisiones, bases, capturas reales ni historial que contenga esos documentos. 00-R1 sigue PENDING hasta aprobación documental local; un tag/PR/build no la aprueba. Una instalación nueva tiene biblioteca vacía. Todas las revisiones posteriores se realizan en ramas y PR, con pruebas y revisión antes de integrar en main. R3 no iniciado.
+Solo código, pruebas sintéticas y documentación técnica. No maestros, etiquetas reales, catálogo, emisiones, bases, capturas reales ni historial que contenga esos documentos. 00-R1 sigue PENDING hasta aprobación documental local; un tag/PR/build no la aprueba. Una instalación nueva tiene biblioteca vacía. Todas las revisiones posteriores se realizan en ramas y PR, con pruebas y revisión antes de integrar en main. R3A integrada; R3B/R3C no implementadas.
 
 
-## Secuencia aprobada para R3 — revisión 09/10/2026
+## Secuencia aprobada para R3 — actualizada 11/10/2026
 
-Repositorio privado operativo: FMAcovex/covex-label-manager; main conserva 0.3.1. Toda revisión se desarrolla en rama y PR, sin commits directos ni integración sin autorización.
+Repositorio privado operativo: FMAcovex/covex-label-manager; main incorpora R3A Qt en `5d27de30ce98ee89f17485225e3a45b92f544484` sobre la base 0.3.1. Toda revisión se desarrolla en rama y PR, sin commits directos ni integración sin autorización.
 
 | Etapa | Decisión | Estado verificado |
 |---|---|---|
-| R3A Qt | Aprobados Industrial Moderno/Biblioteca y PySide6; conservar 87 capacidades | Rama independiente: Biblioteca funcional, navegación retenida, trabajo activo y acceso explícito a herramientas Tk. Pruebas y CI de rama; aceptación final e integración pendientes. No sustituye portable distribuido. |
-| R3B | Aprobada como siguiente fase del plan | Pendiente; no iniciada. Diseño/alcance se validarán antes de ampliar editor, sincronización o recuperación. |
+| R3A Qt | Aprobados Industrial Moderno/Biblioteca y PySide6; conservar 87 capacidades | Integrada por squash de PR #4; aprobada como hito de desarrollo. Biblioteca/Editor Qt y acceso explícito a herramientas Tk conservados. Sin aceptación real de Word, impresión, equipos COVEX ni validación GMP. |
+| R3B | Aprobada como siguiente fase del plan | Plan técnico R3B1/R3B2/R3B3 presentado; implementación no iniciada. Alcance y migraciones sujetos a revisión antes de programar. |
 | R3C | Aprobada como fase posterior | Pendiente; no iniciada. No se amplía el centro de emisión ahora. |
 | R2.5 | Comparador visual/superposición/diferencias | Pendiente; no descartado. Comparación básica continúa en versión anterior. |
 
-PR #2 Tk y #3 prueba Qt siguen abiertas y sin integrar. Se reutilizan el criterio de vistas retenidas y la composición visual; se descartan la reconstrucción de pantallas al navegar, los datos ficticios como persistencia de producción y botones que simulen módulos migrados. La prueba ficticia sigue disponible exclusivamente por modo demo/verificación. Integraciones, R4/R5 y ampliaciones R3B/R3C no se desarrollan en esta rama.
+PR #2 Tk y #3 prueba Qt cerradas como sustituidas, sin integrarlas; referencias y ramas conservadas. PR #4 integrada. Se reutilizan el criterio de vistas retenidas y la composición visual; se descartan la reconstrucción de pantallas al navegar, los datos ficticios como persistencia de producción y botones que simulen módulos migrados. La prueba ficticia sigue disponible exclusivamente por modo demo/verificación. Integraciones, R4/R5 y ampliaciones R3B/R3C no se desarrollan en esta rama.
+
+## Plan R3B — propuesta técnica 11/10/2026
+
+Informe de código y contratos: [R3B_TECHNICAL_PROPOSAL.md](docs/R3B_TECHNICAL_PROPOSAL.md). Este apartado planifica, no implementa ni autoriza migraciones.
+
+| Bloque | Alcance previsto | Dependencias y aceptación |
+|---|---|---|
+| R3B1 | Recorte, anclaje PDF/Word convertido, relocalización con alcance explícito, zona de estado y ajustes mm nativos; alineación/distribución y deshacer/rehacer como ampliaciones. Escala física separada del zoom. | Sin cambio SQLite; reutilizar servicios/motor y conservar modos especiales. Revisión del usuario antes de iniciar; matriz, pruebas y capturas antes de integrar. |
+| R3B2 | Maestro protegido, revisión existente y variante de diseño separada con motivo, estado y aprobación externa; adaptador para motor e historial. | Propuesta de migración aditiva y backup/restauración antes de cambiar SQLite. No convertir automáticamente revisiones históricas. 00-R1 sigue PENDING. |
+| R3B3 | Trabajos independientes, autoguardado local, recuperación y contrato compartido Qt/Tk para variables/configuración/recipientes. | Distinguir guardado de diseño y trabajo; cesión exclusiva y control de generación. Probar ida/vuelta antes de declarar sincronización; preparar contrato para R3C. |
+
+Ramas propuestas: `feature/r3b1-qt-advanced-editor`, `feature/r3b2-design-variants` y `feature/r3b3-work-drafts-bridge`, con PR independientes en secuencia desde main autorizado. Planificación en `docs/r3b-architecture-plan`; no cambiar main ni comenzar código R3B hasta autorización.
+
+Pruebas previstas: geometría/dimensiones físicas y concordancia lienzo–PDF; recorte/anclas y undo/redo; variantes, vigencia e integridad; migración y compatibilidad de registros; autoguardado/reinicio/fallos; navegación y cesión Qt/Tk; bloqueo de emisiones no autorizadas; conservación de las 87 capacidades; build/portable Windows y regresión. Solo fixtures sintéticos. Word real, impresión física, Windows 10/11, equipos COVEX y GMP continúan pendientes.
+
+Autoguardado nunca aprueba variantes, altera maestros vigentes ni registra emisión definitiva. No transferir datos de lote entre etiquetas/revisiones. El puente se conserva hasta migración y comprobación efectiva de las capacidades. Sin servidores ni conectores Business Central/SharePoint; R3C no se implementa ahora.
