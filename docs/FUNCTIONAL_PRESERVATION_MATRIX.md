@@ -1,35 +1,35 @@
-# Matriz de conservación funcional — R3A Qt
+# Matriz de conservación funcional — R3A integrada / R3B1 en revisión
 
-Base oficial: main 0.3.1 `bd6e92e`; rama `feature/r3a-qt-functional`. PR #2/#3 se reutilizan como referencia, sin integrarlas. **87 capacidades, ninguna eliminada.** La aprobación de Biblioteca y PySide6 no acredita migración completa ni autoriza integración.
+Base oficial: main `5d27de30ce98ee89f17485225e3a45b92f544484`, R3A integrada por squash de PR #4. PR #2/#3 cerradas como sustituidas, sin integrarlas. Rama actual: `feature/r3b1-qt-advanced-editor`. **87 capacidades, ninguna eliminada.** R3B1 autorizado para desarrollo; integración pendiente de confirmación.
 
-**Qt**: función persistente nativa en esta rama; requiere aceptación final. **Parcial**: parte Qt y parte Tkinter, indicado en cada fila. **Anterior**: función operativa en la versión Tkinter, accesible mediante un botón que abre la aplicación real con los mismos datos. **Motor**: reglas existentes conservadas, sin reescribir ni declararlas interfaz migrada. Word, impresión física y aceptación de DPI nativo siguen pendientes de pruebas reales.
+**Qt**: función nativa. R3A aceptada como hito de desarrollo; cambios R3B1 sujetos a revisión final. **Parcial**: parte Qt y parte Tkinter, indicado en cada fila. **Anterior**: función operativa en la versión Tkinter, accesible mediante un botón que abre la aplicación real con los mismos datos. **Motor**: reglas existentes conservadas, sin reescribir ni declararlas interfaz migrada. Word, impresión física y aceptación de DPI nativo siguen pendientes de pruebas reales.
 
 | ID | Capacidad | Acceso actual / referencia | Acceso previsto Qt | Estado prueba |
 |---|---|---|---|---|
-| B01 | Inicio Biblioteca y navegación horizontal | R3A Application.show/studio_ui | Cabecera | Qt funcional; pruebas de rama, pendiente autorización. |
-| B02 | Tabla, selección única, abrir doble clic/Enter | LibraryPanel.tree/open | Tabla → Editor / botón principal | Qt funcional; pruebas de rama, pendiente autorización. |
-| B03 | Búsqueda dinámica código/nombre/producto/cliente/metadatos | LibraryService.entries | Buscador principal | Qt funcional; pruebas de rama, pendiente autorización. |
-| B04 | Ctrl+K / buscador rápido | _open_library_picker / bind global | Ctrl+K → foco Biblioteca | Qt funcional; pruebas de rama, pendiente autorización. |
-| B05 | Filtros categoría/familia/tipo/origen/cliente/país/idioma/versión/estado/incorporación | FILTER_FIELDS / LibraryPanel | Frecuentes + avanzados plegables | Qt funcional; pruebas de rama, pendiente autorización. |
-| B06 | Limpiar búsqueda y filtros | LibraryPanel.reset | Limpiar | Qt funcional; pruebas de rama, pendiente autorización. |
-| B07 | Favoritas / marcar y desmarcar | LibraryPanel.favorite | Biblioteca → Favoritas / Recientes / inspector | Qt funcional; pruebas de rama, pendiente autorización. |
-| B08 | Recientes y última revisión abierta | LibraryService.opened/entries(recent) | Biblioteca → Favoritas / Recientes / inspector | Qt funcional; pruebas de rama, pendiente autorización. |
-| B09 | Previsualización documento | LibraryPanel.preview / services.thumbnail | Inspector / ampliar / zoom | Qt funcional; pruebas de rama, pendiente autorización. |
-| B10 | Revisiones y estado independiente del nombre | _master_detail / R3A select_revision | Inspector → Revisión | Qt funcional; pruebas de rama, pendiente autorización. |
-| B11 | Columnas código/nombre/tipo/versión/origen/cliente/país/estado | R3A LibraryPanel | Tabla adaptable / ficha completa / tooltip | Qt funcional; pruebas de rama, pendiente autorización. |
-| B12 | Ocultar/ajustar filtros e inspector | R3A toggle_filters/toggle_inspector | Más filtros / Inspector / Paneles; recordar preferencia opcional | Qt funcional; pruebas de rama, pendiente autorización. |
-| B13 | Retener filtros/selección al navegar | R3A vistas retenidas | Controlador de sesión | Qt funcional; pruebas de rama, pendiente autorización. |
-| D01 | Ficha: datos, dimensiones, revisiones, referencias | _master_detail | Documentos y acciones → Ficha | Qt funcional; pruebas de rama, pendiente autorización. |
-| D02 | Abrir PDF maestro en visor externo | _master_detail.viewfile | Ficha → Abrir fuente | Qt funcional; pruebas de rama, pendiente autorización. |
+| B01 | Inicio Biblioteca y navegación horizontal | R3A Application.show/studio_ui | Cabecera | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| B02 | Tabla, selección única, abrir doble clic/Enter | LibraryPanel.tree/open | Tabla → Editor / botón principal | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| B03 | Búsqueda dinámica código/nombre/producto/cliente/metadatos | LibraryService.entries | Buscador principal | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| B04 | Ctrl+K / buscador rápido | _open_library_picker / bind global | Ctrl+K → foco Biblioteca | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| B05 | Filtros categoría/familia/tipo/origen/cliente/país/idioma/versión/estado/incorporación | FILTER_FIELDS / LibraryPanel | Frecuentes + avanzados plegables | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| B06 | Limpiar búsqueda y filtros | LibraryPanel.reset | Limpiar | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| B07 | Favoritas / marcar y desmarcar | LibraryPanel.favorite | Biblioteca → Favoritas / Recientes / inspector | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| B08 | Recientes y última revisión abierta | LibraryService.opened/entries(recent) | Biblioteca → Favoritas / Recientes / inspector | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| B09 | Previsualización documento | LibraryPanel.preview / services.thumbnail | Inspector / ampliar / zoom | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| B10 | Revisiones y estado independiente del nombre | _master_detail / R3A select_revision | Inspector → Revisión | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| B11 | Columnas código/nombre/tipo/versión/origen/cliente/país/estado | R3A LibraryPanel | Tabla adaptable / ficha completa / tooltip | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| B12 | Ocultar/ajustar filtros e inspector | R3A toggle_filters/toggle_inspector | Más filtros / Inspector / Paneles; recordar preferencia opcional | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| B13 | Retener filtros/selección al navegar | R3A vistas retenidas | Controlador de sesión | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| D01 | Ficha: datos, dimensiones, revisiones, referencias | _master_detail | Documentos y acciones → Ficha | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| D02 | Abrir PDF maestro en visor externo | _master_detail.viewfile | Ficha → Abrir fuente | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
 | D03 | Originales y documentos conservados localmente | Store.add_label/add_version / asset_path | Ficha → Fuentes | Parcial: ficha/abrir original Qt; conservación de archivos por motor existente. |
 | D04 | COVEX/cliente, nombre y referencia cliente | Importación / origin/customer/ref_customer | Ficha / filtros / importar | Parcial: filtro/ficha/importación individual Qt; importación carpeta anterior. |
-| D05 | Incorporación distinta de origen/estado | acquisition | Ficha → Procedencia | Qt funcional; pruebas de rama, pendiente autorización. |
-| D06 | Editar metadatos con fuente obligatoria | _edit_metadata / LibraryService.update_metadata | Documentos y acciones → Metadatos | Qt funcional; pruebas de rama, pendiente autorización. |
-| D07 | Nueva revisión, código y motivo | _master_clone / clone_version | Documentos y acciones → Nueva revisión | Qt funcional; pruebas de rama, pendiente autorización. |
-| D08 | Variantes actuales por revisión, incluida 00-R1 | _seed_r1_variant / versions | Selector + ficha | Qt funcional; pruebas de rama, pendiente autorización. |
-| D09 | Registrar aprobación externa con responsable/evidencia/confirmación | _master_approve / approve | Documentos y acciones → Aprobación | Qt funcional; pruebas de rama, pendiente autorización. |
-| D10 | Retirar vigente anterior al aprobar nueva; consulta retirada | Store.approve | Estado / ficha / selector | Qt funcional; pruebas de rama, pendiente autorización. |
-| D11 | Vigente no editable; clonar para modificar | replace_pending_fields / AdvancedEditor | Editor solo lectura / Nueva revisión | Qt funcional; pruebas de rama, pendiente autorización. |
+| D05 | Incorporación distinta de origen/estado | acquisition | Ficha → Procedencia | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| D06 | Editar metadatos con fuente obligatoria | _edit_metadata / LibraryService.update_metadata | Documentos y acciones → Metadatos | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| D07 | Nueva revisión, código y motivo | _master_clone / clone_version | Documentos y acciones → Nueva revisión | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| D08 | Variantes actuales por revisión, incluida 00-R1 | _seed_r1_variant / versions | Selector + ficha | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| D09 | Registrar aprobación externa con responsable/evidencia/confirmación | _master_approve / approve | Documentos y acciones → Aprobación | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| D10 | Retirar vigente anterior al aprobar nueva; consulta retirada | Store.approve | Estado / ficha / selector | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| D11 | Vigente no editable; clonar para modificar | replace_pending_fields / AdvancedEditor | Editor solo lectura / Nueva revisión | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
 | D12 | Integridad antes de clonar/aprobar/emitir | verify_documents / verify_renderable | Guardas de servicios | Motor conservado y comprobado por regresión. |
 | D13 | Fuente 00 defectuosa bloqueada, 00-R1 pendiente sin autoaprobación | integrity / render_geometry / storage | Inspector / preflight | Motor conservado y comprobado por regresión. |
 | D14 | Comparador básico de imágenes, datos y campos | _master_compare | Documentos y acciones → Comparar | Anterior operativa; no migrada Qt, puente explícito. |
@@ -38,23 +38,23 @@ Base oficial: main 0.3.1 `bd6e92e`; rama `feature/r3a-qt-functional`. PR #2/#3 s
 | I03 | Conversión Word local y errores por dependencia | docx_to_pdf | Importar → Verificación | Motor conservado y comprobado por regresión. |
 | I04 | Recorte automático, geometría, rechazo multipágina | auto_crop / import_label | Importar → Revisar diseño | Motor conservado y comprobado por regresión. |
 | I05 | Importar crea pendiente, nunca aprobación | Store.add_label | Documento pendiente | Motor conservado y comprobado por regresión. |
-| E01 | Selección de campo por lista/lienzo | AdvancedEditor.select_list/on_select | Elementos / lienzo | Qt funcional; pruebas de rama, pendiente autorización. |
-| E02 | Mover campo y bloquear posición | on_drag/on_up / locked | Lienzo / Propiedades | Qt funcional; pruebas de rama, pendiente autorización. |
-| E03 | Agregar/quitar campos, clave única | add_field/remove_field | Elementos → Agregar/Quitar | Qt funcional; pruebas de rama, pendiente autorización. |
-| E04 | Identificador y nombre visible | apply_props | Propiedades → Identificación | Qt funcional; pruebas de rama, pendiente autorización. |
-| E05 | X/Y/ancho/alto en mm y validación | apply_props | Posición y tamaño | Qt funcional; pruebas de rama, pendiente autorización. |
-| E06 | Fuente/tamaño, negrita, obligatorio | apply_props | Texto y comportamiento | Qt funcional; pruebas de rama, pendiente autorización. |
-| E07 | Recortar por coordenadas/selección visual | edit_crop | Herramientas avanzadas → Recorte | Anterior operativa; no migrada Qt, puente explícito. |
-| E08 | Zona de estado y control de proporciones | edit_status_area | Herramientas avanzadas → Zona de estado | Anterior operativa; no migrada Qt, puente explícito. |
-| E09 | Anclar a frase Word/PDF de referencia | align_selected_to_word / master_spans | Herramientas avanzadas → Anclar | Anterior operativa; no migrada Qt, puente explícito. |
-| E10 | Relocalizar desde Word reconocido | autolocate / locate_fields | Herramientas avanzadas → Recalcular | Anterior operativa; no migrada Qt, puente explícito. |
-| E11 | Guardar configuración de borrador sin tocar original | AdvancedEditor.save | Guardar borrador | Qt funcional; pruebas de rama, pendiente autorización. |
-| E12 | Reajuste avanzado de posiciones/recorte/zona | Editor + motor | Propiedades / herramientas avanzadas | Parcial: geometría de campos Qt; recorte/zona/anclaje en versión anterior. |
-| E13 | Editor integrado y retención al navegar | R3A Application.editor | Editor central | Qt funcional; pruebas de rama, pendiente autorización. |
-| E14 | Confirmar descarte al cambiar diseño | R3A editor | Diálogo trabajo activo | Qt funcional; pruebas de rama, pendiente autorización. |
-| E15 | Zoom/ajuste del lienzo | Sin zoom dedicado en editor Tk | Barra lienzo / rueda | Qt funcional; pruebas de rama, pendiente autorización. |
+| E01 | Selección de campo por lista/lienzo | AdvancedEditor.select_list/on_select | Elementos / lienzo | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| E02 | Mover campo y bloquear posición | on_drag/on_up / locked | Lienzo / Propiedades | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| E03 | Agregar/quitar campos, clave única | add_field/remove_field | Elementos → Agregar/Quitar | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| E04 | Identificador y nombre visible | apply_props | Propiedades → Identificación | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| E05 | X/Y/ancho/alto en mm y validación | apply_props | Posición y tamaño | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| E06 | Fuente/tamaño, negrita, obligatorio | apply_props | Texto y comportamiento | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| E07 | Recortar por coordenadas/selección visual | edit_crop | Herramientas avanzadas → Recorte | Qt nativo R3B1: recorte visual/mm, rebase de campos/estado/auxiliares; exclusión bloqueada y undo/redo. |
+| E08 | Zona de estado y control de proporciones | edit_status_area | Herramientas avanzadas → Zona de estado | Qt nativo R3B1: reserva visual/mm, activación/eliminación y proporción del maestro seleccionado. No aprueba estados. |
+| E09 | Anclar a frase Word/PDF de referencia | align_selected_to_word / master_spans | Herramientas avanzadas → Anclar | Qt nativo R3B1: selección explícita de texto PDF/Word convertido, hash/caja/desplazamiento conservados; sin OCR. |
+| E10 | Relocalizar desde Word reconocido | autolocate / locate_fields | Herramientas avanzadas → Recalcular | Qt nativo R3B1: anclas explícitas verificadas o plantillas ACETONA/EDROFONIO; fuente no reconocida bloqueada, sin detector universal. |
+| E11 | Guardar configuración de borrador sin tocar original | AdvancedEditor.save | Guardar borrador | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| E12 | Reajuste avanzado de posiciones/recorte/zona | Editor + motor | Propiedades / herramientas avanzadas | Qt nativo R3B1: diseño completo en memoria, geometría/recorte/estado/auxiliares, sin editar fondo fijo. |
+| E13 | Editor integrado y retención al navegar | R3A Application.editor | Editor central | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| E14 | Confirmar descarte al cambiar diseño | R3A editor | Diálogo trabajo activo | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
+| E15 | Zoom/ajuste del lienzo | Sin zoom dedicado en editor Tk | Barra lienzo / rueda | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
 | M01 | Elegir revisión para emitir | select_emission_version / biblioteca | Emisión → Selección | Parcial: selección Qt transferida a emisión anterior. |
-| M02 | Preparar emisión exige vigencia/integridad | R3A emission_eligibility | Inspector → Preparar emisión | Qt funcional; pruebas de rama, pendiente autorización. |
+| M02 | Preparar emisión exige vigencia/integridad | R3A emission_eligibility | Inspector → Preparar emisión | Qt funcional en R3A integrada; regresión mantenida en R3B1. |
 | M03 | Lote y datos variables comunes según diseño | dynamic_fields / _emit_values | Emisión → Datos | Anterior operativa; no migrada Qt, puente explícito. |
 | M04 | Recipientes y copias por recipiente | emit_count/emit_copies | Emisión → Serie | Anterior operativa; no migrada Qt, puente explícito. |
 | M05 | Numeración n/total y rangos, advertencia sin campo número | numero / parse_ranges / issue_pdf | Emisión → Numeración | Anterior operativa; no migrada Qt, puente explícito. |
@@ -71,8 +71,8 @@ Base oficial: main 0.3.1 `bd6e92e`; rama `feature/r3a-qt-functional`. PR #2/#3 s
 | M16 | Generar PDF definitivo y registrar emisión | issue_pdf / Store.add_issue | Emisión → Generar PDF | Anterior operativa; no migrada Qt, puente explícito. |
 | M17 | Abrir último PDF / visor externo | open_last_pdf / open_path | Emisión → Abrir resultado | Anterior operativa; no migrada Qt, puente explícito. |
 | M18 | Retener lote/envases/estado/formato al navegar; no heredarlo a otra etiqueta | R3A select_emission_version / vistas retenidas | Controlador de trabajo | Parcial: trabajo de campos Qt conservado; formulario de emisión retenido en puente Tk. |
-| P01 | Elegir/guardar perfiles por nombre | _set_profile / add_profile | Emisión → Centro de impresión | Anterior operativa; no migrada Qt, puente explícito. |
-| P02 | A4 orientación, márgenes, separación, offsets | page_print_center / _profile_dict | Centro impresión → Perfil | Anterior operativa; no migrada Qt, puente explícito. |
+| P01 | Elegir/guardar perfiles por nombre | _set_profile / add_profile | Emisión → Centro de impresión | Parcial: selección y guardado de perfil Qt en Editor; aplicación a emisión definitiva continúa explícita en Tkinter. |
+| P02 | A4 orientación, márgenes, separación, offsets | page_print_center / _profile_dict | Centro impresión → Perfil | Parcial: tamaño, orientación A4, márgenes, separación y seguridad Qt para prueba; offsets/centro completo siguen en Tkinter. |
 | P03 | Casilla inicial y marcas de corte | emit_start/emit_cut / plan_sheet | Centro impresión → Distribución | Anterior operativa; no migrada Qt, puente explícito. |
 | P04 | Impresora como referencia, no driver | emit_printer | Centro impresión → Referencia impresora | Anterior operativa; no migrada Qt, puente explícito. |
 | P05 | Capacidad, casillas omitidas y límites | plan_sheet / paint | Centro impresión → Vista A4 | Anterior operativa; no migrada Qt, puente explícito. |
@@ -113,6 +113,14 @@ Pruebas de rama: núcleo existente + pruebas Qt/servicio de estados, integridad,
 
 ## Ajustes finales de usabilidad — dirección visual aprobada 09/10/2026
 
-Se conservan las 87 filas y su clasificación (33 Qt, 7 parciales, 40 anteriores, 7 motor). B01/B12: Historial y Configuración compactos tienen descripción emergente y nombre accesible, identificando Tkinter. B09/E15: «Vista N%» y descripción del zoom relativo a Ajustar; no es escala física ni modifica el PDF. M02: Preparar emisión pendiente/retirada usa fondo neutro deshabilitado, conservando las guardas existentes. E11: Guardar solo se habilita con cambios, revisión pendiente y compañero cerrado; sin cambios/solo lectura/bloqueo tiene presentación neutra y motivo.
+En el hito histórico R3A se conservaron 87 filas con clasificación 33 Qt, 7 parciales, 40 anteriores y 7 motor; la clasificación actual R3B1 figura abajo. B01/B12: Historial y Configuración compactos tienen descripción emergente y nombre accesible, identificando Tkinter. B09/E15: «Vista N%» y descripción del zoom relativo a Ajustar; no es escala física ni modifica el PDF. M02: Preparar emisión pendiente/retirada usa fondo neutro deshabilitado, conservando las guardas existentes. E11: Guardar solo se habilita con cambios, revisión pendiente y compañero cerrado; sin cambios/solo lectura/bloqueo tiene presentación neutra y motivo.
 
 La dirección visual Industrial Moderno de Biblioteca/Editor está aprobada definitivamente por el propietario. Estos ajustes no amplían R3A ni inician R3B/R3C. La aceptación de uso en equipos COVEX/Word/impresión sigue pendiente. Capturas de pendiente, vigente habilitada, retirada, guardado limpio/con cambios y editor solo lectura se generan en los tres factores Qt y se incluyen en el artefacto de la revisión.
+
+## Evidencia y ampliaciones R3B1 — 11/10/2026
+
+Las 87 IDs se conservan. Clasificación en esta rama: 38 Qt, 8 parciales, 34 anteriores y 7 motor. E07–E10/E12 pasan a Qt; P01/P02 pasan a parciales. Ninguna función de Emisión definitiva se declara migrada. E11 guarda campos, recorte y estado juntos; compara el diseño completo y la identidad de fuente dentro de una transacción. Esquema SQLite sin migración.
+
+Ampliaciones nuevas, fuera del recuento histórico de 87 capacidades: selección múltiple, alineación/distribución geométrica, transformación proporcional de campos/auxiliares/estado, historial de deshacer/rehacer, anclas persistentes verificables y prueba PDF desde el diseño en memoria. No incluyen composición libre de textos fijos, tablas o imágenes.
+
+Pruebas: `tests/test_editor_layout.py`, `tests/test_r3b1_qt.py` y `qt_ui/advanced_checks.py`; regresión R3A y núcleo existente. Los resultados ejecutados y CI se presentan en la PR de esta revisión. Word real, impresión física, Windows 10/11/equipos COVEX y GMP siguen pendientes. 00-R1 continúa PENDING; sin R3B2/R3B3, autoguardado ni sincronización bidireccional de variables.

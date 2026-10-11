@@ -90,5 +90,7 @@ def exercise(w,app,captures=None):
         check(all(not w.table.isColumnHidden(c) for c in (1,2,4,8)),'Priority columns retained')
         w.open_editor();settle();check(w.width()<=target[0] and w.height()<=target[1],'Editor within compact bounds')
         snap(f'R3A_Qt_{width}x{height}_Editor.png');resolution.append({'target':[width,height],'actual_logical':[w.width(),w.height()],'scale':scale});w.navigate('library')
+    from .advanced_checks import exercise_advanced
+    checks.extend(exercise_advanced(w,app,captures))
     return {'ok':True,'fictional':True,'count':len(checks),'checks':checks,'resolution':resolution,'native_windows_monitor_acceptance':False}
 

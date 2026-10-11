@@ -11,6 +11,46 @@ class ActiveWork:
     dirty: bool = False
 
 class TransitionServices(LocalServices):
+    def save_editor_layout(self, version_id, layout, expected, expected_source):
+        return self._repository.save_pending_layout(version_id, layout, expected, expected_source)
+
+    def editor_page_rect(self, version_id):
+        import fitz
+        version = self.version(version_id)
+        verify_documents(version, self._repository.root)
+        with fitz.open(self.asset_path(version['master_pdf'])) as document:
+            return list(document[0].rect)
+
+    def editor_spans(self, version_id):
+        version = self.version(version_id)
+        verify_documents(version, self._repository.root)
+        return self.master_spans(version)
+
+    def editor_template_layout(self, version_id, crop):
+        version = self.version(version_id)
+        verify_documents(version, self._repository.root)
+        if version['name'].upper() not in ('ACETONA', 'EDROFONIO'):
+            raise ValueError('Sin plantilla reconocida. Use anclas explícitas o ajuste manual.')
+        from .editor_layout import validate_layout
+        fields, area = self.locate_fields(version, crop)
+        layout = dict(fields=fields, area=area, crop=list(crop))
+        validate_layout(layout, self.editor_page_rect(version_id))
+        return layout
+
+    def preview_editor_layout(self, version_id, layout, profile):
+        """Proof only: never approve, save design, or add a definitive issue."""
+        import uuid
+        from .editor_layout import validate_layout, version_with_layout
+        from .engine import render_emission
+        ok, reason = self.eligibility(version_id, False)
+        if not ok: raise ValueError(reason)
+        validate_layout(layout, self.editor_page_rect(version_id))
+        version = version_with_layout(self.version(version_id), layout)
+        path = self.output_path('cache', 'qt-layout-proof-'+uuid.uuid4().hex+'.pdf')
+        warnings = render_emission(version, self._repository.root, {}, profile,
+                                   [1], 1, 1, path, test_mode=True)
+        return path, warnings
+
     def eligibility(self,version_id,production=True):
         version=self.version(version_id)
         if version is None:return False,'Revisión inexistente.'
