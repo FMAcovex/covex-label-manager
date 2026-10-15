@@ -912,6 +912,8 @@ class BaseApplication(tk.Tk):
         i=self._selected_issue()
         if not i:return
         try:
+            from .sheet_layout import require_legacy
+            require_legacy(json.loads(i['profile_json']))
             report=self.services.history.inspect(i['id'])
             if not report['reprint_allowed']:raise ValueError(report['blocked'])
             if report['warnings'] and not messagebox.askyesno('Advertencias del histórico','\n'.join(report['warnings'])+'\n\nContinuar?',parent=self):return

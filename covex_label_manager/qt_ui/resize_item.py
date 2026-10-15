@@ -17,7 +17,9 @@ class ResizeHandle(QGraphicsRectItem):
         if self.hx==1:r.setRight(max(r.left()+1,r.right()+d.x()))
         if self.hy==0:r.setTop(min(r.bottom()-1,r.top()+d.y()))
         if self.hy==1:r.setBottom(max(r.top()+1,r.bottom()+d.y()))
-        p.setRect(r); p.position_handles(); e.accept()
+        p.setRect(r); p.position_handles()
+        if hasattr(p,'feedback'):p.feedback()
+        e.accept()
     def mouseReleaseEvent(self,e):
         self.mouseMoveEvent(e); e.accept(); self.parentItem().released()
 

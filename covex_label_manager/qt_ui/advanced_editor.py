@@ -110,6 +110,10 @@ class EditorFieldItem(ResizableRect):
         self.original_rect = QRectF(self.rect())
         self.enable_handles(editable and not field.get('locked'))
 
+    def mouseMoveEvent(self,event):
+        super().mouseMoveEvent(event)
+        if hasattr(self,'feedback'):self.feedback()
+
     def mouseReleaseEvent(self, event):
         super().mouseReleaseEvent(event); self.released()
 
@@ -173,6 +177,7 @@ class AdvancedEditorMixin:
         row.addWidget(self.new_field_button); row.addWidget(self.draw_field_button)
         self.editor_tools.layout().insertLayout(0,row)
         self.field_snap=QCheckBox('Snap de campos a 1 mm');self.editor_tools.layout().insertWidget(1,self.field_snap)
+        self.field_grid=QCheckBox('Cuadrícula de campos (10 mm)');self.field_grid.toggled.connect(lambda *_:self.draw_editor() if self.design else None);self.editor_tools.layout().insertWidget(2,self.field_grid)
         self.variant_edit_button=button('Crear variante editable',self.editable_variant)
         self.editor_tools.layout().insertWidget(1,self.variant_edit_button)
         self.editor_tools.layout().insertWidget(2,label('Solo se editan campos variables superpuestos. El maestro fijo permanece protegido.','subtle'))
@@ -246,6 +251,10 @@ class AdvancedEditorMixin:
             scene.addText('Documento no disponible: '+str(ex)); self.field_list.clear()
             self.loading=False; self._drawing=False; self.disable_properties(); self.update_dirty(); return
         scene.addPixmap(pixmap(im)); self.image_w,self.image_h=im.size
+        if self.field_grid.isChecked():
+            bw=self.editor_version['base_w_mm'];bh=self.editor_version['base_h_mm']
+            for x in range(0,int(bw)+1,10):scene.addLine(x/bw*im.width,0,x/bw*im.width,im.height,QPen(QColor('#C4D9DB'),.5))
+            for y in range(0,int(bh)+1,10):scene.addLine(0,y/bh*im.height,im.width,y/bh*im.height,QPen(QColor('#C4D9DB'),.5))
         area = self.design.state['area']
         if area:
             x,y,w,h = area
@@ -255,6 +264,7 @@ class AdvancedEditorMixin:
         self.field_list.clear()
         for i,f in enumerate(self.fields):
             item = EditorFieldItem(f,i,im.width,im.height,self.design.state['crop'],self.editable(),self.drag_finished)
+            item.feedback=lambda item=item:self.statusBar().showMessage(f"Campo: X {(item.x()+item.rect().x())/self.image_w*self.editor_version['base_w_mm']:.2f} mm · Y {(item.y()+item.rect().y()-item.offset)/self.image_h*self.editor_version['base_h_mm']:.2f} mm · Ancho {item.rect().width()/self.image_w*self.editor_version['base_w_mm']:.2f} mm · Alto {item.rect().height()/self.image_h*self.editor_version['base_h_mm']:.2f} mm")
             scene.addItem(item); self.field_items.append(item); self.field_list.addItem(f['label'])
             text = scene.addText(f['key']); text.setDefaultTextColor(QColor('#147D71')); text.setParentItem(item); text.setPos(4,-3)
             text.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
@@ -366,7 +376,7 @@ class AdvancedEditorMixin:
         for item in self.field_items:
             f=candidate['fields'][item.index]
             dx=item.pos().x()/self.image_w-f['x']; dy=(item.pos().y()-item.offset)/self.image_h-f['y']
-            if self.field_snap.isChecked():
+            if self.field_snap.isChecked() and (abs(dx)>1e-9 or abs(dy)>1e-9):
                 bw=self.editor_version['base_w_mm'];bh=self.editor_version['base_h_mm']
                 dx=round((f['x']+dx)*bw)/bw-f['x'];dy=round((f['y']+dy)*bh)/bh-f['y']
             if abs(dx)>1e-9 or abs(dy)>1e-9:

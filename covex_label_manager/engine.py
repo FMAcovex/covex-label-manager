@@ -34,12 +34,13 @@ def _plan_sheet(profile, physical_count):
     m=float(profile.get('margin_mm',8)); gap=float(profile.get('gap_mm',3))
     first=int(profile.get('start_slot',1))
     p_w,p_h=paper_size(profile)
-    if not (10<=w<=p_w and 10<=h<=p_h and 0<=m<=40 and 0<=gap<=50):
+    if not (0<=m<=40 and 0<=gap<=50 and (mode=='free' or (10<=w<=p_w and 10<=h<=p_h))):
         raise LayoutError('Compruebe el tamano de etiqueta, margenes y separacion.')
     cols=math.floor((p_w-2*m+gap+1e-9)/(w+gap))
     rows=math.floor((p_h-2*m+gap+1e-9)/(h+gap))
     boxes=slots(profile,cols,rows)
     capacity=len(boxes)
+    if mode=='free':cols=capacity;rows=1
     if capacity<1:
         raise LayoutError('No cabe ninguna etiqueta en la hoja con estos ajustes.')
     if first<1 or first>capacity:

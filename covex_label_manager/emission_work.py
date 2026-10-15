@@ -54,7 +54,7 @@ def selection_indices(selection,count):
 
 def parameters(work):
     count=int(work['count']);copies=int(work['copies'])
-    if not 1<=count<=10000 or not 1<=copies<=100:raise ValueError('Recipientes: 1–10000; copias: 1–100.')
+    if not 1<=count<=10000 or copies not in (1,2):raise ValueError('Recipientes: 1–10000; copias: 1–2.')
     return profile_numbers(work['profile']),selection_indices(work.get('selection',''),count),count,copies
 
 
@@ -83,8 +83,9 @@ class WorkRepository:
             from .canonical import parse
             # Parse duplicate keys strictly, then plain JSON keeps engine numbers native.
             raw=path.read_text(encoding='utf-8');parse(raw);envelope=json.loads(raw)
-            if envelope.get('contract')!=1:raise WorkUnsupported('Contrato de trabajo desconocido; use una versión compatible. No se permite restaurar encima.')
+            if envelope.get('contract') not in (1,2):raise WorkUnsupported('Contrato de trabajo desconocido; use una versión compatible. No se permite restaurar encima.')
             w=envelope['payload']
+            if envelope.get('contract')==2 and w.get('profile',{}).get('layout_version')!=1:raise WorkUnsupported('Contrato 2 requiere distribución nativa versión 1.')
             if digest(w)!=envelope['sha256']:raise ValueError('Checksum de trabajo incorrecto.')
             self.validate(w)
             if path.name not in (w['uid']+'.json',w['uid']+'.previous.json'):raise ValueError('Identidad de archivo incorrecta.')
@@ -123,8 +124,8 @@ class WorkRepository:
     def _write(self,w,previous=None):
         self.validate(w);path=self.path(w['uid'])
         if previous is not None:
-            atomic_json(path.with_suffix('.previous.json'),{'contract':1,'payload':previous,'sha256':digest(previous)})
-        atomic_json(path,{'contract':1,'payload':w,'sha256':digest(w)})
+            atomic_json(path.with_suffix('.previous.json'),{'contract':2 if previous['profile'].get('layout_version') else 1,'payload':previous,'sha256':digest(previous)})
+        atomic_json(path,{'contract':2 if w['profile'].get('layout_version') else 1,'payload':w,'sha256':digest(w)})
         return copy.deepcopy(w)
     def create(self,revision_id,variant_id=None,name='Nuevo trabajo',template=None):
         stamp=now();uid=uuid.uuid4().hex

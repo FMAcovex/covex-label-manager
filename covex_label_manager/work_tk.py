@@ -51,6 +51,8 @@ class WorkTkMixin:
         if self._work_flush():return True
         messagebox.showerror('Borrador no guardado',self._work_error+'\nLos valores siguen en pantalla. Reintente guardar antes de salir.',parent=self);return False
     def _work_apply(self,w):
+        from .sheet_layout import require_legacy
+        require_legacy(w['profile'])
         previous_loading=self._work_loading;self._work_loading=True
         try:
             self.emission_work=w

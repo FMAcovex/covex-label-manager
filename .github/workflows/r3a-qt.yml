@@ -8,6 +8,10 @@ on:
       - 'covex_label_manager/services.py'
       - 'tests/test_r3c*.py'
       - 'tests/test_r3d*.py'
+      - 'tests/test_r3e*.py'
+      - 'covex_label_manager/sheet_layout.py'
+      - 'covex_label_manager/layout_profiles.py'
+      - 'scripts/r3e_backward_gate.py'
       - 'covex_label_manager/work_tk.py'
       - 'tests/test_emission_work*.py'
       - 'covex_label_manager/qt_ui/**'
@@ -57,7 +61,7 @@ jobs:
           python -m pytest -q -o faulthandler_timeout=60 --junitxml=test-results/qt.xml
           tests/test_r3a_qt.py tests/test_r3b1_qt.py tests/test_emission_work_qt.py
           tests/test_r3c_emission_qt.py tests/test_r3c_history_qt.py tests/test_r3d_settings_qt.py
-          tests/test_migration_consent.py
+          tests/test_migration_consent.py tests/test_r3e_layout.py tests/test_r3e_qt.py
       - name: Interact with real Qt widgets and capture fictional windows
         shell: pwsh
         run: |
@@ -84,6 +88,23 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "R3C native source failed at $scale" }
           }
           Remove-Item Env:QT_SCALE_FACTOR
+      - name: R3E visual design proof on native Qt
+        shell: pwsh
+        run: |
+          foreach ($scale in @('1', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            python main_qt.py --r3e-check "test-results/r3e-source-$scale.json" --capture "test-results/r3e-source-$scale"
+            if ($LASTEXITCODE -ne 0) { Get-Content "test-results/r3e-source-$scale.json"; throw 'R3E source check failed' }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 46314a4b83c51e5cc45cccfce4c50925a59a8bfe
+          path: .r3d-compatibility
+          persist-credentials: false
+      - name: Unchanged R3D readers reject new work and snapshots
+        run: python scripts/r3e_backward_gate.py --previous-source .r3d-compatibility
+      - run: Remove-Item .r3d-compatibility -Recurse -Force
       - run: python scripts/check_build_destination.py dist/COVEXLabelManager_Qt
       - run: >-
           python -m PyInstaller --noconfirm --clean --onedir --windowed
@@ -144,9 +165,26 @@ jobs:
           $check = Get-Content $result -Raw | ConvertFrom-Json
           if (!$check.ok -or $check.count -lt 31) { throw 'Packaged R3C contract incomplete' }
           Copy-Item $captures test-results/r3c-packaged -Recurse
+      - name: R3E frozen portable interaction and captures
+        shell: pwsh
+        run: |
+          foreach ($scale in @('1', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            $result = Join-Path $env:RUNNER_TEMP "r3e-frozen-$scale.json"
+            $captures = Join-Path $env:RUNNER_TEMP "r3e-frozen-$scale"
+            $process = Start-Process -FilePath dist/COVEXLabelManager_Qt/COVEXLabelManager_Qt.exe -ArgumentList @('--r3e-check', $result, '--capture', $captures) -Wait -PassThru
+            if (Test-Path $result) { Copy-Item $result "test-results/r3e-frozen-$scale.json" }
+            if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { throw 'R3E portable check failed' }
+            $check = Get-Content $result -Raw | ConvertFrom-Json
+            if (!$check.ok) { Get-Content $result; throw 'R3E portable acceptance failed' }
+            Copy-Item $captures "test-results/r3e-frozen-$scale" -Recurse
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
       - name: Archive proof separately from production
         shell: pwsh
         run: |
+          Copy-Item docs/R3E_IMPLEMENTATION_REPORT.md dist/COVEXLabelManager_Qt/R3E_IMPLEMENTATION_REPORT.md
+          Copy-Item docs/R3E_IMPLEMENTATION_SPEC.md dist/COVEXLabelManager_Qt/R3E_IMPLEMENTATION_SPEC.md
           Copy-Item docs/R3A_QT_PLAN.md dist/COVEXLabelManager_Qt/LEEME.md
           Copy-Item docs/R3B1_QT_EDITOR.md dist/COVEXLabelManager_Qt/R3B1_EDITOR.md
           Copy-Item docs/R3C_IMPLEMENTATION.md dist/COVEXLabelManager_Qt/R3C_EMISSION.md
@@ -162,7 +200,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: R3C-Qt-Native-Emission-${{ github.sha }}
+          name: R3E-Qt-Visual-Design-${{ github.sha }}
           path: |
             COVEXLabelManager_Qt.zip
             test-results/

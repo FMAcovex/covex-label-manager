@@ -8,7 +8,7 @@ from .window import Preview,button,label,vbox
 class PdfPane(QWidget):
     def __init__(self,api,parent=None):
         super().__init__(parent);self.api=api;self.path=None;self.page_count=0;self.validator=None
-        layout=vbox(self,0,8);top=QHBoxLayout();self.header_layout=top;self._full_title='Vista previa A4'
+        layout=vbox(self,0,8);top=QHBoxLayout();self.header_layout=top;self._full_title='Vista previa PDF'
         self.title=label(self._full_title,'panelTitle');self.title.setWordWrap(False)
         self.title.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Preferred);top.addWidget(self.title,1)
         self.pages=QComboBox();self.pages.setMinimumWidth(105);self.pages.currentIndexChanged.connect(self.page_changed);top.addWidget(self.pages)
@@ -23,7 +23,7 @@ class PdfPane(QWidget):
         layout.addWidget(self.view,1);self.note=label('Actualice la vista previa con los datos del trabajo.','subtle');layout.addWidget(self.note)
     def clear(self,message='Los datos han cambiado. Actualice la vista previa.'):
         self.path=None;self.page_count=0;self.validator=None;self.view.scene().clear();self.pages.blockSignals(True);self.pages.clear();self.pages.blockSignals(False);self.open_button.setEnabled(False);self.expand_button.setEnabled(False);self.note.setText(message)
-    def load(self,path,title='Vista previa A4',note=''):
+    def load(self,path,title='Vista previa PDF',note=''):
         image,count=self.api.pdf_page(path,0,maxwidth=1600);self.path=path;self.page_count=count
         self._full_title=title;self.title.setText(title);self.pages.blockSignals(True);self.pages.clear()
         for n in range(count):self.pages.addItem(f'Página {n+1} de {count}',n)

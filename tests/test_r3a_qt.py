@@ -117,9 +117,12 @@ def test_missing_metadata_is_not_invented(studio):
 
 
 def test_native_add_remove_and_identifiers(studio,monkeypatch):
-    from PySide6.QtWidgets import QInputDialog
+    from PySide6.QtWidgets import QDialog,QLineEdit
     w,s,app=studio;w.open_editor();before=len(w.fields)
-    monkeypatch.setattr(QInputDialog,'getText',lambda *a,**k:('fictional_new_key',True))
+    def fill(dialog):
+        entries=dialog.findChildren(QLineEdit);entries[0].setText('fictional_new_key');entries[1].setText('Fictional new field')
+        return QDialog.DialogCode.Accepted
+    monkeypatch.setattr(QDialog,'exec',fill)
     w.add_field();assert len(w.fields)==before+1 and w.dirty
     assert w.save_work()
     w.field_list.setCurrentRow(before)

@@ -87,3 +87,23 @@ def test_work_restart_proof_issue_and_reprint(demo,tmp_path):
     with pytest.raises(WorkConflict):api.work.save(w['uid'],w['generation']-1,{'profile':profile()})
     result=api.work.issue(w['uid'],w['generation'],'Synthetic operator')
     assert result
+
+
+def test_backup_restores_work_profiles_and_conflicting_writer(demo,tmp_path):
+    from covex_label_manager.emission_work import file_lock
+    from covex_label_manager.storage import Store
+    from covex_label_manager.services import LocalServices
+    import zipfile
+    api=demo.services;repo=LayoutProfiles(api._repository.root);p=profile('A3')
+    repo.save('restore-test','Synthetic restore',p)
+    with file_lock(repo.root/'catalog.lock'):
+        with pytest.raises(WorkConflict):repo.save('restore-test','Conflict',p,1)
+    w=api.work.create(demo.initial_id,None,'Synthetic restore');w=api.work.save(w['uid'],w['generation'],{'profile':p})
+    archive=api.backup();restored=tmp_path/'restored';restored.mkdir()
+    with zipfile.ZipFile(archive) as z:z.extractall(restored)
+    recovered=LocalServices(Store(restored,seed=False))
+    try:
+        assert recovered.work.get(w['uid'])['profile']==p
+        assert LayoutProfiles(restored).get('restore-test')['profile']==p
+        recovered.work.proof(w['uid'],w['generation'],recovered.output_path('cache','restore-proof.pdf'))
+    finally:recovered.close()

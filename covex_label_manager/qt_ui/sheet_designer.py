@@ -2,7 +2,7 @@
 import copy
 from dataclasses import asdict
 from PySide6.QtCore import Qt, QRectF, QTimer
-from PySide6.QtGui import QColor, QPen, QBrush
+from PySide6.QtGui import QColor, QPen, QBrush, QPalette
 from PySide6.QtWidgets import (QDialog,QWidget,QHBoxLayout,QFormLayout,QComboBox,QSpinBox,
  QDoubleSpinBox,QCheckBox,QDialogButtonBox,QScrollArea,QLineEdit,QInputDialog,QGraphicsItem)
 from .window import vbox,label,button,Preview,pixmap
@@ -20,11 +20,14 @@ class ProfileHistory(LayoutHistory):
 
 class SlotItem(ResizableRect):
     def __init__(self,box,index,owner,editable):
-        super().__init__(0,0,box.width,box.height);self.index=index;self.owner=owner;self.released=owner.gesture
+        super().__init__(0,0,box.width,box.height);self.index=index;self.owner=owner;self.released=owner.gesture;self.feedback=owner.selection
         self.setPos(box.x,box.y);self.setPen(QPen(QColor('#147D71'),.4));self.setBrush(QBrush(QColor(20,125,113,35)))
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable,editable)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable,editable)
         self.enable_handles(editable)
+    def mousePressEvent(self,e):
+        self.setFocus();super().mousePressEvent(e)
     def mouseMoveEvent(self,e):
         super().mouseMoveEvent(e);self.owner.selection()
     def mouseReleaseEvent(self,e):super().mouseReleaseEvent(e);self.released()
@@ -41,11 +44,14 @@ class SheetDesigner(QDialog):
         screen=self.screen().availableGeometry();self.resize(min(1120,screen.width()-24),min(700,screen.height()-32))
         self.thumbnail=thumbnail;self.nominal=nominal
         self.history=ProfileHistory(copy.deepcopy(profile));self.profile=copy.deepcopy(profile);self.proof=proof;self.busy=False;self.items=[];self.repo=LayoutProfiles(root) if root else None
+        palette=self.palette()
+        for role,colour in ((QPalette.ColorRole.Window,'#F4F7F8'),(QPalette.ColorRole.Base,'#FFFFFF'),(QPalette.ColorRole.Text,'#203B40'),(QPalette.ColorRole.WindowText,'#203B40'),(QPalette.ColorRole.Button,'#FFFFFF'),(QPalette.ColorRole.ButtonText,'#203B40')):palette.setColor(role,QColor(colour))
+        self.setPalette(palette)
         self.setStyleSheet('QDialog { background:#F4F7F8; color:#203B40; }')
         layout=vbox(self,10,6);layout.addWidget(label('Posiciones por hoja ≠ recipientes ≠ copias por recipiente','panelTitle'))
         layout.addWidget(label(counts+' · El contenido se escala proporcionalmente. Papel sujeto a prueba física; imprimir al 100 %.','subtle'))
         row=QHBoxLayout();self.view=Preview();self.view.setDragMode(Preview.DragMode.RubberBandDrag);row.addWidget(self.view,1)
-        panel=QWidget();form=QFormLayout(panel);scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(panel);scroll.setMinimumWidth(270);scroll.setMaximumWidth(340);row.addWidget(scroll);layout.addLayout(row,1)
+        panel=QWidget();form=QFormLayout(panel);form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows);scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(panel);scroll.setMinimumWidth(270);scroll.setMaximumWidth(340);row.addWidget(scroll);layout.addLayout(row,1)
         self.paper=QComboBox();self.paper.addItems([*PAPERS,'custom']);form.addRow('Papel',self.paper)
         self.orientation=QComboBox();self.orientation.addItem('Vertical','portrait');self.orientation.addItem('Horizontal','landscape');form.addRow('Orientación',self.orientation)
         self.mode=QComboBox();self.mode.addItem('Cuadrícula clásica','grid');self.mode.addItem('Distribución libre','free');form.addRow('Composición',self.mode)
@@ -70,7 +76,7 @@ class SheetDesigner(QDialog):
             self.saved.activated.connect(self.load_profile);form.addRow(self.saved);form.addRow(button('Guardar perfil…',self.save_profile))
         self.error=label('','subtle');layout.addWidget(self.error)
         actions=QHBoxLayout()
-        for t,fn in [('Deshacer',self.undo),('Rehacer',self.redo),('Restablecer',self.reset),('Ajustar vista',self.view.fit),('＋',lambda:self.view.zoom(1.2)),('−',lambda:self.view.zoom(1/1.2))]:actions.addWidget(button(t,fn))
+        for t,fn in [('Deshacer',self.undo),('Rehacer',self.redo),('Restablecer',self.reset),('Ajustar vista',self.view.fit),('+',lambda:self.view.zoom(1.2)),('−',lambda:self.view.zoom(1/1.2))]:actions.addWidget(button(t,fn))
         layout.addLayout(actions)
         self.buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel)
         self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText('Aplicar al trabajo');self.buttons.accepted.connect(self.accept_valid);self.buttons.rejected.connect(self.reject);layout.addWidget(self.buttons)
