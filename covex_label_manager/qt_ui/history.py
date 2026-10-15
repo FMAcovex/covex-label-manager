@@ -123,13 +123,16 @@ class HistoryMixin:
             try:
                 with self.emission_busy():pk,path,result=self.api.history.reproduce(self.history_id,selection.text(),reason.text(),self.api.setting('operator'),start_slot=slot.text(),acknowledge_legacy=ack.isChecked(),expected_token=report['token'],proof=proof)
                 if proof:
-                    self.history_pdf.validator=None;self.history_pdf.load(path,'PRUEBA de reimpresión','PRUEBA · Sin registro de emisión.');error.setText('PDF de prueba visible en Historial. Cierre este diálogo para examinarlo.')
+                    proof_dialog=QDialog(dialog);proof_dialog.setWindowTitle('PRUEBA de reimpresión · Sin registro');proof_dialog.resize(850,800);proof_layout=vbox(proof_dialog);pdf=PdfPane(self.api);proof_layout.addWidget(pdf,1);pdf.load(path,'PRUEBA de reimpresión','PRUEBA · Sin registro de emisión.');closer=QDialogButtonBox(QDialogButtonBox.StandardButton.Close);closer.button(QDialogButtonBox.StandardButton.Close).setText('Cerrar');closer.rejected.connect(proof_dialog.reject);proof_layout.addWidget(closer);proof_dialog.exec()
                 else:
                     dialog.accept();self.history_id=pk;self.refresh_native_history();self.preview_native_issue();self.history_feedback.setText(f'Reimpresión #{pk} registrada. Impresión física no confirmada.')
             except Exception as ex:error.setText(self.operator_error(ex))
             finally:preview.setEnabled(True);issue.setEnabled(True)
         for field in (selection,reason,slot):field.textChanged.connect(validate)
         ack.toggled.connect(validate);validate();dialog.exec()
+    def set_mutations_enabled(self,enabled):
+        super().set_mutations_enabled(enabled)
+        if hasattr(self,'history_page'):self.history_page.setEnabled(enabled)
     def resizeEvent(self,event):
         super().resizeEvent(event)
         if hasattr(self,'history_split'):self.history_split.setOrientation(Qt.Orientation.Vertical if event.size().width()<1150 else Qt.Orientation.Horizontal)

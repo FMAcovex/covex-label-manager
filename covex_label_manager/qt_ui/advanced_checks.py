@@ -101,5 +101,5 @@ def exercise_advanced(w,app,captures=None):
     snap('R3B1_Editor_Vigente_Bloqueado.png')
     w.select_version(w.session.initial_id); w.open_editor()
     w.resize(1100,760); settle(); snap('R3B1_Editor_Compacto.png')
-    check('Tkinter' in w.nav['emission'].toolTip(),'Legacy emission remains identified')
+    check('Centro nativo Qt' in w.nav['emission'].toolTip(),'Native emission is identified in navigation')
     return checks

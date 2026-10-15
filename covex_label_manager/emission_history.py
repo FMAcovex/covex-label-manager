@@ -86,8 +86,17 @@ class HistoryService:
                 pk=self.api.add_issue(v['id'],operator,row['count_containers'],row['copies_per_container'],indices,values,profile,out,
                     source_issue_id=issue_id,reason=reason.strip(),per_container=per,status=status)
             except Exception as ex:
-                # Never announce success for an unregistered PDF. Remove the newly
-                # rendered output where possible; history remains authoritative.
+                # A transport/filesystem exception can arrive after SQLite commit.
+                # Reconcile by this unique output before touching its PDF. If the
+                # database cannot answer, keep the file for diagnosis/recovery.
+                try:
+                    committed=self.api._repository.db.execute('SELECT id,source_issue_id FROM issues WHERE pdf_path=?',(out.relative_to(self.api._repository.root).as_posix(),)).fetchone()
+                except Exception as uncertain:
+                    raise ValueError('Resultado de registro incierto. PDF conservado; consulte Historial antes de reintentar.') from uncertain
+                if committed:
+                    if committed['source_issue_id']!=issue_id:raise ValueError('Registro incompatible. PDF conservado para revisión.') from ex
+                    self.inspect(committed['id'])
+                    return committed['id'],out,result
                 try:out.unlink(missing_ok=True)
                 except OSError:pass
                 raise ValueError('Reimpresión no registrada. Consulte Historial antes de reintentar. '+str(ex)) from ex

@@ -75,6 +75,7 @@ def record_issue(store,version_id,operator,count,copies,indices,values,profile,p
     if not receipt:raise PermissionError('Falta el contrato del PDF renderizado; genere mediante el servicio de emisión.')
     expected=digest([values,dict(profile),indices,count,copies,per_container or {},status or {}])
     if expected!=receipt['data_hash'] or receipt['snapshot']['revision_id']!=version_id:raise ValueError('Los datos no corresponden al PDF renderizado.')
+    if receipt.get('reprint') and source_issue_id!=receipt['reprint']['issue_id']:raise ValueError('Vínculo de reimpresión obligatorio.')
     snap=receipt['snapshot'];variant_id=snap['variant_id']
     with store.txn() as db:
         db.execute('BEGIN IMMEDIATE')

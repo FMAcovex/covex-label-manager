@@ -5,11 +5,21 @@ import uuid
 import unicodedata
 from PySide6.QtCore import Qt,QTimer,QSignalBlocker
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QLineEdit,QComboBox,
-    QTabWidget,QTableWidget,QTableWidgetItem,QHeaderView,QScrollArea,QDockWidget,QMessageBox,QInputDialog,QPlainTextEdit,QLabel)
+    QTabWidget,QTableWidget,QTableWidgetItem,QHeaderView,QScrollArea,QDockWidget,QMessageBox,QInputDialog,QPlainTextEdit,QLabel,QCheckBox)
 from .window import button,label,vbox
 from ..emission_work import WorkConflict
 
 PHASE={'DRAFT':'Borrador','EMITTING':'Intento interrumpido','ISSUED':'Emitido','ERROR':'Revisar archivo'}
+
+
+class VariableText(QPlainTextEdit):
+    """Multiline variable input retaining the existing WorkPanel text contract."""
+    def __init__(self,text=''):
+        super().__init__(text);self.setMinimumHeight(54);self.setMaximumHeight(78);self.setTabChangesFocus(True)
+    @property
+    def textEdited(self):return self.textChanged
+    def text(self):return self.toPlainText()
+    def setText(self,text):self.setPlainText(text)
 
 
 class WorkPanel(QWidget):
@@ -20,31 +30,37 @@ class WorkPanel(QWidget):
         top.addWidget(button('Abrir',self.open_selected));layout.addLayout(top)
         actions=QHBoxLayout();actions.addWidget(button('Nuevo',window.new_emission_work));actions.addWidget(button('Copiar',window.copy_emission_work))
         actions.addWidget(button('Recargar',window.reload_emission_work));layout.addLayout(actions)
-        self.note=label('Seleccione o cree un trabajo. Guardar borrador no emite.','subtle');layout.addWidget(self.note)
-        self.identity=label('','subtle');layout.addWidget(self.identity)
+        self.note=label('Seleccione o cree un trabajo. Guardar borrador no emite.','subtle');self.note.setWordWrap(True);layout.addWidget(self.note)
+        self.identity=label('','subtle');self.identity.setWordWrap(True);layout.addWidget(self.identity)
         self.tabs=QTabWidget();layout.addWidget(self.tabs,1)
-        common=QWidget();self.common_form=QFormLayout(common)
+        common=QWidget();common.setObjectName('workForm');self.common_form=QFormLayout(common)
         scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(common);self.tabs.addTab(scroll,'Datos de lote')
         self.containers=QTableWidget(0,5);self.containers.setHorizontalHeaderLabels(['Nº','Lote','PN kg','PB kg','Conservación'])
         self.containers.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.container_keys=['lote','pn','pb','conservacion']
         self.containers.setAlternatingRowColors(True);self.containers.verticalHeader().hide()
         self.containers.itemChanged.connect(self.changed);self.tabs.addTab(self.containers,'Recipientes')
+        self.containers.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+        from PySide6.QtGui import QAction
+        clear=QAction('Limpiar datos de este recipiente (heredar lote)',self.containers);clear.triggered.connect(self.clear_container_row);self.containers.addAction(clear)
         self.tabs.currentChanged.connect(self.tab_changed)
         self.containers.setToolTip('Un valor vacío hereda el dato común. Puede pegar una tabla de Excel desde el centro de emisión.')
-        cfg=QWidget();form=QFormLayout(cfg)
+        cfg=QWidget();cfg.setObjectName('workForm');form=QFormLayout(cfg)
         for key,title in [('count','Recipientes'),('copies','Copias por recipiente'),('selection','Números (1-3,5; vacío = todos)')]:
             e=QLineEdit();e.textEdited.connect(self.changed);self.inputs[key]=e;form.addRow(title,self.with_error(e,key))
         for key,title in [('width_mm','Ancho mm'),('height_mm','Alto mm'),('margin_mm','Margen A4 mm'),('gap_mm','Separación mm'),
             ('offset_x_mm','Desplazamiento X mm'),('offset_y_mm','Desplazamiento Y mm'),('start_slot','Casilla inicial'),('safety_mm','Seguridad mm'),('printer_name','Impresora (referencia)')]:
             e=QLineEdit();e.textEdited.connect(self.changed);self.profile_inputs[key]=e;form.addRow(title,self.with_error(e,key))
+        self.keep_ratio=QCheckBox('Conservar proporción del diseño');self.keep_ratio.setChecked(True);form.addRow(self.keep_ratio)
+        form.addRow(button('Restaurar tamaño del diseño',self.restore_size))
+        for key in ('width_mm','height_mm'):self.profile_inputs[key].textEdited.connect(lambda _,k=key:self.scale_size(k))
         self.orientation=QComboBox();self.orientation.addItem('Vertical','portrait');self.orientation.addItem('Horizontal','landscape');self.orientation.currentTextChanged.connect(self.changed);form.addRow('Orientación A4',self.orientation)
         self.cut=QComboBox();self.cut.addItem('Sin marcas','0');self.cut.addItem('Con marcas','1');self.cut.currentTextChanged.connect(self.changed);form.addRow('Marcas de corte',self.cut)
         self.profile_choice=QComboBox();self.profile_choice.addItem('Aplicar perfil guardado…',None)
         for p in window.api.profile_list():self.profile_choice.addItem(p['name'],p)
         self.profile_choice.activated.connect(self.apply_profile);form.addRow('Perfil reutilizable',self.profile_choice)
         scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(cfg);self.tabs.addTab(scroll,'Formato y emisión')
-        status=QWidget();f=QFormLayout(status);self.status_kind=QComboBox();
+        status=QWidget();status.setObjectName('workForm');f=QFormLayout(status);self.status_kind=QComboBox();
         for title,key in [('Sin etiqueta de estado','ninguna'),('Sin analizar','sin_analizar'),('Aprobado','aprobado'),('Rechazado','rechazado')]:self.status_kind.addItem(title,key)
         self.status_kind.currentTextChanged.connect(self.changed);f.addRow('Etiqueta de estado',self.status_kind)
         self.placement=QComboBox();self.placement.addItem('Integrada','integrada');self.placement.addItem('Independiente','independiente');self.placement.currentTextChanged.connect(self.changed);f.addRow('Ubicación',self.placement)
@@ -108,7 +124,7 @@ class WorkPanel(QWidget):
             labels={unicodedata.normalize('NFC',f['key']):f.get('label',f['key']) for f in fields if f['key'] not in ('numero','texto_fijo')}
             labels.update({k:labels.get(k,k+' (conservado)') for k in w['values']})
             for key,title in labels.items():
-                e=QLineEdit(w['values'].get(key,''));e.textEdited.connect(self.changed);self.value_inputs[key]=e;self.common_form.addRow(title,self.with_error(e,'value:'+key))
+                e=VariableText(w['values'].get(key,''));e.textEdited.connect(self.changed);self.value_inputs[key]=e;self.common_form.addRow(title,self.with_error(e,'value:'+key))
             for k,e in self.inputs.items():e.setText(w[k])
             for k,e in self.profile_inputs.items():e.setText(str(w['profile'].get(k,'')))
             self.orientation.setCurrentIndex(max(0,self.orientation.findData(w['profile'].get('orientation','portrait'))));self.cut.setCurrentIndex(max(0,self.cut.findData(str(w['profile'].get('crop_marks',0)))))
@@ -137,6 +153,25 @@ class WorkPanel(QWidget):
         return {'values':{k:e.text() for k,e in self.value_inputs.items()},'per_container':per,
             'profile':{**w['profile'],**{k:e.text() for k,e in self.profile_inputs.items()},'orientation':self.orientation.currentData(),'crop_marks':self.cut.currentData()},
             'status':status,**{k:e.text() for k,e in self.inputs.items()}}
+    def restore_size(self):
+        if not self.window.emission_work:return
+        b=self.window.emission_work['binding'];v=self.window.api.resolved_design(b['revision_id'],b['variant_id'])
+        for k,source in [('width_mm','base_w_mm'),('height_mm','base_h_mm')]:self.profile_inputs[k].setText(f"{v[source]:.6f}".rstrip('0').rstrip('.'))
+        self.changed()
+    def scale_size(self,key):
+        if self.loading or not self.keep_ratio.isChecked() or not self.window.emission_work:return
+        try:
+            b=self.window.emission_work['binding'];v=self.window.api.resolved_design(b['revision_id'],b['variant_id'])
+            other='height_mm' if key=='width_mm' else 'width_mm';ratio=v['base_h_mm']/v['base_w_mm']
+            value=float(self.profile_inputs[key].text().replace(',','.'))*(ratio if key=='width_mm' else 1/ratio)
+            self.profile_inputs[other].setText(f'{value:.6f}'.rstrip('0').rstrip('.'));self.changed()
+        except (ValueError,ZeroDivisionError):pass
+    def clear_container_row(self):
+        row=self.containers.currentRow()
+        if row<0:return
+        blocker=QSignalBlocker(self.containers)
+        for col in range(1,self.containers.columnCount()):self.containers.item(row,col).setText('')
+        del blocker;self.changed()
     def changed(self,*_):
         if not self.loading:self.window.work_changed(self)
     def apply_profile(self,*_):

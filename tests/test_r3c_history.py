@@ -75,3 +75,23 @@ def test_origin_changed_between_render_and_transaction_is_blocked(work,monkeypat
     monkeypatch.setattr(api,'add_issue',altered)
     with pytest.raises(ValueError,match='origen'):api.history.reproduce(pk,'1','Synthetic damage','QA')
     assert len(api.issues())==1
+
+
+def test_schema_and_master_history_unchanged_by_native_services(work):
+    api,w=work;s=api._repository
+    schema=[tuple(r) for r in s.db.execute('SELECT type,name,sql FROM sqlite_master ORDER BY type,name')]
+    before=dict(api.version(w['binding']['revision_id']))
+    api,pk=emitted(work);api.history.reproduce(pk,'2','Synthetic reason','QA')
+    assert [tuple(r) for r in s.db.execute('SELECT type,name,sql FROM sqlite_master ORDER BY type,name')]==schema
+    assert dict(api.version(w['binding']['revision_id']))==before
+    assert next(r for r in api.library_records() if r['version']=='00-R1')['state']=='PENDING'
+
+
+def test_reprint_error_after_commit_keeps_registered_pdf_and_reconciles(work,monkeypatch):
+    api,pk=emitted(work);real=api.add_issue
+    def committed(*a,**k):
+        real(*a,**k);raise OSError('synthetic post-commit failure')
+    monkeypatch.setattr(api,'add_issue',committed)
+    second,path,_=api.history.reproduce(pk,'2','Synthetic damage','QA')
+    assert len(api.issues())==2 and api.issue(second)['source_issue_id']==pk
+    assert path.is_file() and api.history.inspect(second)['reprint_allowed']

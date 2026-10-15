@@ -117,7 +117,7 @@ class AdvancedEditorMixin:
         self.setWindowTitle('COVEX Label Manager · R3B1 Qt · Editor avanzado')
         for note in self.header.findChildren(QLabel):
             if 'R3A Qt' in note.text(): note.setText('R3B1 Qt · Local')
-        self.statusBar().showMessage('Editor avanzado Qt · Emisión y otras secciones indicadas continúan en Tkinter')
+        self.statusBar().showMessage('Editor avanzado Qt · Centro de emisión nativo disponible')
 
     def build_editor(self):
         page = super().build_editor()
@@ -160,7 +160,7 @@ class AdvancedEditorMixin:
         state = section('Estado y límites')
         action(state,'Zona de estado visual / mm',self.edit_status_area)
         state.addWidget(button('Seguridad de salida',self.edit_output))
-        state.addWidget(label('La emisión definitiva y el centro completo de impresión siguen en Tkinter.','subtle'))
+        state.addWidget(label('Prepare los datos variables y emita desde el Centro de emisión.','subtle'))
         legacy_button=button('Editor Tkinter',lambda:self.open_legacy('editor')); legacy_button.setToolTip('Abrir Editor de la versión anterior; misma revisión y carpeta de datos.'); state.addWidget(legacy_button)
         self.field_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.field_list.itemSelectionChanged.connect(self.list_selection)
@@ -531,7 +531,7 @@ class AdvancedEditorMixin:
     def edit_output(self):
         if self.design is None or self.legacy_process: return
         dialog=QDialog(self); dialog.setWindowTitle('Formato físico y prueba PDF'); dialog.resize(690,630); layout=vbox(dialog)
-        layout.addWidget(label('Escala física proporcional del motor existente. No es zoom ni cambia el diseño. Estos ajustes no transfieren datos a Emisión Tkinter.','subtle'))
+        layout.addWidget(label('Escala física proporcional del motor existente. No es zoom ni cambia el diseño. Seleccione el perfil guardado en su trabajo del Centro de emisión.','subtle'))
         profiles=[dict(p) for p in self.api.profile_list()]; combo=QComboBox(); combo.addItem('Medidas del diseño',None)
         for p in profiles: combo.addItem(p['name'],p)
         layout.addWidget(combo)
@@ -567,7 +567,10 @@ class AdvancedEditorMixin:
                 preview=QDialog(dialog); preview.setWindowTitle('PDF de prueba — sin emisión definitiva'); preview.resize(800,800); pl=vbox(preview)
                 pl.addWidget(label('Renderizado por el motor PDF con datos variables vacíos. No prueba datos de trabajo ni registra historial.','subtle'))
                 view=Preview(); view.set_image(image); pl.addWidget(view,1)
-                pl.addWidget(label(str(warnings),'subtle')); close=QDialogButtonBox(QDialogButtonBox.StandardButton.Close); close.rejected.connect(preview.reject); pl.addWidget(close); preview.exec()
+                summary=f"{warnings['physical']} etiquetas de prueba · {warnings['pages']} hojas A4. Impresión al 100 %, sin ajustar a página."
+                if warnings.get('warnings'):summary+='\nAvisos: '+' · '.join(warnings['warnings'])
+                note=label(summary,'subtle');note.setWordWrap(True);pl.addWidget(note)
+                close=QDialogButtonBox(QDialogButtonBox.StandardButton.Close);close.button(QDialogButtonBox.StandardButton.Close).setText('Cerrar');close.rejected.connect(preview.reject);pl.addWidget(close);preview.exec()
             except (ValueError,OSError) as ex: QMessageBox.warning(dialog,'Prueba no generada',str(ex))
         def save_profile():
             p=current()
@@ -576,7 +579,7 @@ class AdvancedEditorMixin:
                 self.api.sheet_plan(p,1)
                 if any(x['name']==p['name'] for x in profiles):
                     if QMessageBox.question(dialog,'Actualizar perfil','Actualizar el perfil existente? No cambia ni aprueba el diseño.')!=QMessageBox.StandardButton.Yes: return
-                self.api.add_profile(p); self.output_profile=p; summary.setText('Perfil guardado. Selecciónelo explícitamente en Emisión Tkinter; sus datos variables no se transfieren.')
+                self.api.add_profile(p); self.output_profile=p; summary.setText('Perfil guardado. Selecciónelo en el Centro de emisión; los datos variables pertenecen al trabajo.')
             except (ValueError,OSError) as ex: QMessageBox.warning(dialog,'Perfil no guardado',str(ex))
         layout.addWidget(button('Ver PDF de prueba',proof)); layout.addWidget(button('Guardar perfil de salida',save_profile))
         buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel); buttons.accepted.connect(dialog.accept); buttons.rejected.connect(dialog.reject); layout.addWidget(buttons)

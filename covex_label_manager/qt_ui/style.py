@@ -103,5 +103,6 @@ QLabel#fieldError { color: #A13935; font-size: 11px; }
 QLabel#emissionSummary { color: #173940; font-size: 15px; font-weight: 600; }
 QFrame#emissionFooter { background: white; border: 1px solid #DCE5E7; border-radius: 8px; }
 QPlainTextEdit { background: white; border: 1px solid #DCE5E7; border-radius: 7px; padding: 7px; }
-QTableWidget:alternate-background { background: #F8FAFA; }
+QWidget#workForm { background: white; }
+QTableWidget { alternate-background-color: #F8FAFA; }
 """

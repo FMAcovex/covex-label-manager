@@ -1,6 +1,6 @@
 # COVEX Label Manager — Plan maestro vivo
 
-Versión de aplicación: 0.3.1 (consolidación de R1/R2; referencia histórica `v0.3.0-reference` sin originales). Revisado: 11/10/2026. R3A Qt integrada como hito de desarrollo por squash de PR #4 en `5d27de30ce98ee89f17485225e3a45b92f544484`; no equivale a validación GMP.
+Versión de aplicación: 0.3.1 (consolidación de R1/R2; referencia histórica `v0.3.0-reference` sin originales). Revisado: 15/10/2026. R3A Qt integrada como hito de desarrollo por squash de PR #4 en `5d27de30ce98ee89f17485225e3a45b92f544484`; no equivale a validación GMP.
 
 Este inventario contrasta las propuestas aceptadas del chat con README, traspaso, código, pruebas y muestras del proyecto recuperado. **Aprobada** significa acordada como requisito; no significa implementada ni validada GMP. Solo se consideran implementadas las funciones verificadas en este paquete. La comprobación física en Windows/impresora sigue pendiente.
 
@@ -8,7 +8,7 @@ Leyenda: **Implementada** = código verificado; **Parcial** = existe una parte i
 
 ## Prioridad y secuencia
 
-R1/R2 consolidados → R3A Qt integrada y aprobada como hito de desarrollo → propuesta R3B1/R3B2/R3B3 → autorización e implementación por bloques → R3C cuando se autorice. R2.5, R4 y R5 conservan su alcance pendiente; no se implementan ahora. Sin conexiones externas.
+R1/R2 → R3A/B1/B2/B3 integradas en main `86475779b1eac6f39c9098e0e9d67dd2de51d5fe` → R3C implementado en rama para revisión. R4/R5 y conectores pendientes, fuera de alcance.
 
 ## Revisiones acordadas
 
@@ -56,7 +56,7 @@ R1/R2 consolidados → R3A Qt integrada y aprobada como hito de desarrollo → p
 | Plantillas | Etiquetas de cliente cerradas o con campos autorizados | Aprobada | Implementada mediante origen CLIENTE, original conservado y campos opcionales. Gestión ampliada de referencias/aceptación por producto pendiente. |
 | Diseño | Escalado proporcional rápido | Aprobada | Implementada: ajuste sin deformar el conjunto a área elegida y perfiles reutilizables. |
 | Diseño | Reajuste avanzado | Aprobada | Parcial: editor de campos, posiciones en mm, recorte, anclas PDF y zona de estado; R1 variante derivada específica. R3B1 migra herramientas de campos; edición libre de textos fijos, tablas, pictogramas e imágenes queda fuera hasta verificar viabilidad e impacto documental. |
-| Diseño | Variantes por envase/material con aprobación independiente | Aprobada | Parcial: R1 usa revisión pendiente identificada. Modelo general de variantes separado de revisión documental pendiente. |
+| Diseño | Variantes por envase/material con aprobación independiente | Aprobada | Implementada R3B2: variantes independientes, aprobación externa y congelación; R1 sigue revisión heredada pendiente. |
 | Diseño | Reglas, cuadrícula, zoom, alineación y objetos bloqueados | Aprobada | Parcial: coordenadas y bloqueo de posición; herramientas completas de composición pendientes. |
 | Emisión | Datos variables, numeración correlativa y dos copias | Aprobada | Implementada. |
 | Emisión | Datos individuales PN/PB/lote/conservación por recipiente | Aprobada | Implementada, herencia de datos comunes y validación PN/PB. |
@@ -137,3 +137,27 @@ Autoguardado nunca aprueba variantes, altera maestros vigentes ni registra emisi
 Rama `feature/r3b1-qt-advanced-editor`: [alcance, límites y pruebas](docs/R3B1_QT_EDITOR.md). Editor Qt conserva la composición Industrial Moderno y añade recorte visual/mm, anclas explícitas del PDF, relocalización acotada, reserva de estado, modos de dibujo y geometría auxiliar, alineación/distribución, reajuste proporcional y deshacer/rehacer completo. Formato físico/perfiles y PDF de prueba reutilizan el motor. Guardado explícito del diseño completo con comparación transaccional e integridad; esquema SQLite permanece en versión 3.
 
 Sin implementación R3B2/R3B3: variantes continúan en el modelo heredado; no hay autoguardado de trabajos ni sincronización de variables Editor/Emisión. Emisión definitiva y módulos no migrados mantienen Tkinter/puente. La aprobación documental de 00-R1 y las pruebas reales pendientes no cambian.
+
+## Estado vigente — R3C en revisión (15/10/2026)
+
+Las notas anteriores conservan la planificación histórica y no describen el estado
+actual de main. R3A/B1/B2/B3 están integradas en la base obligatoria indicada arriba.
+SQLite es v4, con variantes independientes y trabajos JSON recuperables.
+
+R3C1: Centro de emisión Qt, selección revisión/variante/trabajo, datos de lote y
+recipientes, perfiles/A4, vista previa PDF real, prueba y emisión definitiva por
+WorkRepository. R3C2: historial Qt y reimpresión controlada mediante servicio común
+Qt/Tk. R3C3: consolidación Industrial Moderno, resumen legible del PDF y «Cerrar»
+(incidencia #7), regresión, capturas sintéticas y portable Windows por CI.
+
+Sin migración adicional ni reescritura del motor. Maestro y textos fijos protegidos;
+00-R1 continúa PENDING. 87 capacidades conservadas: 66 Qt, 4 parciales, 10 anteriores,
+7 motor. Tk permanece para comparación de imágenes, importación por carpeta y
+Configuración/CM/maestros de estado/auditoría/Inicio heredado.
+
+[Implementación R3C](docs/R3C_IMPLEMENTATION.md) · [Paridad y pruebas](docs/R3C_PARITY.md)
+· [Matriz de 87 capacidades](docs/FUNCTIONAL_PRESERVATION_MATRIX.md).
+
+Entrega sujeta a revisión de PR, sin squash/merge autorizado. CI se ejecuta sobre
+el commit entregado; enlaces y resultados en la PR. Word real, impresión física,
+Windows 10/11/equipos COVEX, aceptación y validación GMP siguen pendientes.

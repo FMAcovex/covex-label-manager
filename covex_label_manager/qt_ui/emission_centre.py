@@ -27,7 +27,7 @@ class EmissionCentreMixin:
         head=QHBoxLayout();titles=QVBoxLayout();titles.addWidget(label('Centro de emisión','title'))
         titles.addWidget(label('Prepare, compruebe y emita etiquetas desde un trabajo recuperable.','subtle'));head.addLayout(titles);head.addStretch()
         head.addWidget(button('Biblioteca',lambda:self.navigate('library')));layout.addLayout(head)
-        self.emission_document=label('Seleccione un trabajo o cree uno nuevo.','subtle');layout.addWidget(self.emission_document)
+        self.emission_document=label('Seleccione un trabajo o cree uno nuevo.','subtle');self.emission_document.setWordWrap(True);layout.addWidget(self.emission_document)
         split=QSplitter(Qt.Orientation.Horizontal);self.emission_split=split
         left=box();ll=vbox(left,10,6);self.emission_panel=WorkPanel(self);self.work_panels.append(self.emission_panel);ll.addWidget(self.emission_panel,1)
         # The editor retains its shared panel. Emission has one persistent footer.
@@ -86,6 +86,8 @@ class EmissionCentreMixin:
         self.native_issue.setEnabled(review['production_allowed'] and valid and not self.work_preview['result']['warnings'] and not self.native_busy and not self.legacy_process)
         self.native_issue.setToolTip('Confirmar y registrar la emisión definitiva.' if valid else 'Actualice la vista previa después de modificar el trabajo.')
         return review
+    def verify_work_preview_pdf(self):
+        if not self.work_preview or sha256(self.work_preview['path'])!=self.work_preview['sha256']:raise ValueError('La vista previa cambió. Genérela de nuevo.')
     def preview_matches(self,review=None):
         if self.work_preview is None or self.emission_work is None:return False
         review=review or self.work_review
@@ -93,9 +95,9 @@ class EmissionCentreMixin:
     @contextmanager
     def emission_busy(self):
         if self.native_busy:raise ValueError('Hay una operación en curso.')
-        self.native_busy=True;self.set_mutations_enabled(False);QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor);QApplication.processEvents()
+        self.native_busy=True;self.header.setEnabled(False);self.set_mutations_enabled(False);QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor);QApplication.processEvents()
         try:yield
-        finally:QApplication.restoreOverrideCursor();self.native_busy=False;self.set_mutations_enabled(True)
+        finally:QApplication.restoreOverrideCursor();self.native_busy=False;self.header.setEnabled(True);self.set_mutations_enabled(True)
     def operator_error(self,ex):
         if isinstance(ex,WorkCorrupt):return 'El trabajo no se puede leer. Conserve sus archivos y use Recuperar trabajo o una versión compatible.'
         if isinstance(ex,sqlite3.Error):return 'No se ha completado la operación en la base de datos. Revise el historial y recupere el trabajo antes de reintentar.'
@@ -122,6 +124,7 @@ class EmissionCentreMixin:
             current=self.api.review_work(w['uid'],w['generation'])
             if current.get('token')!=review.get('token'):raise ValueError('El trabajo o los documentos cambiaron durante la vista previa. Actualícela.')
             self.work_preview={'uid':w['uid'],'stamp':current['token'],'path':out,'sha256':sha256(out),'result':result}
+            self.emission_pdf.validator=lambda:self.verify_work_preview_pdf()
             self.emission_pdf.load(out,'Vista previa · PDF de prueba','PRUEBA · No apto para uso productivo · Los datos y la geometría proceden del motor PDF.')
             self.refresh_emission_review()
             if result['warnings']:
@@ -150,11 +153,18 @@ class EmissionCentreMixin:
             if not latest['production_allowed'] or latest.get('token')!=self.work_preview['stamp']:raise ValueError('El trabajo o la documentación cambió después de la vista previa. Vuelva a comprobarlo.')
             if sha256(self.work_preview['path'])!=self.work_preview['sha256']:raise ValueError('La vista previa ha sido modificada. Genérela de nuevo.')
             with self.emission_busy():issued,path,result=self.api.work.issue(w['uid'],w['generation'],self.api.setting('operator'))
-            self.emission_work=issued;self.refresh_work_panels();self.emission_pdf.load(path,'PDF definitivo generado','Emisión registrada · Impresión física no confirmada. Imprima al 100 %, sin ajustar a página.')
+            self.emission_work=issued;self.refresh_work_panels();self.emission_pdf.validator=lambda:self.api.history.inspect(issued['issue_id']);self.emission_pdf.load(path,'PDF definitivo generado','Emisión registrada · Impresión física no confirmada. Imprima al 100 %, sin ajustar a página.')
             self.emission_feedback.setText(f"Emisión #{issued['issue_id']} registrada · {result['physical']} etiquetas · {result['pages']} hojas. El trabajo queda cerrado; copie para preparar otro lote.")
             if hasattr(self,'refresh_native_history'):self.refresh_native_history()
             return True
         except Exception as ex:self.emission_error(ex);return False
+    def open_legacy(self,target='maestro',mode='production'):
+        if target=='emitir':
+            if self.new_emission_work():
+                self.navigate('emission')
+                if mode=='test':self.preview_emission_work()
+            return
+        return super().open_legacy(target,mode)
     def new_emission_work(self):
         if self.native_busy or self.legacy_process or not self.flush_emission_work():return
         dialog=QDialog(self);dialog.setWindowTitle('Nuevo trabajo de emisión');dialog.resize(620,330);layout=vbox(dialog)
@@ -182,7 +192,7 @@ class EmissionCentreMixin:
                 if not name.text().strip():raise ValueError('Indique el nombre del trabajo.')
                 self.emission_work=self.api.work.create(revision.currentData(),variant.currentData(),name.text());self.refresh_work_panels();dialog.accept()
             except (ValueError,OSError) as ex:error.setText(self.operator_error(ex))
-        buttons.accepted.connect(create);buttons.rejected.connect(dialog.reject);layout.addWidget(buttons);dialog.exec()
+        buttons.accepted.connect(create);buttons.rejected.connect(dialog.reject);layout.addWidget(buttons);return dialog.exec()==QDialog.DialogCode.Accepted
     def work_options(self):
         menu=QMenu(self);menu.addAction('Recuperar trabajo…',self.recover_emission_work);menu.addAction('Actualizar vínculo documental…',self.refresh_work_binding);menu.exec(self.cursor().pos())
     def paste_work_containers(self):
@@ -218,5 +228,5 @@ class EmissionCentreMixin:
     def resizeEvent(self,event):
         super().resizeEvent(event)
         if hasattr(self,'emission_split'):
-            self.emission_split.setOrientation(Qt.Orientation.Vertical if event.size().width()<1050 else Qt.Orientation.Horizontal)
+            self.emission_split.setOrientation(Qt.Orientation.Horizontal)
         if hasattr(self,'nav'):self.nav['emission'].setToolTip('Emisión · Centro nativo Qt')

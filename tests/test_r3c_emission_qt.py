@@ -61,3 +61,51 @@ def test_inline_checks_pending_invalid_format_and_long_fields(studio):
     w.preview_emission_work()
     w.recheck_actions();assert not w.native_issue.isEnabled()
     assert not api.issues()
+
+
+def test_format_ratio_restore_profile_and_multiline_preservation(studio,monkeypatch):
+    from PySide6.QtWidgets import QInputDialog
+    w,api,work=prepared(studio);p=w.emission_panel
+    p.value_inputs['lote'].setText('LÍNEA UNO\nLÍNEA DOS');p.changed();assert w.flush_emission_work()
+    assert '\n' in api.work.get(work['uid'])['values']['lote']
+    p.profile_inputs['width_mm'].setText('80');p.scale_size('width_mm');assert w.flush_emission_work()
+    v=api.resolved_design(work['binding']['revision_id'])
+    assert float(w.emission_work['profile']['height_mm'])==pytest.approx(80*v['base_h_mm']/v['base_w_mm'],abs=1e-5)
+    p.restore_size();assert w.flush_emission_work()
+    monkeypatch.setattr(QInputDialog,'getText',lambda *a,**k:('Perfil R3C sintético',True))
+    w.save_emission_profile();assert any(r['name']=='Perfil R3C sintético' for r in api.profile_list())
+    p.profile_choice.setCurrentIndex(next(i for i in range(p.profile_choice.count()) if p.profile_choice.itemText(i)=='Perfil R3C sintético'));p.apply_profile()
+    assert w.flush_emission_work() and not api.issues()
+
+
+@pytest.mark.parametrize('phase',['RENDERED','COMMITTED'])
+def test_native_failure_reconciliation_and_no_duplicate(studio,monkeypatch,phase):
+    w,api,work=prepared(studio);assert w.preview_emission_work()
+    monkeypatch.setattr(QMessageBox,'question',lambda *a,**k:QMessageBox.StandardButton.Yes)
+    real=api.work.issue
+    def issue(uid,generation,operator):
+        def crash(point,_):
+            if point==phase:raise RuntimeError('synthetic failure')
+        return real(uid,generation,operator,crash)
+    monkeypatch.setattr(api.work,'issue',issue)
+    assert not w.issue_emission_work()
+    latest=api.work.get(work['uid']);assert latest['phase']==('ISSUED' if phase=='COMMITTED' else 'EMITTING')
+    assert len(api.issues())==int(phase=='COMMITTED')
+    if phase=='RENDERED':
+        w.recover_emission_work();assert w.emission_work['phase']=='DRAFT'
+    else:assert 'ya está registrada' in w.emission_feedback.text()
+
+
+def test_editor_pdf_summary_is_readable_and_close_translated(studio,monkeypatch):
+    from PySide6.QtWidgets import QDialog,QPushButton,QLabel,QDialogButtonBox
+    w,api,app=studio;w.open_editor();seen=[]
+    def execute(dialog):
+        if dialog.windowTitle()=='Formato físico y prueba PDF':
+            next(b for b in dialog.findChildren(QPushButton) if b.text()=='Ver PDF de prueba').click()
+        elif dialog.windowTitle()=='PDF de prueba — sin emisión definitiva':
+            texts=' '.join(l.text() for l in dialog.findChildren(QLabel))
+            assert 'hojas A4' in texts and 'physical' not in texts and 'path' not in texts
+            assert dialog.findChild(QDialogButtonBox).button(QDialogButtonBox.StandardButton.Close).text()=='Cerrar'
+            seen.append(True)
+        return QDialog.DialogCode.Rejected
+    monkeypatch.setattr(QDialog,'exec',execute);w.edit_output();assert seen and not api.issues()
