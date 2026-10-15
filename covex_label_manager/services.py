@@ -97,6 +97,8 @@ class LocalServices:
             return self.add_label(data['name'],data.get('code',''),data.get('category',''),data.get('annex',''),data.get('origin','COVEX'),data.get('customer',''),data['version'],pdf,path,crop,[],
                 'Importacion inicial. Revisar recorte y campos; documento de origen: '+Path(path).name+'.',data.get('ref_customer',''))
     def backup(self):
+        with self.work.catalog_lock():return self._backup_work_locked()
+    def _backup_work_locked(self):
         from .migration_v4 import inventory,verify_backup
         from .canonical import canonical
         target=self.output_path('backups',f'covex_labels_backup_{datetime.now():%Y%m%d_%H%M%S_%f}.zip')

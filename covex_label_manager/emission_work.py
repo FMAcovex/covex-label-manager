@@ -66,9 +66,15 @@ class WorkRepository:
         if not isinstance(uid,str) or not re.fullmatch('[a-f0-9]{32}',uid):raise ValueError('UID de trabajo inválido.')
         return self.root/(uid+'.json')
     @contextmanager
+    def catalog_lock(self):
+        # A complete backup must not mix a pre-commit SQLite snapshot with a
+        # post-commit ISSUED JSON. One portable user needs no parallel work writers.
+        with file_lock(self.root/'catalog.lock'):yield
+    @contextmanager
     def lock(self,uid):
         path=self.path(uid)
-        with file_lock(path.with_suffix('.lock')):yield
+        with self.catalog_lock():
+            with file_lock(path.with_suffix('.lock')):yield
     def _read(self,path):
         try:
             if path.is_symlink():raise ValueError('El trabajo no puede ser un enlace.')

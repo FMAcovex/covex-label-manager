@@ -181,3 +181,27 @@ def test_canonical_unicode_work_matches_document_and_render(work):
     with fitz.open(path) as pdf:assert 'VECTOR-12345' in ''.join(p.get_text() for p in pdf)
     assert json.loads(api.version(vid)['fields_json'])[0]['key']=='cafe\u0301'
     assert api.version(vid)['approved_by']=='Re\u0301viseur'
+
+
+
+def test_backup_excludes_concurrent_work_cutover(work,tmp_path,monkeypatch):
+    import zipfile
+    api,w=work;original=zipfile.ZipFile.write;blocked=[]
+    def write(archive,filename,*args,**kwargs):
+        if str(filename).endswith(w['uid']+'.json'):
+            with pytest.raises(WorkConflict):api.work.issue(w['uid'],w['generation'],'Synthetic concurrent issue')
+            blocked.append(True)
+        return original(archive,filename,*args,**kwargs)
+    monkeypatch.setattr(zipfile.ZipFile,'write',write)
+    archive=api.backup();assert blocked and not api.issues()
+    restored=restore_backup(archive,tmp_path/'restore-consistent')
+    with closing(Store(restored)) as s:
+        other=LocalServices(s);assert other.work.get(w['uid'])==w and not other.issues()
+    def backup_while_issuing(phase,_):
+        if phase=='COMMITTED':
+            with pytest.raises(WorkConflict):api.backup()
+    issued,_,_=api.work.issue(w['uid'],w['generation'],'Synthetic',backup_while_issuing)
+    archive=api.backup();restored=restore_backup(archive,tmp_path/'restore-issued')
+    with closing(Store(restored)) as s:
+        other=LocalServices(s);loaded=other.work.get(w['uid'])
+        assert loaded==issued and other.issue(loaded['issue_id']) is not None

@@ -74,3 +74,9 @@ junto al commit probado en las dos PR; no equivalen a aceptación del usuario.
 Pendientes: Word real/Office, impresión física, Windows 10/11 y equipos COVEX,
 validación GMP y aceptación del uso previsto. Auditoría local sin firma electrónica
 ni garantía de inviolabilidad. No R3C, Business Central ni SharePoint.
+
+La copia completa y los accesos a trabajos comparten un lock OS de carpeta, además
+del lock por UID. Esto impide mezclar un snapshot SQLite anterior al commit con un
+JSON ISSUED posterior. Un backup durante emisión (o emisión durante backup) se
+rechaza como ocupado y puede reintentarse. No se añade otra tabla ni servicio.
+La regresión comprueba ambas direcciones y restaura borrador/emisión coherentes.

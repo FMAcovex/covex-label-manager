@@ -81,3 +81,9 @@ reinicio, Qt→Tk→Qt con lote/recipientes/perfil, generación/documentación o
 variante pendiente/retirada, doble emisión, snapshot histórico NULL sin cambios,
 backup/restauración completa, 87 capacidades, fuente/portable Windows y capturas
 reales sintéticas. Word real, impresión física, equipos COVEX y GMP siguen pendientes.
+
+La copia completa y los accesos a trabajos comparten un lock OS de carpeta, además
+del lock por UID. Esto impide mezclar un snapshot SQLite anterior al commit con un
+JSON ISSUED posterior. Un backup durante emisión (o emisión durante backup) se
+rechaza como ocupado y puede reintentarse. No se añade otra tabla ni servicio.
+La regresión comprueba ambas direcciones y restaura borrador/emisión coherentes.
