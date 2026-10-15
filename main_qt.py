@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QPalette, QColor
 from covex_label_manager.qt_transition import TransitionServices
 from covex_label_manager.qt_ui.functional import FunctionalWindow
 
@@ -34,6 +35,18 @@ def main():
         return run(a.variant_check,a.capture,a.verify_bridge)
     if a.data_dir:os.environ['COVEX_LABEL_DATA']=str(a.data_dir.resolve())
     app=QApplication(sys.argv[:1]);app.setStyle('Fusion')
+    # Apply a consistent light palette before opening any native Qt modal.
+    palette=app.palette()
+    for role,colour in (
+        (QPalette.ColorRole.Window,'#F3F6F7'),(QPalette.ColorRole.WindowText,'#223B40'),
+        (QPalette.ColorRole.Base,'#FFFFFF'),(QPalette.ColorRole.AlternateBase,'#F8FAFA'),
+        (QPalette.ColorRole.Text,'#223B40'),(QPalette.ColorRole.Button,'#FFFFFF'),
+        (QPalette.ColorRole.ButtonText,'#223B40'),(QPalette.ColorRole.Highlight,'#147D71'),
+        (QPalette.ColorRole.HighlightedText,'#FFFFFF'),(QPalette.ColorRole.ToolTipBase,'#FFFFFF'),
+        (QPalette.ColorRole.ToolTipText,'#223B40')
+    ):
+        palette.setColor(role,QColor(colour))
+    app.setPalette(palette)
     if a.demo or a.self_check or a.capture:
         from covex_label_manager.qt_ui.demo import DemoSession
         session=DemoSession();session.fictional=True

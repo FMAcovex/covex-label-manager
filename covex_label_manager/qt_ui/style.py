@@ -106,3 +106,23 @@ QPlainTextEdit { background: white; border: 1px solid #DCE5E7; border-radius: 7p
 QWidget#workForm { background: white; }
 QTableWidget { alternate-background-color: #F8FAFA; }
 """
+
+
+# R3D: ensure dialogs remain readable when Windows uses a dark system palette.
+# Native Windows file pickers keep their operating-system appearance.
+STYLE += """
+QDialog, QMessageBox, QInputDialog {
+    background-color: #F3F6F7; color: #223B40;
+}
+QDialog QLabel, QMessageBox QLabel, QInputDialog QLabel {
+    color: #223B40; background-color: transparent;
+}
+QDialog QFrame#surface { background-color: white; border: 1px solid #DCE5E7; }
+QDialog QLineEdit, QDialog QPlainTextEdit, QDialog QTextEdit {
+    background-color: white; color: #223B40;
+}
+QDialog QTabWidget::pane { background-color: white; }
+QDialog QAbstractItemView { background-color: white; color: #223B40; }
+QMessageBox QPushButton, QInputDialog QPushButton { min-width: 85px; }
+QToolTip { background-color: #FFFFFF; color: #173940; border: 1px solid #BECFD2; }
+"""
