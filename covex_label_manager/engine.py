@@ -28,7 +28,7 @@ class SheetPlan:
 
 
 def _plan_sheet(profile, physical_count):
-    from .sheet_layout import validate_profile, paper_size, slots
+    from .sheet_layout import validate_profile, paper_size, slots, available_first_page
     mode=validate_profile(profile)
     w=float(profile['width_mm']); h=float(profile['height_mm'])
     m=float(profile.get('margin_mm',8)); gap=float(profile.get('gap_mm',3))
@@ -48,7 +48,7 @@ def _plan_sheet(profile, physical_count):
     n=int(physical_count)
     if n<1 or n>10000:
         raise LayoutError('Numero de etiquetas fuera del rango permitido (1 a 10000).')
-    first_space=capacity-first+1
+    first_space=len(available_first_page({**profile,'start_slot':first},capacity))
     pages=1 if n<=first_space else 1+math.ceil((n-first_space)/capacity)
     return SheetPlan(cols,rows,capacity,pages,n,p_w,p_h)
 
@@ -394,13 +394,10 @@ def render_emission(version,root,values,profile,indices,count_containers,copies_
     status_crop=fitz.Rect(*_loaded_json(status_master['crop_json'],[])) if status_doc else None
     base_crop=status_crop if placement=='independiente' else crop
     aspect=base_crop.width/base_crop.height
-    from .sheet_layout import slots
+    from .sheet_layout import slots, physical_placements
     boxes=slots(profile,plan.cols,plan.rows)
     issues=[]
-    for ix,number in enumerate(physical):
-        absolute_slot=ix+start-1
-        page_index=0 if absolute_slot<plan.capacity else 1+(absolute_slot-plan.capacity)//plan.capacity
-        slot=absolute_slot if page_index==0 else (absolute_slot-plan.capacity)%plan.capacity
+    for (page_index,slot),number in zip(physical_placements(profile,plan.capacity,len(physical)),physical):
         if page_index>=len(out):
             page=out.new_page(width=plan.paper_w_mm*MM,height=plan.paper_h_mm*MM)
             if rootfont:

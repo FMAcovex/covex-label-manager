@@ -4,7 +4,7 @@ from dataclasses import asdict
 from PySide6.QtCore import Qt, QRectF, QTimer
 from PySide6.QtGui import QColor, QPen, QBrush, QPalette
 from PySide6.QtWidgets import (QDialog,QWidget,QHBoxLayout,QFormLayout,QComboBox,QSpinBox,
- QDoubleSpinBox,QCheckBox,QDialogButtonBox,QScrollArea,QLineEdit,QInputDialog,QGraphicsItem)
+ QDoubleSpinBox,QCheckBox,QDialogButtonBox,QScrollArea,QLineEdit,QInputDialog,QGraphicsItem,QGridLayout)
 from .window import vbox,label,button,Preview,pixmap
 from .resize_item import ResizableRect
 from ..sheet_layout import PAPERS,paper_size,slots,template
@@ -38,6 +38,42 @@ class SlotItem(ResizableRect):
             self.moveBy(delta[0]*step,delta[1]*step);self.released();e.accept()
         else:super().keyPressEvent(e)
 
+class OccupiedSlotsDialog(QDialog):
+    """Choose already-used label stock locations on the FIRST physical sheet."""
+    def __init__(self,parent,capacity,start,occupied):
+        super().__init__(parent)
+        self.setWindowTitle('Casillas ya utilizadas · primera hoja')
+        self.resize(520,510)
+        layout=vbox(self,12,9)
+        note=label('Marque las casillas que ya contienen una etiqueta o no pueden reutilizarse. '
+                   'Las anteriores a la casilla inicial ya se omiten. '
+                   'Las hojas siguientes comienzan completamente libres.','subtle')
+        note.setWordWrap(True);layout.addWidget(note)
+        area=QScrollArea();area.setWidgetResizable(True)
+        content=QWidget();grid=QGridLayout(content)
+        self.checks={}
+        for index in range(1,capacity+1):
+            check=QCheckBox(str(index))
+            if index<start:
+                check.setChecked(True);check.setEnabled(False)
+                check.setToolTip('Ya reservada por la casilla inicial.')
+            else:
+                check.setChecked(index in occupied)
+                check.setToolTip(f'Casilla {index}: marcar si ya se ha usado.')
+            self.checks[index]=check
+            grid.addWidget(check,(index-1)//6,(index-1)%6)
+        area.setWidget(content);layout.addWidget(area,1)
+        layout.addWidget(label('Las casillas marcadas NO recibirán contenido del PDF. '
+                               'Verifique físicamente el sentido de carga del papel.','subtle'))
+        actions=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel)
+        actions.accepted.connect(self.accept);actions.rejected.connect(self.reject)
+        layout.addWidget(actions)
+        self.start_slot=start
+
+    def occupied(self):
+        return [i for i,box in self.checks.items() if i>=self.start_slot and box.isChecked()]
+
+
 class SheetDesigner(QDialog):
     def __init__(self,parent,profile,proof=None,root=None,counts='',thumbnail=None,nominal=None):
         super().__init__(parent);self.setWindowTitle('Diseñador de hojas · mm');self.resize(1120,700)
@@ -62,6 +98,8 @@ class SheetDesigner(QDialog):
         self.count=QSpinBox();self.count.setRange(1,100);self.count.setValue(len(profile.get('slots',[])) or 5);form.addRow('Posiciones / hoja',self.count)
         form.addRow(button('Distribuir estas posiciones',self.arrange))
         form.addRow(button('Ajustar automáticamente',self.auto_arrange))
+        self.used_slots_button=button('Marcar casillas ya utilizadas…',self.mark_used_slots)
+        form.addRow(self.used_slots_button)
         self.snap=QCheckBox('Snap a 1 mm');self.grid=QCheckBox('Cuadrícula de 10 mm');self.grid.setChecked(True);self.grid.toggled.connect(self.redraw);form.addRow(self.snap);form.addRow(self.grid)
         self.box_inputs={}
         for k,t in [('x','X'),('y','Y'),('width','Ancho'),('height','Alto')]:
@@ -106,9 +144,27 @@ class SheetDesigner(QDialog):
         if p['layout_mode']=='free' and not p.get('slots'):p['slots']=template(p,self.count.value())
         self.push(p,'Propiedades de hoja')
     def arrange(self):
-        p=copy.deepcopy(self.profile);p.update(layout_version=1,layout_mode='free',offset_x_mm=0,offset_y_mm=0,start_slot=1);p['slots']=template(p,self.count.value());self.push(p,'Distribución automática')
+        p=copy.deepcopy(self.profile);p.update(layout_version=1,layout_mode='free',offset_x_mm=0,offset_y_mm=0,start_slot=1);p['slots']=template(p,self.count.value());p.pop('occupied_slots',None);self.push(p,'Distribución automática')
     def auto_arrange(self):
-        p=copy.deepcopy(self.profile);p.update(layout_version=1,layout_mode='grid',start_slot=1);p.pop('slots',None);self.push(p,'Cuadrícula automática')
+        p=copy.deepcopy(self.profile);p.update(layout_version=1,layout_mode='grid',start_slot=1);p.pop('slots',None);p.pop('occupied_slots',None);self.push(p,'Cuadrícula automática')
+
+    def mark_used_slots(self):
+        # Inspect the current geometry without an existing occupancy mask.
+        from ..sheet_layout import available_first_page
+        profile=copy.deepcopy(self.profile);profile.pop('occupied_slots',None)
+        try:
+            plan=plan_sheet(profile,1)
+            occupied=self.profile.get('occupied_slots',[])
+            if not isinstance(occupied,list):
+                raise ValueError('Lista de casillas utilizadas no válida.')
+            dialog=OccupiedSlotsDialog(self,plan.capacity,int(profile.get('start_slot',1)),occupied)
+            if dialog.exec()!=QDialog.DialogCode.Accepted:return
+            profile['layout_version']=1
+            chosen=dialog.occupied()
+            if chosen:profile['occupied_slots']=chosen
+            self.push(profile,'Reservar casillas de la primera hoja')
+        except (ValueError,TypeError,KeyError) as ex:
+            self.error.setText('No se han actualizado las casillas: '+str(ex))
     def redraw(self,*_):
         self.busy=True;scene=self.view.scene();scene.clear();self.items=[]
         try:
@@ -129,13 +185,21 @@ class SheetDesigner(QDialog):
                     ox=float(self.profile.get('offset_x_mm',0));oy=float(self.profile.get('offset_y_mm',0))
                     boxes=[LayoutSlot(s['x']+ox,s['y']+oy,s['width'],s['height']) for s in self.profile.get('slots',[])]
             else:boxes=slots(self.profile)
+            reserved=set(self.profile.get('occupied_slots',[]))
+            start=int(self.profile.get('start_slot',1))
             for i,b in enumerate(boxes):
                 item=SlotItem(b,i,self,self.profile.get('layout_mode')=='free');scene.addItem(item);self.items.append(item)
+                if i+1<start or i+1 in reserved:
+                    item.setBrush(QBrush(QColor(191,74,65,100)))
+                    item.setPen(QPen(QColor('#AD4742'),.55))
                 if self.thumbnail:
                     image=scene.addPixmap(pixmap(self.thumbnail));image.setParentItem(item);scale=min(b.width/self.thumbnail.width,b.height/self.thumbnail.height);image.setScale(scale);image.setPos((b.width-self.thumbnail.width*scale)/2,(b.height-self.thumbnail.height*scale)/2);image.setAcceptedMouseButtons(Qt.MouseButton.NoButton);image.setZValue(-1)
-                t=scene.addText(str(i+1));t.setParentItem(item);t.setScale(.3);t.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+                t=scene.addText(str(i+1)+(' · USADA' if i+1<start or i+1 in reserved else ''));t.setParentItem(item);t.setScale(.3);t.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
             scene.setSceneRect(-12,-9,pw+20,ph+18)
-            plan=plan_sheet(self.profile,1);self.error.setText(f'{pw:g} × {ph:g} mm · {plan.capacity} posiciones / hoja · selección: X/Y/ancho/alto en mm · Zoom independiente del PDF')
+            plan=plan_sheet(self.profile,1)
+            from ..sheet_layout import available_first_page
+            usable=available_first_page(self.profile,plan.capacity)
+            self.error.setText(f'{pw:g} × {ph:g} mm · {plan.capacity} posiciones / hoja · {len(usable)} libres en la primera hoja · casillas rojas = ocupadas · Zoom independiente del PDF')
             self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(True)
         except (ValueError,KeyError,TypeError) as ex:
             self.error.setText('No se puede aplicar: '+str(ex));self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
