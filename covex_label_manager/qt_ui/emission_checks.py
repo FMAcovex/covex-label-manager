@@ -41,7 +41,10 @@ def run(report,captures=None):
             'profile':dict(work['profile'],width_mm='90',height_mm='80',orientation='portrait',margin_mm='8',gap_mm='3',start_slot='2',crop_marks='1',printer_name='Impresora ficticia'),
             'per_container':{'2':{'lote':'R3C-RECIPIENTE-2','pn':'0,360','pb':'0,510'},'5':{'lote':'R3C-RECIPIENTE-5'}}})
         uid=work['uid'];w.load_emission_work(uid);w.navigate('emission');capture('01-centro-datos-lote')
-        panel=w.emission_panel;panel.value_inputs['lote'].setText('R3C-LOTE-QT');panel.changed();QTest.qWait(600)
+        panel=w.emission_panel;panel.value_inputs['lote'].setText('R3C-LOTE-QT');panel.changed()
+        for _ in range(100):
+            if api.work.get(uid)['values'].get('lote')=='R3C-LOTE-QT':break
+            QTest.qWait(30)
         check(api.work.get(uid)['values']['lote']=='R3C-LOTE-QT','autosave_from_actual_input')
         check(w.editor_work_panel.value_inputs['lote'].text()=='R3C-LOTE-QT','editor_emission_shared_data')
         panel.tabs.setCurrentIndex(1);capture('02-tabla-recipientes');check(panel.containers.rowCount()==6,'recipient_table')
