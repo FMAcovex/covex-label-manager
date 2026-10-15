@@ -47,7 +47,7 @@ class WorkPanel(QWidget):
         from PySide6.QtGui import QAction
         clear=QAction('Limpiar datos de este recipiente (heredar lote)',self.containers);clear.triggered.connect(self.clear_container_row);self.containers.addAction(clear)
         self.tabs.currentChanged.connect(self.tab_changed)
-        self.containers.setToolTip('Un valor vacío hereda el dato común. Puede pegar una tabla de Excel desde el centro de emisión.')
+        self.containers.setToolTip('Un valor vacío hereda el dato común. Pesos PN/PB: puede escribir 0,3558 o 0,3558 kg. También puede pegar datos desde Excel.')
         cfg=QWidget();cfg.setObjectName('workForm');form=QFormLayout(cfg)
         self.design_sheet_button=button('Diseñar hoja…',self.design_sheet,'primary');form.addRow(self.design_sheet_button)
         for key,title in [('count','Recipientes'),('copies','Copias por recipiente'),('selection','Números (1-3,5; vacío = todos)')]:
@@ -152,7 +152,14 @@ class WorkPanel(QWidget):
             labels={unicodedata.normalize('NFC',f['key']):f.get('label',f['key']) for f in fields if f['key'] not in ('numero','texto_fijo')}
             labels.update({k:labels.get(k,k+' (conservado)') for k in w['values']})
             for key,title in labels.items():
-                e=VariableText(w['values'].get(key,''));e.textEdited.connect(self.changed);self.value_inputs[key]=e;self.common_form.addRow(title,self.with_error(e,'value:'+key))
+                if key in ('pn','pb'):
+                    e=QLineEdit(w['values'].get(key,''))
+                    e.setPlaceholderText('Ej.: 0,3558 kg')
+                    e.setToolTip('Admite 0,3558 o 0,3558 kg. El valor se conserva como lo escribió; el maestro controla cómo aparece KG en la etiqueta.')
+                    if 'kg' not in title.lower():title+=' (kg)'
+                else:
+                    e=VariableText(w['values'].get(key,''))
+                e.textEdited.connect(self.changed);self.value_inputs[key]=e;self.common_form.addRow(title,self.with_error(e,'value:'+key))
             for k,e in self.inputs.items():e.setText(w[k])
             for k,e in self.profile_inputs.items():e.setText(str(w['profile'].get(k,'')))
             self.orientation.setCurrentIndex(max(0,self.orientation.findData(w['profile'].get('orientation','portrait'))));self.cut.setCurrentIndex(max(0,self.cut.findData(str(w['profile'].get('crop_marks',0)))))

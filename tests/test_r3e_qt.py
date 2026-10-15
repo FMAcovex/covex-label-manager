@@ -125,3 +125,26 @@ def test_corrupt_visual_profile_does_not_prevent_native_windows(studio):
     assert 'no legibles' in dialog.profile_corruption_warning.text()
     assert LayoutProfiles(root).get('good-r3e')==valid
     assert damaged.read_bytes()==original
+
+
+def test_mass_fields_accept_kg_in_native_work_without_altering_saved_text(studio):
+    from PySide6.QtWidgets import QLineEdit
+    from covex_label_manager.vessels import validate_vessel_masses
+    w,s,app=studio
+    work=s.services.work.create(s.initial_id,name='Pesos sintéticos con kg')
+    assert w.load_emission_work(work['uid'])
+    panel=w.emission_panel
+    assert isinstance(panel.value_inputs['pn'],QLineEdit)
+    assert isinstance(panel.value_inputs['pb'],QLineEdit)
+    assert 'kg' in panel.value_inputs['pn'].placeholderText()
+    panel.value_inputs['pn'].setText('0,3558 kg')
+    panel.value_inputs['pb'].setText('0,500 KG')
+    panel.changed()
+    assert w.flush_emission_work()
+    saved=s.services.work.get(work['uid'])
+    assert saved['values']['pn']=='0,3558 kg'
+    assert saved['values']['pb']=='0,500 KG'
+    validate_vessel_masses(saved['values'],1)
+    w.refresh_work_panels()
+    assert w.emission_panel.value_inputs['pn'].text()=='0,3558 kg'
+    assert w.editor_work_panel.value_inputs['pb'].text()=='0,500 KG'

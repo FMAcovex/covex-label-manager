@@ -214,7 +214,7 @@ class EmissionCentreMixin:
     def paste_work_containers(self):
         if not self.emission_work or not self.flush_emission_work():return
         from ..vessels import parse_tabular_vessels
-        text,ok=QInputDialog.getMultiLineText(self,'Pegar datos por recipiente','Nº | Lote | PN | PB | Conservación. Pegue columnas de Excel:',QApplication.clipboard().text())
+        text,ok=QInputDialog.getMultiLineText(self,'Pegar datos por recipiente','Nº | Lote | PN | PB | Conservación. Pesos: 0,3558 o 0,3558 kg. Pegue columnas de Excel:',QApplication.clipboard().text())
         if not ok:return
         try:
             w=self.emission_work;per=parse_tabular_vessels(text,int(w['count']),w['per_container'])
