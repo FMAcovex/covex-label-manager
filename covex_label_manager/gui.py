@@ -911,42 +911,20 @@ class BaseApplication(tk.Tk):
     def _history_reprint(self):
         i=self._selected_issue()
         if not i:return
-        v=self.store.version(i['version_id'])
-        variant_id=i['design_variant_id']
-        try:v=self.services.resolved_design(i['version_id'],variant_id,True)
-        except (ValueError,PermissionError,OSError) as ex:
-            messagebox.showerror('Reimpresión bloqueada',str(ex),parent=self);return
-        historical=json.loads(i['design_snapshot_json']) if i['design_snapshot_json'] else None
-        if not historical and not messagebox.askyesno('Histórico sin snapshot','Este registro heredado no conserva snapshot de diseño. Se usará la revisión documentada actual, sin atribuirle reproducción exacta. Continuar?',parent=self):return
-        if not self.services.intact_emission(i):
-            messagebox.showerror('Integridad','El PDF de emisión original ha sido modificado.',parent=self);return
-        if v['state']!='APPROVED':
-            messagebox.showerror('Reimpresión bloqueada',
-              'La version de la emisión ya no esta vigente. Debe evaluarse documentalmente antes de reimprimir.',parent=self);return
-        choices=simpledialog.askstring('Reimpresión',
-            f'Indique los numeros a reimprimir (1-{i["count_containers"]}).\nEjemplo: 12-14,18\n\nSe conservara su numeración original:',parent=self)
-        if not choices:return
-        reason=simpledialog.askstring('Motivo de reimpresión','Motivo obligatorio de la reimpresión:',parent=self)
-        if not reason or len(reason.strip())<5:
-            messagebox.showerror('Motivo','Indique un motivo de al menos 5 caracteres.',parent=self);return
         try:
-            numbers=parse_ranges(choices,i['count_containers'])
-            if not set(numbers).issubset(json.loads(i['selected_indices'])):
-                raise ValueError('Seleccione solo números incluidos en esta emisión. Para otros números, abra la emisión original.')
-            profile=json.loads(i['profile_json']);profile['start_slot']=1
-            values=json.loads(i['variables_json'])
-            out=self.services.output_path('emissions',f'REIMP_{i["id"]}_{datetime.now():%Y%m%d_%H%M%S_%f}.pdf')
-            status=json.loads(i['status_json'] or '{}')
-            per_container=json.loads(i['per_container_json'] or '{}')
-            asset=self.store.status_master(status.get('kind','ninguna')) if status.get('kind','ninguna')!='ninguna' else None
-            self.services.render(v,values,profile,numbers,i['count_containers'],i['copies_per_container'],out,False,
-                            per_container=per_container,status=status,status_master=asset,history_snapshot=historical)
-            pk=self.store.add_issue(v['id'],self.store.setting('operator'),i['count_containers'],
-                    i['copies_per_container'],numbers,values,profile,out,source_issue_id=i['id'],reason=reason.strip(),
-                    per_container=per_container,status=status)
-            messagebox.showinfo('Reimpresión registrada',f'Reimpresión #{pk} generada. {len(numbers)} numeros.\n\n{out}',parent=self)
+            report=self.services.history.inspect(i['id'])
+            if not report['reprint_allowed']:raise ValueError(report['blocked'])
+            if report['warnings'] and not messagebox.askyesno('Advertencias del histórico','\n'.join(report['warnings'])+'\n\nContinuar?',parent=self):return
+            choices=simpledialog.askstring('Reimpresión','Números originales a reimprimir (ejemplo: 1-3,5):',parent=self)
+            if not choices:return
+            reason=simpledialog.askstring('Motivo de reimpresión','Motivo obligatorio (mínimo 5 caracteres):',parent=self)
+            if reason is None:return
+            self.services.history.prepare(i['id'],choices,reason,acknowledge_legacy=True,expected_token=report['token'])
+            if not messagebox.askyesno('Confirmar reimpresión','Registrar un nuevo PDF con los números originales? La impresión física no queda confirmada.',parent=self):return
+            pk,out,result=self.services.history.reproduce(i['id'],choices,reason,self.store.setting('operator'),acknowledge_legacy=True,expected_token=report['token'])
+            messagebox.showinfo('Reimpresión registrada',f'Reimpresión #{pk} generada. {result["physical"]} etiquetas.\n\n{out}',parent=self)
             self.show('historial')
-        except Exception as ex:messagebox.showerror('Reimpresión cancelada',str(ex),parent=self)
+        except Exception as ex:messagebox.showerror('Reimpresión bloqueada',str(ex),parent=self)
 
     def page_admin(self,parent):
         self.header(parent,'Administración y datos','Ajustes locales, catálogo CM, copias de seguridad y auditoria.')

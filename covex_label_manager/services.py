@@ -22,6 +22,8 @@ class LocalServices:
         self.library=LibraryService(self._repository)
         from .emission_work import WorkRepository
         self.work=WorkRepository(self)
+        from .emission_history import HistoryService
+        self.history=HistoryService(self)
     def __getattr__(self,name):
         if name in self.OPERATIONS:return getattr(self._repository,name)
         raise AttributeError(name)

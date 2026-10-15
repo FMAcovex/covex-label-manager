@@ -7,7 +7,7 @@ from .window import Preview,button,label,vbox
 
 class PdfPane(QWidget):
     def __init__(self,api,parent=None):
-        super().__init__(parent);self.api=api;self.path=None;self.page_count=0
+        super().__init__(parent);self.api=api;self.path=None;self.page_count=0;self.validator=None
         layout=vbox(self,0,8);top=QHBoxLayout();self.title=label('Vista previa A4','panelTitle');top.addWidget(self.title);top.addStretch()
         self.pages=QComboBox();self.pages.setMinimumWidth(105);self.pages.currentIndexChanged.connect(self.page_changed);top.addWidget(self.pages)
         layout.addLayout(top);tools=QHBoxLayout()
@@ -21,10 +21,16 @@ class PdfPane(QWidget):
         image,count=self.api.pdf_page(path,0,maxwidth=1600);self.path=path;self.page_count=count
         self.title.setText(title);self.pages.blockSignals(True);self.pages.clear()
         for n in range(count):self.pages.addItem(f'Página {n+1} de {count}',n)
-        self.pages.blockSignals(False);self.view.set_image(image);self.note.setText(note);self.open_button.setEnabled(True)
+        self.pages.blockSignals(False);self.view.set_image(image);self.note.setText(note);self.note.setWordWrap(True);self.open_button.setEnabled(True)
+    def verified(self):
+        try:
+            if self.validator:self.validator()
+            return True
+        except Exception as ex:self.clear('PDF bloqueado: '+str(ex));return False
     def page_changed(self,index):
-        if self.path is not None and index>=0:
-            image,_=self.api.pdf_page(self.path,index,maxwidth=1600);self.view.set_image(image)
+        if self.path is not None and index>=0 and self.verified():
+            try:image,_=self.api.pdf_page(self.path,index,maxwidth=1600);self.view.set_image(image)
+            except Exception as ex:self.clear('No se puede mostrar el PDF: '+str(ex))
     def open_pdf(self):
-        if self.path is not None:return QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.path)))
+        if self.path is not None and self.verified():return QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.path)))
         return False
