@@ -21,6 +21,7 @@ class WorkCorrupt(ValueError):pass
 def file_lock(path):
     """Nonblocking OS lock: process death releases it, no stale timestamp leases."""
     path=Path(path)
+    if path.is_symlink():raise WorkCorrupt('El lock de trabajo no puede ser un enlace.')
     with open(path,'a+b') as f:
         if f.tell()==0:f.write(b'0');f.flush()
         try:
@@ -58,6 +59,7 @@ class WorkRepository:
     EDITABLE={'name','values','per_container','profile','count','copies','selection','status'}
     def __init__(self,api):
         self.api=api;self.root=api._repository.root/'emission_work'
+        if self.root.is_symlink():raise WorkCorrupt('La carpeta de trabajos no puede ser un enlace.')
         self.root.mkdir(exist_ok=True)
     def path(self,uid):
         if not isinstance(uid,str) or not re.fullmatch('[a-f0-9]{32}',uid):raise ValueError('UID de trabajo inválido.')
@@ -68,6 +70,7 @@ class WorkRepository:
         with file_lock(path.with_suffix('.lock')):yield
     def _read(self,path):
         try:
+            if path.is_symlink():raise ValueError('El trabajo no puede ser un enlace.')
             from .canonical import parse
             # Parse duplicate keys strictly, then plain JSON keeps engine numbers native.
             raw=path.read_text(encoding='utf-8');parse(raw);envelope=json.loads(raw)
@@ -142,7 +145,7 @@ class WorkRepository:
         for path in sorted(self.root.glob('*.json')):
             if path.name.endswith('.previous.json'):continue
             try:rows.append(self.get(path.stem))
-            except (WorkCorrupt,WorkConflict) as ex:rows.append({'uid':path.stem,'name':path.stem,'phase':'ERROR','error':str(ex)})
+            except (ValueError,OSError) as ex:rows.append({'uid':path.stem,'name':path.stem,'phase':'ERROR','error':str(ex)})
         return rows
     def save(self,uid,generation,changes):
         if set(changes)-self.EDITABLE:raise ValueError('No se permite modificar identidad, documento o estado del trabajo.')

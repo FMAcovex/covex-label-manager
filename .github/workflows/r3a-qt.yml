@@ -26,6 +26,9 @@ on:
       - 'docs/R3A_QT_PLAN.md'
       - 'docs/R3B1_QT_EDITOR.md'
       - 'docs/FUNCTIONAL_PRESERVATION_MATRIX.md'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:

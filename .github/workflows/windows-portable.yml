@@ -5,6 +5,9 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -24,7 +27,9 @@ jobs:
       - run: >-
           python -m pip install --require-hashes --only-binary=:all: -r requirements-windows.lock
       - run: python -m pip check
-      - run: python -m pytest -q --junitxml=test-results/pytest.xml
+      - name: Core and Tk regression with hang diagnostics
+        timeout-minutes: 6
+        run: python -m pytest -q -o faulthandler_timeout=60 --junitxml=test-results/pytest.xml
       - run: python scripts/check_build_destination.py dist/COVEXLabelManager
       - run: python -m PyInstaller --noconfirm --clean --onedir --windowed --name COVEXLabelManager --add-data "resources;resources" main.py
       - name: Check packaged core without altering user data

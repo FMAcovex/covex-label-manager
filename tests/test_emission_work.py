@@ -102,3 +102,50 @@ def test_document_change_pending_retired_and_refresh(work):
     api.clone_version(vid,'01','Synthetic');api._repository.db.execute("UPDATE versions SET state='RETIRED' WHERE id=?",(vid,));api._repository.db.commit()
     with pytest.raises(WorkConflict):api.work.issue(w['uid'],w['generation'],'Synthetic')
     assert not api.issues()
+
+
+def test_tk_persistence_wraps_legacy_methods():
+    from covex_label_manager.gui import Application
+    from covex_label_manager.work_tk import WorkTkMixin
+    for name in ('show','_quit','page_emit','_emit_label_change','select_emission_version'):
+        assert getattr(Application,name) is getattr(WorkTkMixin,name)
+
+
+def test_unknown_contract_symlink_and_no_rollback_of_issued(work):
+    api,w=work;path=api.work.path(w['uid']);raw=path.read_text()
+    path.write_text(raw.replace('"contract":1','"contract":2'))
+    with pytest.raises(WorkCorrupt):api.work.get(w['uid'])
+    path.write_text(raw)
+    issued,_,_=api.work.issue(w['uid'],w['generation'],'Synthetic')
+    path.write_bytes(b'corrupted after commit')
+    with pytest.raises(PermissionError):api.work.recover_previous(w['uid'])
+    assert len(api.issues())==1
+
+
+@pytest.mark.parametrize('phase',['INTENT','RENDERED','COMMITTED'])
+def test_real_process_exit_during_issue(work,phase):
+    api,w=work
+    script="""import os,sys
+from covex_label_manager.storage import Store
+from covex_label_manager.services import LocalServices
+api=LocalServices(Store(sys.argv[1]))
+api.work.issue(sys.argv[2],int(sys.argv[3]),'Synthetic process',lambda phase,w:os._exit(73) if phase==sys.argv[4] else None)
+"""
+    p=subprocess.run([sys.executable,'-c',script,api.location(),w['uid'],str(w['generation']),phase],capture_output=True,text=True,timeout=30)
+    assert p.returncode==73,p.stderr
+    recovered=api.work.get(w['uid']);assert recovered['phase']==('ISSUED' if phase=='COMMITTED' else 'EMITTING')
+    assert len(api.issues())==int(phase=='COMMITTED')
+
+
+def test_schema_unchanged_and_document_withdrawn_after_render(work):
+    api,w=work;db=api._repository.db
+    before=db.execute("SELECT type,name,sql FROM sqlite_master ORDER BY type,name").fetchall()
+    vid=w['binding']['revision_id']
+    def withdraw(phase,_):
+        if phase=='RENDERED':
+            with closing(Store(api.location())) as other:
+                other.db.execute("UPDATE versions SET state='RETIRED' WHERE id=?",(vid,));other.db.commit()
+    with pytest.raises(WorkConflict):api.work.issue(w['uid'],w['generation'],'Synthetic',withdraw)
+    assert not api.issues() and api.work.get(w['uid'])['phase']=='EMITTING'
+    assert db.execute('PRAGMA user_version').fetchone()[0]==4
+    assert db.execute("SELECT type,name,sql FROM sqlite_master ORDER BY type,name").fetchall()==before

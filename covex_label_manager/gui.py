@@ -109,7 +109,7 @@ class ScrolledFrame(tk.Frame):
 
 from .work_tk import WorkTkMixin
 
-class Application(WorkTkMixin,tk.Tk):
+class BaseApplication(tk.Tk):
     def __init__(self,store=None):
         self._work_init()
         super().__init__()
@@ -265,7 +265,7 @@ class Application(WorkTkMixin,tk.Tk):
 
     def _profile_dict(self):
         from .emission_work import profile_numbers
-        return profile_numbers({k:str(v.get()) for k,v in self._work_vars().items()})
+        return profile_numbers({k:str(int(v.get()) if k=='crop_marks' else v.get()) for k,v in self._work_vars().items()})
 
     def _set_profile(self,event=None):
         name=self.emit_profile.get()
@@ -473,7 +473,7 @@ class Application(WorkTkMixin,tk.Tk):
 
     def _test_mode(self,v):
         asset=self._state_master()
-        return v['state']!='APPROVED' or (asset is not None and asset['state']!='APPROVED')
+        return v['state']!='APPROVED' or v.get('_variant_state','APPROVED')!='APPROVED' or (asset is not None and asset['state']!='APPROVED')
 
     def _edit_vessels(self):
         try:
@@ -1049,6 +1049,10 @@ class Application(WorkTkMixin,tk.Tk):
 
     def _quit(self):
         self.store.close();self.destroy()
+
+
+class Application(WorkTkMixin,BaseApplication):
+    """Work persistence wraps every legacy navigation and emission form."""
 
 
 class VesselDialog(tk.Toplevel):

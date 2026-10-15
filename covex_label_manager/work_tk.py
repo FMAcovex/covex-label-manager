@@ -18,7 +18,7 @@ class WorkTkMixin:
     def _work_capture(self):
         # StringVar/IntVar may contain incomplete text. Save it, validate only on issue.
         return {'values':{**(self.emission_work['values'] if self.emission_work else {}),**{k:str(v.get()) for k,v in self.formvars.items()}},
-            'profile':{k:str(v.get()) for k,v in self._work_vars().items()},
+            'profile':{k:str(int(v.get()) if k=='crop_marks' else v.get()) for k,v in self._work_vars().items()},
             'count':str(self.emit_count.get()),'copies':str(self.emit_copies.get()),
             'selection':self.work_selection.get() if hasattr(self,'work_selection') else '',
             'per_container':copy.deepcopy(self.per_container),'status':self._state_object()}

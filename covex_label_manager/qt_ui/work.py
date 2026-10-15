@@ -130,6 +130,8 @@ class EmissionWorkMixin:
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea,self.work_dock);self.work_dock.hide()
         # Add a compact explicit entry, without changing structural tool panels.
         self.editor.layout().itemAt(0).layout().addWidget(button('Datos del trabajo',self.show_editor_work))
+        self.editor.layout().itemAt(self.editor.layout().count()-1).widget().setText('Fuente fija protegida · Diseño: guardado explícito · Datos del trabajo: autoguardado local')
+        self.work_dock.setMinimumWidth(460)
         self._work_ready=True;self.refresh_work_panels()
         self.setWindowTitle('COVEX Label Manager · R3B2+B3 · Variantes y trabajos')
         if self.api.work.list():self.statusBar().showMessage('Hay trabajos locales recuperables. Ábralos en Emisión.')
@@ -239,6 +241,11 @@ class EmissionWorkMixin:
         if getattr(self,'_work_ready',False):self.emission_page.setEnabled(enabled);self.work_dock.setEnabled(enabled)
     def open_legacy(self,target='maestro',mode='production'):
         if not self.flush_emission_work():return
+        if target=='emitir':
+            if self.legacy_process:return
+            self.new_emission_work()
+            if self.emission_work:self.navigate('emission')
+            return
         super().open_legacy(target,mode)
     def poll_legacy(self):
         was=self.legacy_process is not None
