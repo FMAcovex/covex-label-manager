@@ -33,10 +33,17 @@ def test_historical_a4_arithmetic_exact(orientation,w,h):
     for i,b in enumerate(slots(p)):
         assert (b.x,b.y,b.width,b.height)==(8+(i%cols)*(w+3),8+(i//cols)*(h+3),w,h)
 
+@pytest.fixture(scope='module')
+def pdf_demo():
+    # These cases only render a copied revision into independent tmp_paths.
+    # Reuse the read-only synthetic library, not mutable work/profile fixtures.
+    s=DemoSession();yield s;s.close()
+
 @pytest.mark.parametrize('paper',['A4','A3','A5','Carta','custom'])
 @pytest.mark.parametrize('n',[1,2,5])
 @pytest.mark.parametrize('copies',[1,2])
-def test_actual_pdf_box_geometry_and_pagination(demo,tmp_path,paper,n,copies):
+def test_actual_pdf_box_geometry_and_pagination(pdf_demo,tmp_path,paper,n,copies):
+    demo=pdf_demo
     p=profile(paper,n);p['start_slot']=min(2,n);v=dict(demo.services.version(demo.initial_id));v['fields_json']='[]'
     out=tmp_path/'proof.pdf';result=render_emission(v,demo.services._repository.root,{},p,[1,3,7],7,copies,out,True)
     boxes=slots(p);plan=plan_sheet(p,3*copies)

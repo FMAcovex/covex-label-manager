@@ -54,6 +54,8 @@ def test_approved_revision_only_offers_variant(studio):
     w,s,app=studio;vid=next(v['id'] for v in s.services.versions(w.row['id']) if v['state']=='APPROVED');w.select_version(vid);w.open_editor()
     assert not w.new_field_button.isEnabled();assert not w.draw_field_button.isEnabled();assert w.variant_edit_button.isVisible()
     assert all(not i.handles for i in w.field_items)
+    w.resize(910,512);app.processEvents()
+    assert w.new_field_button.isVisible() and w.draw_field_button.isVisible() and w.variant_edit_button.isVisible()
 
 
 def test_designer_applies_by_repository_and_invalidates_pdf(studio,monkeypatch):

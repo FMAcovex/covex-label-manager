@@ -51,7 +51,7 @@ class SheetDesigner(QDialog):
         layout=vbox(self,10,6);layout.addWidget(label('Posiciones por hoja ≠ recipientes ≠ copias por recipiente','panelTitle'))
         layout.addWidget(label(counts+' · El contenido se escala proporcionalmente. Papel sujeto a prueba física; imprimir al 100 %.','subtle'))
         row=QHBoxLayout();self.view=Preview();self.view.setDragMode(Preview.DragMode.RubberBandDrag);row.addWidget(self.view,1)
-        panel=QWidget();form=QFormLayout(panel);form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows);scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(panel);scroll.setMinimumWidth(270);scroll.setMaximumWidth(340);row.addWidget(scroll);layout.addLayout(row,1)
+        panel=QWidget();form=QFormLayout(panel);form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows);self.property_form=form;scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(panel);scroll.setMinimumWidth(270);scroll.setMaximumWidth(340);row.addWidget(scroll);layout.addLayout(row,1)
         self.paper=QComboBox();self.paper.addItems([*PAPERS,'custom']);form.addRow('Papel',self.paper)
         self.orientation=QComboBox();self.orientation.addItem('Vertical','portrait');self.orientation.addItem('Horizontal','landscape');form.addRow('Orientación',self.orientation)
         self.mode=QComboBox();self.mode.addItem('Cuadrícula clásica','grid');self.mode.addItem('Distribución libre','free');form.addRow('Composición',self.mode)
@@ -88,8 +88,8 @@ class SheetDesigner(QDialog):
         self.busy=True;p=self.profile
         self.paper.setCurrentText(p.get('paper','A4'));self.orientation.setCurrentIndex(max(0,self.orientation.findData(p.get('orientation','portrait'))));self.mode.setCurrentIndex(max(0,self.mode.findData(p.get('layout_mode','grid'))))
         for k,e in self.measures.items():e.setValue(float(p.get(k,210 if k=='paper_width_mm' else 297 if k=='paper_height_mm' else e.value())))
-        for k in ('paper_width_mm','paper_height_mm'):self.measures[k].setEnabled(p.get('paper')=='custom')
-        for k in ('width_mm','height_mm','gap_mm'):self.measures[k].setEnabled(p.get('layout_mode','grid')=='grid')
+        for k in ('paper_width_mm','paper_height_mm'):self.property_form.setRowVisible(self.measures[k],p.get('paper')=='custom')
+        for k in ('width_mm','height_mm'):self.property_form.setRowVisible(self.measures[k],p.get('layout_mode','grid')=='grid')
         self.busy=False
     def push(self,p,title):
         self.history.push(p,title);self.profile=copy.deepcopy(self.history.state);self.sync();self.redraw()
