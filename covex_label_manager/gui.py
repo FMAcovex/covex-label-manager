@@ -107,8 +107,11 @@ class ScrolledFrame(tk.Frame):
         self.canvas.yview_scroll(-int(e.delta/120),'units')
 
 
-class Application(tk.Tk):
+from .work_tk import WorkTkMixin
+
+class Application(WorkTkMixin,tk.Tk):
     def __init__(self,store=None):
+        self._work_init()
         super().__init__()
         from .migration_consent import tk_confirmation
         try:
@@ -134,7 +137,7 @@ class Application(tk.Tk):
         self._preview_after=None
         self.formvars={}
         self.emit_count=tk.StringVar(value='10')
-        self.emit_copies=tk.IntVar(value=1)
+        self.emit_copies=tk.StringVar(value='1')
         self.emit_w=tk.StringVar(value='160')
         self.emit_h=tk.StringVar(value='235')
         self.emit_margin=tk.StringVar(value='8')
@@ -261,13 +264,8 @@ class Application(tk.Tk):
         text(inner,'Catálogo CM: '+str(stats['materials'])+' materiales  |  códigos repetidos: '+str(len(self.store.material_duplicates())),10,color=C['blue_dark'],bg='white').pack(anchor='w')
 
     def _profile_dict(self):
-        return {
-            'width_mm':float(self.emit_w.get()),'height_mm':float(self.emit_h.get()),
-            'orientation':self.emit_orient.get(), 'margin_mm':float(self.emit_margin.get()),
-            'gap_mm':float(self.emit_gap.get()),'offset_x_mm':float(self.emit_offx.get()),
-            'offset_y_mm':float(self.emit_offy.get()),'start_slot':int(self.emit_start.get()),
-            'safety_mm':float(self.emit_safety.get()),'crop_marks':int(self.emit_cut.get()),'printer_name':self.emit_printer.get()
-        }
+        from .emission_work import profile_numbers
+        return profile_numbers({k:str(v.get()) for k,v in self._work_vars().items()})
 
     def _set_profile(self,event=None):
         name=self.emit_profile.get()
@@ -494,7 +492,7 @@ class Application(tk.Tk):
         if not label or not label.winfo_exists():return
         try:
             count=int(self.emit_count.get());p=self._profile_dict()
-            plan=self.services.sheet_plan(p,count*self.emit_copies.get())
+            plan=self.services.sheet_plan(p,count*int(self.emit_copies.get()))
             label.configure(text=f'{plan.capacity} etiquetas/hoja  |  {plan.pages} hojas A4  |  {plan.count_physical} impresiones')
         except (LayoutError,ValueError):
             label.configure(text='Compruebe las medidas y la cantidad de etiquetas')
@@ -507,7 +505,7 @@ class Application(tk.Tk):
         try:
             v=self._get_selected_version()
             if not v:return
-            p=self._profile_dict();count=int(self.emit_count.get());copy=self.emit_copies.get()
+            p=self._profile_dict();count=int(self.emit_count.get());copy=int(self.emit_copies.get())
             plan=self.services.sheet_plan(p,count*copy)
             sample=max(1,min(count,plan.capacity))
             cache=self.services.output_path('cache','preview_a4.pdf')
@@ -530,7 +528,7 @@ class Application(tk.Tk):
             v=self._get_selected_version()
             if not v:return
             p=self._profile_dict()
-            count=int(self.emit_count.get());copies=self.emit_copies.get()
+            count=int(self.emit_count.get());copies=int(self.emit_copies.get())
             inds=list(range(1,count+1))
             if count>10000:raise ValueError('Numero excesivo de etiquetas.')
             test_mode=self._test_mode(v)
@@ -546,8 +544,21 @@ class Application(tk.Tk):
             else:
                 timestamp=datetime.now().strftime('%Y%m%d_%H%M%S_%f')
                 path=self.services.output_path('emissions',f'EM_{timestamp}_{slug(v["name"])}.pdf')
-            data=self.services.render(v,self._emit_values(),p,inds,count,copies,path,test_mode,
-                                 per_container=self.per_container,status=self._state_object(),status_master=self._state_master())
+            if self.emission_work is None:self._work_changed()
+            if not self._work_guard():return
+            if self.emission_work and not test_mode:
+                if not messagebox.askyesno('Emitir definitivamente','Registrar la emisión definitiva del trabajo guardado? No equivale a guardar un borrador ni a confirmar impresión física.',parent=self):return
+                w,path,data=self.services.work.issue(self.emission_work['uid'],self.emission_work['generation'],self.store.setting('operator'))
+                self.emission_work=w;self._work_note(w['name']+' · ISSUED · emisión #'+str(w['issue_id']))
+                self.last_issue_pdf=path
+                messagebox.showinfo('Emisión registrada','Emisión #'+str(w['issue_id'])+' registrada con snapshot.\n'+str(path),parent=self)
+                return
+            if self.emission_work:
+                w=self.emission_work
+                data=self.services.work.proof(w['uid'],w['generation'],path)
+            else:
+                data=self.services.render(v,self._emit_values(),p,inds,count,copies,path,test_mode,
+                                     per_container=self.per_container,status=self._state_object(),status_master=self._state_master())
             if not test_mode:
                 pk=self.store.add_issue(v['id'],self.store.setting('operator'),count,copies,inds,
                                         self._emit_values(),p,path,per_container=self.per_container,status=self._state_object())
@@ -562,6 +573,9 @@ class Application(tk.Tk):
                 try:open_path(path)
                 except Exception as ex:messagebox.showwarning('Visor PDF',str(ex))
         except (ValueError,PermissionError,LayoutError,OSError) as ex:
+            if self.emission_work:
+                try:self.emission_work=self.services.work.get(self.emission_work['uid']);self._work_note(self.emission_work['phase']+' · '+str(ex))
+                except (ValueError,OSError):pass
             messagebox.showerror('No se ha podido emitir',str(ex),parent=self)
 
     def open_last_pdf(self):

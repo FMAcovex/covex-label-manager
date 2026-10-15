@@ -6,6 +6,9 @@ permissions:
   contents: read
 jobs:
   migration-windows:
+    # Unchanged B2 cutover/old binaries already gated on the dependency PR.
+    # Full migration/consent regressions still run in the combined Qt job.
+    if: github.base_ref != 'feature/r3b2-controlled-variants'
     runs-on: windows-2022
     timeout-minutes: 25
     steps:

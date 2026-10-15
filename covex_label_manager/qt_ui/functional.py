@@ -289,7 +289,9 @@ from .advanced_editor import AdvancedEditorMixin
 
 from .variants import VariantsMixin
 
-class FunctionalWindow(VariantsMixin, AdvancedEditorMixin, BaseFunctionalWindow):
+from .work import EmissionWorkMixin
+
+class FunctionalWindow(EmissionWorkMixin, VariantsMixin, AdvancedEditorMixin, BaseFunctionalWindow):
     """R3B1 tools on the approved R3A library and legacy transition controller."""
 
 

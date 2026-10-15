@@ -20,6 +20,8 @@ class LocalServices:
     def __init__(self,repository=None,*,migration_confirmation=None):
         self._repository=repository or Store(migration_confirmation=migration_confirmation)
         self.library=LibraryService(self._repository)
+        from .emission_work import WorkRepository
+        self.work=WorkRepository(self)
     def __getattr__(self,name):
         if name in self.OPERATIONS:return getattr(self._repository,name)
         raise AttributeError(name)
@@ -107,7 +109,7 @@ class LocalServices:
             files={}
             for f in sorted(root.rglob('*')):
                 rel=f.relative_to(root)
-                if {'backups','cache'} & set(rel.parts) or f.name=='migration.lock' or f.name.endswith('.tmp'):continue
+                if {'backups','cache'} & set(rel.parts) or f.name.endswith('.lock') or f.name.endswith('.tmp'):continue
                 if f.is_symlink():raise ValueError('No se incluyen enlaces en una copia controlada.')
                 if f.is_file() and f not in (self._repository.db_file,Path(str(self._repository.db_file)+'-wal'),Path(str(self._repository.db_file)+'-shm')):
                     files[rel.as_posix()]=sha256(f)
