@@ -4,6 +4,7 @@ import math
 import os
 import re
 import shutil
+import sqlite3
 import uuid
 from datetime import date
 from pathlib import Path
@@ -41,8 +42,11 @@ class VariantRepository:
         return [dict(r) for r in self.store.db.execute('SELECT * FROM design_variants WHERE revision_id=? ORDER BY id DESC',(revision_id,))]
     @contextmanager
     def transaction(self):
-        with self.store.txn() as db:
-            db.execute('BEGIN IMMEDIATE');yield db
+        try:
+            with self.store.txn() as db:
+                db.execute('BEGIN IMMEDIATE');yield db
+        except sqlite3.IntegrityError as ex:
+            raise ValueError('Identificación duplicada o restricción de integridad de variante: '+str(ex)) from ex
     def audit(self,db,event,before,after,actor,reason=''):
         db.execute('INSERT INTO audit(at,event,subject,detail) VALUES(?,?,?,?)',(now(),event,'variant:'+after['uid'],canonical({'actor':actor,'reason':reason,'before':before,'after':after})))
     def actor(self,value):
@@ -117,6 +121,7 @@ class VariantRepository:
             result=self.get(variant_id);self.audit(db,{'PENDING':'SUBMIT_VARIANT','DRAFT':'RETURN_VARIANT','RETIRED':'RETIRE_VARIANT'}[target],old,result,actor,reason)
             return result
     def verify_evidence(self,row):
+        if not row['evidence_path'] or not row['evidence_sha256']:raise ValueError('No hay evidencia de aprobación registrada.')
         p=(self.store.root/row['evidence_path']).resolve()
         if not p.is_relative_to(self.store.root.resolve()) or not p.is_file() or sha256(p)!=row['evidence_sha256']:
             raise ValueError('Evidencia documental ausente o alterada.')

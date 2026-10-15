@@ -190,19 +190,28 @@ class VariantsMixin:
         table=QTableWidget(0,3);table.setHorizontalHeaderLabels(['Dato','Revisión documental','Variante de diseño'])
         design=json.loads(row['design_json']);base=design_from_revision(revision)
         items=[('Identificación',revision['version'],row['code']),('Denominación',revision['name'],row['name']),
-            ('Estado',revision['state'],STATES[row['state']]),('UID',revision['uid'],row['uid']),('Motivo',revision['notes'],row['reason']),
+            ('Estado',{'APPROVED':'Vigente','PENDING':'Pendiente','RETIRED':'Retirada'}[revision['state']],STATES[row['state']]),('UID',revision['uid'],row['uid']),('Motivo',revision['notes'],row['reason']),
             ('Original',revision['original_file'],revision['original_file']),('Hash original',revision['source_sha256'],revision['source_sha256']),
             ('PDF maestro',revision['master_pdf'],revision['master_pdf']),('Hash PDF',revision['pdf_sha256'],revision['pdf_sha256']),
             ('Responsable aprobación',revision['approved_by'],row['approved_by']),('Referencia aprobación',revision['approval_ref'],row['approval_ref']),
             ('Fecha aprobación',revision['approved_at'],row['approval_date']),('Evidencia',None,row['evidence_path']),('Hash evidencia',None,row['evidence_sha256']),
             ('Campos variables',str(len(base['layout']['fields'])),str(len(design['layout']['fields']))),
             ('Recorte',str(base['layout']['crop']),str(design['layout']['crop'])),('Zona de estado',str(base['layout']['area']),str(design['layout']['area'])),
-            ('Formato nominal (mm)',str(base['nominal_size_mm']),str(design['nominal_size_mm'])),
+            ('Formato nominal (mm)',f"{base['nominal_size_mm']['width']:.2f} × {base['nominal_size_mm']['height']:.2f}",f"{design['nominal_size_mm']['width']:.2f} × {design['nominal_size_mm']['height']:.2f}"),
             ('Diseño',digest(base),row['design_sha256']),('Retirada',None,row['retirement_reason'])]
+        base_fields={f['key']:f for f in base['layout']['fields']};variant_fields={f['key']:f for f in design['layout']['fields']}
+        def describe(field,size):
+            if field is None:return 'No incluido'
+            return (f"{field['label']} · X {field['x']*size['width']:.2f}, Y {field['y']*size['height']:.2f}, "
+                f"ancho {field['w']*size['width']:.2f}, alto {field['h']*size['height']:.2f} mm · {field['font_pt']} pt"
+                + (' · Negrita' if field.get('bold') else '')+(' · Obligatorio' if field.get('required') else '')+(' · Bloqueado' if field.get('locked') else ''))
+        for key in sorted(set(base_fields)|set(variant_fields)):
+            a=base_fields.get(key);b=variant_fields.get(key)
+            if digest(a)!=digest(b):items.append(('Campo '+key,describe(a,base['nominal_size_mm']),describe(b,design['nominal_size_mm'])))
         for title,a,b in items:
             index=table.rowCount();table.insertRow(index)
             for column,value in enumerate((title,a,b)):
-                cell=QTableWidgetItem(str(value) if value is not None else 'Sin registro');table.setItem(index,column,cell)
+                cell=QTableWidgetItem(str(value) if value is not None else 'Sin registro');cell.setToolTip(cell.text());table.setItem(index,column,cell)
                 if column and a!=b:cell.setBackground(QColor('#FFF0D5'))
         table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers);table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         table.resizeRowsToContents();columns.addWidget(table)

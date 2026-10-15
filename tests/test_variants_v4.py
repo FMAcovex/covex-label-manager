@@ -150,3 +150,10 @@ def test_nominal_format_is_persistent_and_independent_of_print_profile(context):
     assert s.version(vid)['base_w_mm']!=resolved['base_w_mm']
     prior=copy.deepcopy(row);s.add_profile({'name':'SYNTHETIC PRINT','width_mm':80,'height_mm':50,'orientation':'portrait','margin_mm':8,'gap_mm':3,'offset_x_mm':0,'offset_y_mm':0,'start_slot':1,'crop_marks':0,'printer_name':''})
     assert api.variant(row['id'])==prior
+
+
+def test_duplicate_identifier_and_missing_evidence_are_domain_errors(context):
+    s,api,vid,evidence=context;row=create(api,vid,'DUPLICATE')
+    with pytest.raises(ValueError,match='duplicada'):create(api,vid,'DUPLICATE')
+    with pytest.raises(ValueError,match='No hay evidencia'):api.variant_evidence(row['id'])
+    assert len(api.variants(vid))==1

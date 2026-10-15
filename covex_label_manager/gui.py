@@ -370,8 +370,9 @@ class Application(tk.Tk):
         if not self.emit_profile.get() and self.store.profile_list():
             self.emit_profile.set(self.store.profile_list()[0]['name'])
             self._set_profile()
-        if v.get('_variant_id'):
-            self.emit_w.set(str(v['base_w_mm']));self.emit_h.set(str(v['base_h_mm']))
+        selected_design=self._get_selected_version()
+        if selected_design and selected_design.get('_variant_id'):
+            self.emit_w.set(str(selected_design['base_w_mm']));self.emit_h.set(str(selected_design['base_h_mm']))
         self._emit_stats()
         self._state_change()
         self.after(150,self.preview_issue)
