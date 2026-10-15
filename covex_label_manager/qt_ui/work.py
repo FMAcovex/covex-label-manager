@@ -206,6 +206,7 @@ class WorkPanel(QWidget):
         import uuid
         work=copy.deepcopy(w.emission_work)
         def proof(profile,parent):
+            w.api.work.assert_current(work)
             trial=copy.deepcopy(work);trial['profile']=profile
             p,indices,count,copies=parameters(trial);b=trial['binding']
             path=w.api.output_path('cache','sheet-proof-'+uuid.uuid4().hex+'.pdf')

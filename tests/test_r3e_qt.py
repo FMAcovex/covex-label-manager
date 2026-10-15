@@ -91,3 +91,18 @@ def test_sheet_canvas_keeps_calibration_offsets_in_mm(studio):
     assert (d.items[0].x(),d.items[0].y())==(b.x+4,b.y+5)
     d.items[0].setSelected(True);d.box_inputs['x'].setValue(20);d.numeric_box()
     assert d.items[0].x()==20 and d.profile['slots'][0]['x']==18
+
+
+def test_designer_proof_rejects_document_changed_while_open(studio,monkeypatch):
+    import json
+    from covex_label_manager.emission_work import WorkConflict
+    w,s,app=studio;vid=w.row['version_id'];work=w.api.work.create(vid,None,'Synthetic stale proof');w.load_emission_work(work['uid'])
+    def stale(d):
+        fields=json.loads(w.api.version(vid)['fields_json']);fields[0]['x']+=.01
+        w.api.replace_pending_fields(vid,fields)
+        with pytest.raises(WorkConflict):d.proof(d.profile,d)
+        return QDialog.DialogCode.Rejected
+    monkeypatch.setattr(SheetDesigner,'exec',stale)
+    monkeypatch.setattr(w.api,'render',lambda *a,**k:pytest.fail('Stale work must not reach renderer'))
+    w.emission_panel.design_sheet()
+    assert w.api.work.get(work['uid'])['generation']==work['generation']
