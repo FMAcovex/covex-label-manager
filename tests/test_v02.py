@@ -133,7 +133,8 @@ def test_approval_required_for_original_and_status(store,tmp_path):
                         status=approved(),status_master=store.status_master('aprobado'))
     store.approve_status_master('aprobado','Garantía Calidad','TEST-STATE-APPROVAL - synthetic reference')
     path=store.root/'emissions'/'ok.pdf'
-    r=render_emission(v,store.root,data(),profile(),[1],1,1,path,False,
+    from covex_label_manager.services import LocalServices
+    r=LocalServices(store).render(v,data(),profile(),[1],1,1,path,False,per_container={'1':{'pn':'0,1000'}},
                        status=approved(),status_master=store.status_master('aprobado'))
     assert not r['warnings']
     assert 'PRUEBA' not in fitz.open(path)[0].get_text()
@@ -182,7 +183,8 @@ def test_paste_excel_tsv_and_semicolon_csv():
 
 def test_old_database_adds_columns_and_preserves_fields(tmp_path):
     root=tmp_path/'legacy'
-    s=Store(root);v=ver(s,'ACETONA')
+    from v3_fixture import create
+    s=create(root);v=ver(s,'ACETONA')
     s.set_setting('operator','Operador anterior')
     vid=v['id'];oldfields=v['fields_json']
     s.close()
@@ -191,7 +193,7 @@ def test_old_database_adds_columns_and_preserves_fields(tmp_path):
     for table,col in [('versions','status_area_json'),('issues','per_container_json'),('issues','status_json')]:
         sql.execute(f'ALTER TABLE {table} DROP COLUMN {col}')
     sql.commit();sql.close()
-    updated=Store(root)
+    updated=Store(root,migration_confirmation=lambda _:True)
     assert updated.setting('operator')=='Operador anterior'
     assert updated.version(vid)['fields_json']==oldfields
     assert updated.stats()['labels']==2
@@ -206,7 +208,8 @@ def test_reprint_retains_per_vessel_and_status_exactly(store,tmp_path):
     v=store.version(v['id'])
     overrides={'2':{'pn':'0,1500','pb':'0,2500','lote':'CV/EDR/TEST-002'}}
     st=approved();source=store.root/'emissions'/'emitted.pdf'
-    render_emission(v,store.root,data(),profile(),[1,2],2,1,source,False,
+    from covex_label_manager.services import LocalServices
+    LocalServices(store).render(v,data(),profile(),[1,2],2,1,source,False,
                     per_container=overrides,status=st,status_master=store.status_master('aprobado'))
     key=store.add_issue(v['id'],'Operador',2,1,[1,2],data(),profile(),source,per_container=overrides,status=st)
     i=store.issue(key)
@@ -217,3 +220,4 @@ def test_reprint_retains_per_vessel_and_status_exactly(store,tmp_path):
     text=extracted_text(fitz.open(reprint)[0])
     assert '2/2' in text and '0,1500 KG' in text and '0,2500 KG' in text
     assert 'TEST-002' in text and 'TEST-001' not in text
+

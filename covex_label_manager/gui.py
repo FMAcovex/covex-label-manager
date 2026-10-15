@@ -110,7 +110,13 @@ class ScrolledFrame(tk.Frame):
 class Application(tk.Tk):
     def __init__(self,store=None):
         super().__init__()
-        self.store=store if isinstance(store,LocalServices) else LocalServices(store)
+        from .migration_consent import tk_confirmation
+        try:
+            self.store=store if isinstance(store,LocalServices) else LocalServices(store,
+                migration_confirmation=lambda root:tk_confirmation(root,self))
+        except Exception:
+            self.destroy()
+            raise
         self.services=self.store
         self.current_version_id=None
         self.bind_all('<Control-k>',lambda _:self._open_library_picker())
@@ -275,7 +281,7 @@ class Application(tk.Tk):
         self._emit_stats()
 
     def _get_selected_version(self):
-        return self.store.version(self.current_version_id) if self.current_version_id else None
+        return self.services.emission_version(self.current_version_id) if self.current_version_id else None
 
     def select_emission_version(self,row):
         self.current_version_id=row['version_id'];self.current_label_id=row['id']
@@ -370,6 +376,9 @@ class Application(tk.Tk):
         if not self.emit_profile.get() and self.store.profile_list():
             self.emit_profile.set(self.store.profile_list()[0]['name'])
             self._set_profile()
+        selected_design=self._get_selected_version()
+        if selected_design and selected_design.get('_variant_id'):
+            self.emit_w.set(str(selected_design['base_w_mm']));self.emit_h.set(str(selected_design['base_h_mm']))
         self._emit_stats()
         self._state_change()
         self.after(150,self.preview_issue)
@@ -394,7 +403,7 @@ class Application(tk.Tk):
         if hasattr(self,'status_selector') and self.status_selector.winfo_exists():self.status_selector.current(0)
         if not v:return
         self.current_label_id=v['label_id']
-        self.emit_label_title.configure(text=v['name']+'  ·  '+v['code']+'  ·  v'+v['version'])
+        self.emit_label_title.configure(text=v['name']+'  ·  '+v['code']+'  ·  v'+v['version']+('  ·  Variante '+v['_variant_code']+' / '+v['_variant_state'] if v.get('_variant_id') else ''))
         self.label_version_note.configure(text=f"{v['annex']}  |  Revisión {v['version']}  |  "+('VIGENTE' if v['state']=='APPROVED' else 'PENDIENTE - solo PDF de prueba'),
                                    fg=C['green'] if v['state']=='APPROVED' else C['orange'])
         fields=json.loads(v['fields_json'])
@@ -495,9 +504,9 @@ class Application(tk.Tk):
 
     def preview_issue(self):
         if self.current_page!='emitir':return
-        v=self._get_selected_version()
-        if not v:return
         try:
+            v=self._get_selected_version()
+            if not v:return
             p=self._profile_dict();count=int(self.emit_count.get());copy=self.emit_copies.get()
             plan=self.services.sheet_plan(p,count*copy)
             sample=max(1,min(count,plan.capacity))
@@ -517,9 +526,9 @@ class Application(tk.Tk):
             self.preview_warning.configure(text=str(ex),fg=C['red'])
 
     def issue_pdf(self):
-        v=self._get_selected_version()
-        if not v:return
         try:
+            v=self._get_selected_version()
+            if not v:return
             p=self._profile_dict()
             count=int(self.emit_count.get());copies=self.emit_copies.get()
             inds=list(range(1,count+1))
@@ -912,6 +921,12 @@ class Application(tk.Tk):
         i=self._selected_issue()
         if not i:return
         v=self.store.version(i['version_id'])
+        variant_id=i['design_variant_id']
+        try:v=self.services.resolved_design(i['version_id'],variant_id,True)
+        except (ValueError,PermissionError,OSError) as ex:
+            messagebox.showerror('Reimpresión bloqueada',str(ex),parent=self);return
+        historical=json.loads(i['design_snapshot_json']) if i['design_snapshot_json'] else None
+        if not historical and not messagebox.askyesno('Histórico sin snapshot','Este registro heredado no conserva snapshot de diseño. Se usará la revisión documentada actual, sin atribuirle reproducción exacta. Continuar?',parent=self):return
         if not self.services.intact_emission(i):
             messagebox.showerror('Integridad','El PDF de emisión original ha sido modificado.',parent=self);return
         if v['state']!='APPROVED':
@@ -934,7 +949,7 @@ class Application(tk.Tk):
             per_container=json.loads(i['per_container_json'] or '{}')
             asset=self.store.status_master(status.get('kind','ninguna')) if status.get('kind','ninguna')!='ninguna' else None
             self.services.render(v,values,profile,numbers,i['count_containers'],i['copies_per_container'],out,False,
-                            per_container=per_container,status=status,status_master=asset)
+                            per_container=per_container,status=status,status_master=asset,history_snapshot=historical)
             pk=self.store.add_issue(v['id'],self.store.setting('operator'),i['count_containers'],
                     i['copies_per_container'],numbers,values,profile,out,source_issue_id=i['id'],reason=reason.strip(),
                     per_container=per_container,status=status)
@@ -1130,8 +1145,10 @@ class AdvancedEditor(tk.Toplevel):
     def __init__(self,app,version_id):
         super().__init__(app)
         self.app=app;self.store=app.store;self.version_id=version_id
-        self.version=self.store.version(version_id)
-        self.editable=self.version['state']=='PENDING'
+        self.variant_id=getattr(self.store,'selected_variant_id',None)
+        self.version=self.store.resolved_design(version_id,self.variant_id) if self.variant_id else self.store.version(version_id)
+        self.variant=self.store.variant(self.variant_id) if self.variant_id else None
+        self.editable=self.variant['state']=='DRAFT' if self.variant else self.version['state']=='PENDING'
         self.fields=json.loads(self.version['fields_json'])
         self.crop=json.loads(self.version['crop_json'])
         self.status_area=json.loads(self.version['status_area_json'] or '[]')
@@ -1458,12 +1475,19 @@ class AdvancedEditor(tk.Toplevel):
 
     def save(self):
         try:
-            self.store.replace_pending_fields(self.version_id,self.fields,self.crop,self.status_area)
+            if self.variant:
+                from .variants import update_design_layout
+                design=update_design_layout(json.loads(self.variant['design_json']),{'fields':self.fields,'crop':self.crop,'area':self.status_area})
+                self.variant=self.store.save_variant(self.variant_id,self.variant['generation'],design,self.store.setting('operator'))
+            else:self.store.replace_pending_fields(self.version_id,self.fields,self.crop,self.status_area)
             messagebox.showinfo('Guardado','Cambios guardados en la version pendiente.\nReviselos antes de activar la plantilla.',parent=self)
             self.app.show('maestro')
         except Exception as ex:messagebox.showerror('Error al guardar',str(ex),parent=self)
 
 
 def start():
-    app=Application()
+    from .migration_v4 import MigrationCancelled
+    try:app=Application()
+    except MigrationCancelled:return
     app.mainloop()
+

@@ -17,8 +17,8 @@ from .importer import auto_crop,docx_to_pdf
 
 class LocalServices:
     OPERATIONS=frozenset('add_issue add_label add_profile approve approve_status_master audit clone_version close import_materials issue issues labels material_duplicates profile_list replace_pending_fields set_setting setting stats status_master status_masters version versions audit_entries library_records set_favorite mark_recent set_label_metadata'.split())
-    def __init__(self,repository=None):
-        self._repository=repository or Store()
+    def __init__(self,repository=None,*,migration_confirmation=None):
+        self._repository=repository or Store(migration_confirmation=migration_confirmation)
         self.library=LibraryService(self._repository)
     def __getattr__(self,name):
         if name in self.OPERATIONS:return getattr(self._repository,name)
@@ -40,10 +40,22 @@ class LocalServices:
         if Path(name).name!=name:raise ValueError('Nombre de salida inválido.')
         return self.asset_path(str(Path(kind)/name))
     def render(self,version,*args,**kwargs):
-        # Reload documentary state: a stale UI snapshot cannot emit a retired revision.
-        current=self._repository.version(version['id'])
-        if current is None:raise ValueError('Versión no encontrada.')
-        return render_emission(current,self._repository.root,*args,**kwargs)
+        from .emission_contract import render
+        return render(self,version,*args,**kwargs)
+    def emission_version(self,version_id):
+        variant_id=getattr(self,'selected_variant_id',None)
+        if variant_id is not None and self._repository.variants.get(variant_id)['revision_id']!=version_id:
+            self.selected_variant_id=None;variant_id=None
+        return self._repository.variants.resolve(version_id,variant_id,False)[0]
+    def variants(self,revision_id):return self._repository.variants.list(revision_id)
+    def variant(self,variant_id):return self._repository.variants.get(variant_id)
+    def create_variant(self,*args,**kwargs):return self._repository.variants.create(*args,**kwargs)
+    def save_variant(self,*args,**kwargs):return self._repository.variants.save(*args,**kwargs)
+    def transition_variant(self,*args,**kwargs):return self._repository.variants.transition(*args,**kwargs)
+    def approve_variant(self,*args,**kwargs):return self._repository.variants.approve(*args,**kwargs)
+    def variant_evidence(self,variant_id):return self._repository.variants.verify_evidence(self.variant(variant_id))
+    def resolved_design(self,revision_id,variant_id=None,production=False):
+        return self._repository.variants.resolve(revision_id,variant_id,production)[0]
     def sheet_plan(self,profile,count):
         from .engine import plan_sheet
         return plan_sheet(profile,count)
@@ -83,16 +95,28 @@ class LocalServices:
             return self.add_label(data['name'],data.get('code',''),data.get('category',''),data.get('annex',''),data.get('origin','COVEX'),data.get('customer',''),data['version'],pdf,path,crop,[],
                 'Importacion inicial. Revisar recorte y campos; documento de origen: '+Path(path).name+'.',data.get('ref_customer',''))
     def backup(self):
+        from .migration_v4 import inventory,verify_backup
+        from .canonical import canonical
         target=self.output_path('backups',f'covex_labels_backup_{datetime.now():%Y%m%d_%H%M%S_%f}.zip')
-        # Consistent SQLite snapshot, including WAL, instead of copying a live DB.
         with tempfile.TemporaryDirectory() as temp:
-            snapshot=Path(temp)/'labels.sqlite'
+            snapshot=Path(temp)/'snapshot.sqlite'
             with closing(sqlite3.connect(snapshot)) as db:self._repository.db.backup(db)
-            with zipfile.ZipFile(target,'w',compression=zipfile.ZIP_DEFLATED) as archive:
-                archive.write(snapshot,'labels.sqlite')
-                for f in self._repository.root.rglob('*'):
-                    rel=f.relative_to(self._repository.root)
-                    if f.is_file() and not {'backups','cache'} & set(rel.parts) and f.name not in ('labels.sqlite','labels.sqlite-wal','labels.sqlite-shm'):
-                        archive.write(f,rel)
+            root=self._repository.root
+            # Capture every durable file, including approval evidence and the
+            # legacy barrier. Exclude both the live v4 DB/WAL and old backups.
+            files={}
+            for f in sorted(root.rglob('*')):
+                rel=f.relative_to(root)
+                if {'backups','cache'} & set(rel.parts) or f.name=='migration.lock' or f.name.endswith('.tmp'):continue
+                if f.is_symlink():raise ValueError('No se incluyen enlaces en una copia controlada.')
+                if f.is_file() and f not in (self._repository.db_file,Path(str(self._repository.db_file)+'-wal'),Path(str(self._repository.db_file)+'-shm')):
+                    files[rel.as_posix()]=sha256(f)
+            database=self._repository.db_file.relative_to(root).as_posix();files[database]=sha256(snapshot)
+            with zipfile.ZipFile(target,'x',compression=zipfile.ZIP_DEFLATED) as archive:
+                archive.write(snapshot,database)
+                for rel in files:
+                    if rel!=database:archive.write(root/rel,rel)
+                archive.writestr('backup-manifest.json',canonical({'contract':1,'files':files}))
+            verify_backup(target)
         self.audit('BACKUP','ZIP',target.name)
         return target

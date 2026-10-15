@@ -10,18 +10,22 @@ def legacy_command():
         return [str(installation_dir()/'legacy'/'COVEXLabelManager_Legacy.exe')]
     return [sys.executable,str(installation_dir()/'legacy_qt_bridge.py')]
 
-def launch_legacy(services,target='maestro',version_id=None,mode='production',smoke_report=None):
+def launch_legacy(services,target='maestro',version_id=None,mode='production',smoke_report=None,smoke_issue=False):
     if target=='emitir' and version_id:
-        ok,reason=services.eligibility(version_id,production=mode!='test')
+        ok,reason=services.eligibility(version_id,production=mode!='test',variant_id=getattr(services,'selected_variant_id',None))
         if not ok:raise ValueError(reason)
     env=os.environ.copy();env['COVEX_LABEL_DATA']=services.location()
     command=legacy_command()+['--target',target,'--mode',mode]
     if version_id is not None:command+=['--version-id',str(version_id)]
+    variant_id=getattr(services,'selected_variant_id',None)
+    if variant_id is not None:command+=['--variant-id',str(variant_id)]
+    command+=['--writer-protocol','4']
     if smoke_report is not None:
         command+=['--smoke-report',str(smoke_report)];env['COVEX_QT_BRIDGE_SMOKE']='1'
+        if smoke_issue:command+=['--smoke-issue']
     return subprocess.Popen(command,env=env)
 
-def run_legacy(target,version_id=None,mode='production',smoke_report=None):
+def run_legacy(target,version_id=None,mode='production',smoke_report=None,variant_id=None,writer_protocol=4,smoke_issue=False):
     from .gui import Application
     from .qt_transition import TransitionServices
     import tkinter as tk
@@ -58,12 +62,13 @@ def run_legacy(target,version_id=None,mode='production',smoke_report=None):
             self._qt_views[page].pack(fill='both',expand=True);self.current_page=page
             self.top_title.configure(text='Versión anterior · '+page)
             for key,b in self.nav_buttons.items():b.configure(bg='#213B59' if key==page else '#162940')
-    api=TransitionServices();app=RetainedApplication(api)
+    if writer_protocol!=4:raise ValueError('Acompañante incompatible con almacenamiento v4.')
+    api=TransitionServices();api.selected_variant_id=variant_id;app=RetainedApplication(api)
     if version_id is not None:
         version=api.version(version_id)
         if version is None:app._quit();raise ValueError('Revisión inexistente.')
         if target=='emitir':
-            ok,reason=api.eligibility(version_id,production=mode!='test')
+            ok,reason=api.eligibility(version_id,production=mode!='test',variant_id=variant_id)
             if not ok:messagebox.showerror('Bloqueado',reason,parent=app);app._quit();return
             app.current_version_id=version_id;app.current_label_id=version['label_id']
             if mode=='test':
@@ -77,6 +82,7 @@ def run_legacy(target,version_id=None,mode='production',smoke_report=None):
     else:app.show('maestro' if target=='editor' else target)
     app.title('COVEX Label Manager · Versión anterior durante transición Qt')
     if smoke_report:
+        if smoke_issue and api.setting('synthetic_demo')!='1':raise ValueError('Solo datos sintéticos para smoke de emisión definitiva.')
         if os.environ.get('COVEX_QT_BRIDGE_SMOKE')!='1':raise ValueError('Smoke requiere el modo aislado explícito.')
         def smoke():
             import json
@@ -94,13 +100,17 @@ def run_legacy(target,version_id=None,mode='production',smoke_report=None):
                 errors=[];messagebox.showerror=lambda *a,**kw:errors.append(a)
                 app.issue_pdf()
                 assert not errors,errors
-                assert output.is_file(),'No test PDF produced'
-                with fitz.open(output) as doc:assert 'PRUEBA' in ''.join(p.get_text() for p in doc)
-                assert len(api.issues())==before,'Test created a definitive issue'
-                Path(smoke_report).write_text(json.dumps({'ok':True,'selected_version':app.current_version_id,'work_retained':True,'test_pdf_watermarked':True,'no_definitive_issue':True}),encoding='utf-8')
+                if smoke_issue:output=Path(app.last_issue_pdf)
+                assert output.is_file(),'No PDF produced'
+                with fitz.open(output) as doc:assert ('PRUEBA' in ''.join(p.get_text() for p in doc)) is (not smoke_issue)
+                assert len(api.issues())==before+int(smoke_issue),'Unexpected definitive issue count'
+                if smoke_issue:
+                    issue=api.issues()[0];assert issue['design_snapshot_json'] and issue['design_variant_id']==variant_id
+                Path(smoke_report).write_text(json.dumps({'ok':True,'selected_version':app.current_version_id,'selected_variant':variant_id,'writer_protocol':4,'work_retained':True,'test_pdf_watermarked':not smoke_issue,'no_definitive_issue':not smoke_issue,'snapshot_registered':smoke_issue}),encoding='utf-8')
             except Exception:
                 import traceback
                 Path(smoke_report).write_text(json.dumps({'ok':False,'error':traceback.format_exc()}),encoding='utf-8')
             finally:app._quit()
         app.after(350,smoke)
     app.mainloop()
+

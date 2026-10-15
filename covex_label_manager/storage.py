@@ -23,21 +23,35 @@ def sha256(path):
 
 
 class Store:
-    def __init__(self, root=None, seed=True):
-        self.root = Path(root) if root else data_dir()
+    def __init__(self, root=None, seed=True, *, migration_confirmation=None):
+        self.root = (Path(root) if root else data_dir(create=False)).resolve()
+        from .migration_v4 import active_path, migrate, MigrationConsentRequired, MigrationCancelled
+        from .schema_v4 import configure
+        candidate=active_path(self.root)
+        fresh=not candidate.exists()
+        legacy=candidate==self.root/'labels.sqlite'
+        if legacy and not fresh:
+            if migration_confirmation is None:
+                raise MigrationConsentRequired('Confirme la actualización a SQLite v4 antes de abrir esta instalación.')
+            if migration_confirmation(self.root) is not True:
+                raise MigrationCancelled('Actualización cancelada. Los datos no se han modificado.')
+        # Consent precedes directory creation, backup, DB open and migration lock.
         self.root.mkdir(parents=True, exist_ok=True)
         for sub in ['sources', 'pdf_masters', 'emissions', 'backups', 'cache', 'status_masters']:
             (self.root / sub).mkdir(exist_ok=True)
-        self.db_file = self.root / 'labels.sqlite'
-        self.db = sqlite3.connect(self.db_file)
-        self.db.row_factory = sqlite3.Row
-        self._backup_before_migration()
-        self.db.execute('PRAGMA foreign_keys=ON')
-        self.db.execute('PRAGMA journal_mode=WAL')
-        self._schema()
-        if seed:
-            self.seed_data()
-            self._seed_r1_variant()
+        if candidate.name=='labels.sqlite' and candidate.parent==self.root:
+            if fresh:
+                self.db_file=candidate;self.db=sqlite3.connect(candidate);self.db.row_factory=sqlite3.Row
+                self.db.execute('PRAGMA foreign_keys=ON');self._schema()
+                if seed:self.seed_data();self._seed_r1_variant()
+                self.db.close()
+            migrate(self.root,confirmed=True)
+            candidate=active_path(self.root)
+        self.db_file=candidate;self.db=sqlite3.connect(candidate);self.db.row_factory=sqlite3.Row
+        configure(self.db);self.db.execute('PRAGMA journal_mode=WAL')
+        self._render_receipts={}
+        from .variants import VariantRepository
+        self.variants=VariantRepository(self)
 
     def _seed_r1_variant(self):
         """Add a pending rendition, preserving all prior versions and custom fields."""
@@ -470,19 +484,8 @@ class Store:
         self.audit('PROFILE',profile['name'],'Perfil guardado')
 
     def add_issue(self,version_id,operator,count,copies,indices,values,profile,pdf_path,source_issue_id=None,reason='',per_container=None,status=None):
-        if self.version(version_id)['state']!='APPROVED':
-            raise PermissionError('No se puede emitir con una plantilla no aprobada')
-        rel=str(Path(pdf_path).relative_to(self.root))
-        with self.txn() as c:
-            c.execute('''INSERT INTO issues(version_id,created_at,operator,count_containers,copies_per_container,
-                selected_indices,variables_json,profile_json,pdf_path,source_issue_id,reason,per_container_json,status_json)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',(version_id,now(),operator,count,copies,json.dumps(indices),
-                     json.dumps(values,ensure_ascii=False),json.dumps(profile,ensure_ascii=False),rel,source_issue_id,reason,
-                     json.dumps(per_container or {},ensure_ascii=False),json.dumps(status or {},ensure_ascii=False)))
-            c.execute('UPDATE issues SET pdf_sha256=? WHERE id=last_insert_rowid()', (sha256(pdf_path),))
-            pk=c.execute('SELECT last_insert_rowid()').fetchone()[0]
-        self.audit('ISSUE',pk,f'etiqueta={version_id},numeros={indices[:10]},copias={copies},origen={source_issue_id}')
-        return pk
+        from .emission_contract import record_issue
+        return record_issue(self,version_id,operator,count,copies,indices,values,profile,pdf_path,source_issue_id,reason,per_container,status)
 
     def issues(self):
         return self.db.execute('''SELECT i.*,l.name,v.version,l.origin FROM issues i
@@ -502,3 +505,4 @@ class Store:
 
     def close(self):
         self.db.close()
+

@@ -51,7 +51,7 @@ class TransitionServices(LocalServices):
                                    [1], 1, 1, path, test_mode=True)
         return path, warnings
 
-    def eligibility(self,version_id,production=True):
+    def eligibility(self,version_id,production=True,variant_id=None):
         version=self.version(version_id)
         if version is None:return False,'Revisión inexistente.'
         if production and version['state']!='APPROVED':return False,'Preparar emisión requiere una revisión vigente. Puede consultar o preparar un PDF de prueba.'
@@ -59,6 +59,8 @@ class TransitionServices(LocalServices):
         try:
             verify_documents(version,self._repository.root);verify_renderable(version)
         except (ValueError,OSError) as ex:return False,str(ex)
+        try:self._repository.variants.resolve(version_id,variant_id,production)
+        except (ValueError,OSError,PermissionError) as ex:return False,str(ex)
         return True,''
     def open_document(self,version_id,original=False):
         version=self.version(version_id)
@@ -72,3 +74,4 @@ class TransitionServices(LocalServices):
     def filter_preferences(self):
         remember=self.setting('qt_remember_filters','0')=='1'
         return remember,remember and self.setting('qt_filters_expanded','0')=='1'
+

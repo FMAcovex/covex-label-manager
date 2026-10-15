@@ -1,0 +1,115 @@
+{
+  "canonical_vector": {
+    "text": "{\"a\":[0.0000001,\"�\"],\"z\":0,\"�\":1.23}",
+    "sha256": "c59ed642cbc30ff3b0fbcea26eb3c0e32718a6ebfc1a4ce16959401d83ce33ad"
+  },
+  "synthetic_only": true,
+  "platform": "win32",
+  "crashes": [
+    {
+      "phase": "PREPARED",
+      "exit_code": 73,
+      "recovered": "v3",
+      "restored_row_digest": "f22ddfff5f0b207ec123c2c3c66f165a2aef20f9dedc101a8f28abacfa485ab4",
+      "backup_sha256": "c555086e5358621a40acd13d9b9fb84999beda48b987d90d67872606c173c331",
+      "restore_exact": true
+    },
+    {
+      "phase": "LEGACY_ISOLATED",
+      "exit_code": 73,
+      "recovered": "v3",
+      "restored_row_digest": "13b532f5fe2a19f48839673dda9a205a0db7409d7cbbbe373816959aa066ab34",
+      "backup_sha256": "c85299fcffeec925c04e1082ea61cb2df02aed23efbd8741735708bf76021fce",
+      "restore_exact": true
+    },
+    {
+      "phase": "BARRIER_INSTALLED",
+      "exit_code": 73,
+      "recovered": "v3",
+      "restored_row_digest": "e41fca4a9a09a80cf552089eb0d768ca6ef7348211c92534f3791283efa10d0b",
+      "backup_sha256": "0174bfcb1b33a08a93657ef3196ae6748423400163a3ae4298c80bf8bb036e57",
+      "restore_exact": true
+    },
+    {
+      "phase": "PUBLISHED",
+      "exit_code": 73,
+      "recovered": "v4",
+      "restored_row_digest": "1bd83c7fd315885cb191ee1469a4035c196fd0afaac05ec30bcb39c92f334ebc",
+      "backup_sha256": "0a6e37d34f01e1662038c37fc35a7735e78f0cb89123a9abc4d988a56707ec7e",
+      "restore_exact": true
+    },
+    {
+      "phase": "VERIFIED",
+      "exit_code": 73,
+      "recovered": "v4",
+      "restored_row_digest": "d2f6349d0e954c35c49a1399ed9e2e6929200048755600c64152950801117c29",
+      "backup_sha256": "cbe645a2b946d941b64d7d14184f8e231cabfa70c51328fe7df3bbc326c32da1",
+      "restore_exact": true
+    }
+  ],
+  "old_writers": [
+    {
+      "stage": "OS_GUARDED",
+      "entrypoint": "source-tk",
+      "exit_code": 1,
+      "blocked": true
+    },
+    {
+      "stage": "OS_GUARDED",
+      "entrypoint": "source-qt",
+      "exit_code": 1,
+      "blocked": true
+    },
+    {
+      "stage": "OS_GUARDED",
+      "entrypoint": "exe-tk",
+      "exit_code": 1,
+      "blocked": true
+    },
+    {
+      "stage": "OS_GUARDED",
+      "entrypoint": "exe-qt",
+      "exit_code": 1,
+      "blocked": true
+    },
+    {
+      "stage": "V4_BARRIER",
+      "entrypoint": "source-tk",
+      "exit_code": 1,
+      "blocked": true,
+      "data_unchanged": true,
+      "diagnostic": "Traceback (most recent call last):\n  File \"D:\\a\\covex-label-manager\\covex-label-manager\\.legacy-r3b1\\main.py\", line 9, in <module>\n    start()\n  File \"D:\\a\\covex-label-manager\\covex-label-manager\\.legacy-r3b1\\covex_label_manager\\gui.py\", line 1468, in start\n    app=Application()\n        ^^^^^^^^^^^^^\n  File \"D:\\a\\covex-label-manager\\covex-label-manager\\.legacy-r3b1\\covex_label_manager\\gui.py\", line 113, in __init__\n    self.store=store if isinstance(store,LocalServices) else LocalServices(store)\n                                                             ^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\a\\covex-label-manager\\covex-label-manager\\.legacy-r3b1\\covex_label_manager\\services.py\", line 21, in __init__\n    self._repository=repository or Store()\n                                   ^^^^^^^\n  File \"D:\\a\\covex-label-manager\\covex-label-manager\\.legacy-r3b1\\covex_label_manager\\storage.py\", line 32, in __init__\n    self.db = sqlite3.connect(self.db_file)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nsqlite3.OperationalError: unable to open database file\n"
+    },
+    {
+      "stage": "V4_BARRIER",
+      "entrypoint": "source-qt",
+      "exit_code": 1,
+      "blocked": true,
+      "data_unchanged": true,
+      "diagnostic": "Traceback (most recent call last):\n  File \"D:\\a\\covex-label-manager\\covex-label-manager\\.legacy-r3b1\\main_qt.py\", line 52, in <module>\n    if __name__=='__main__':sys.exit(main())\n                                     ^^^^^^\n  File \"D:\\a\\covex-label-manager\\covex-label-manager\\.legacy-r3b1\\main_qt.py\", line 26, in main\n    else:session=LocalSession()\n                 ^^^^^^^^^^^^^^\n  File \"D:\\a\\covex-label-manager\\covex-label-manager\\.legacy-r3b1\\main_qt.py\", line 15, in __init__\n    def __init__(self):self.services=TransitionServices()\n                                     ^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\a\\covex-label-manager\\covex-label-manager\\.legacy-r3b1\\covex_label_manager\\services.py\", line 21, in __init__\n    self._repository=repository or Store()\n                                   ^^^^^^^\n  File \"D:\\a\\covex-label-manager\\covex-label-manager\\.legacy-r3b1\\covex_label_manager\\storage.py\", line 32, in __init__\n    self.db = sqlite3.connect(self.db_file)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nsqlite3.OperationalError: unable to open database file\n"
+    },
+    {
+      "stage": "V4_BARRIER",
+      "entrypoint": "exe-tk",
+      "exit_code": 1,
+      "blocked": true,
+      "data_unchanged": true,
+      "diagnostic": "Traceback (most recent call last):\n  File \"main.py\", line 9, in <module>\n  File \"covex_label_manager\\gui.py\", line 1468, in start\n  File \"covex_label_manager\\gui.py\", line 113, in __init__\n  File \"covex_label_manager\\services.py\", line 21, in __init__\n  File \"covex_label_manager\\storage.py\", line 32, in __init__\nsqlite3.OperationalError: unable to open database file\n[PYI-8100:ERROR] Failed to execute script 'main' due to unhandled exception!\n"
+    },
+    {
+      "stage": "V4_BARRIER",
+      "entrypoint": "exe-qt",
+      "exit_code": 1,
+      "blocked": true,
+      "data_unchanged": true,
+      "diagnostic": "Traceback (most recent call last):\n  File \"main_qt.py\", line 52, in <module>\n  File \"main_qt.py\", line 26, in main\n  File \"main_qt.py\", line 15, in __init__\n  File \"covex_label_manager\\services.py\", line 21, in __init__\n  File \"covex_label_manager\\storage.py\", line 32, in __init__\nsqlite3.OperationalError: unable to open database file\n[PYI-768:ERROR] Failed to execute script 'main_qt' due to unhandled exception!\n"
+    }
+  ],
+  "active_v4_sha256": "f4b18888376be3e7039db42c8abeed12c8c1b6fc1efbf595778ff2d5b54123e1",
+  "windows_old_executables_proven": true,
+  "ok": true,
+  "workflow_run": 38697576941,
+  "attempt": 2,
+  "tested_head": "139df90aef47a31792611811dae970a0a16c2035",
+  "tested_merge": "66a3bfaedcfd26154046c6424fb5fbc0c906f28f"
+}

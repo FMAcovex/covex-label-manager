@@ -1,3 +1,4 @@
+from contextlib import closing
 import json
 import sqlite3
 import zipfile
@@ -45,8 +46,8 @@ def test_services_hide_sqlite_and_backup_retains_catalog(tmp_path):
         row=api.library.entries()[0];api.library.favorite(row)
         path=api.backup()
         with zipfile.ZipFile(path) as z:
-            assert 'labels.sqlite' in z.namelist();z.extract('labels.sqlite',tmp_path/'restored')
-        with sqlite3.connect(tmp_path/'restored'/'labels.sqlite') as db:
+            assert 'storage_v4/labels.sqlite' in z.namelist();z.extract('storage_v4/labels.sqlite',tmp_path/'restored')
+        with sqlite3.connect(tmp_path/'restored'/'storage_v4'/'labels.sqlite') as db:
             assert db.execute('SELECT COUNT(*) FROM library_preferences WHERE favorite=1').fetchone()[0]==1
             assert db.execute('SELECT COUNT(DISTINCT uid) FROM labels').fetchone()[0]==2
     finally:api.close()
@@ -67,27 +68,29 @@ def test_metadata_requires_source_and_does_not_change_approved_design(tmp_path):
 
 def test_upgrade_from_legacy_schema_preserves_custom_fields_and_profile(tmp_path):
     import pytest
-    root=tmp_path/'legacy';s=Store(root,seed=False);s.seed_data()
+    from v3_fixture import create
+    root=tmp_path/'legacy';s=create(root,seed=False);s.seed_data()
     label=next(r for r in s.labels() if r['name']=='EDROFONIO');v=s.version(label['version_id'])
     custom=json.loads(v['fields_json']);custom[0]['font_pt']=21
     s.replace_pending_fields(v['id'],custom)
     s.set_setting('operator','Operador anterior')
     s.close()
-    with sqlite3.connect(root/'labels.sqlite') as db:
+    with closing(sqlite3.connect(root/'labels.sqlite')) as db:
         for table in ('labels','versions','materials','issues'):
             db.execute(f'DROP TRIGGER {table}_assign_uid')
             db.execute(f'DROP INDEX {table}_uid')
             db.execute(f'ALTER TABLE {table} DROP COLUMN uid')
         db.execute('ALTER TABLE profiles DROP COLUMN safety_mm')
-        db.execute('DROP TABLE label_metadata');db.execute('DROP TABLE library_preferences')
-    s=Store(root)
+        db.execute('DROP TABLE label_metadata');db.execute('DROP TABLE library_preferences');db.commit()
+    s=Store(root,migration_confirmation=lambda _:True)
     try:
         assert s.setting('operator')=='Operador anterior'
         assert json.loads(s.version(v['id'])['fields_json'])==custom
         assert len(s.profile_list())==2
         assert s.version(v['id'])['uid']
-        backups=list((root/'backups').glob('ANTES_MIGRACION_*.sqlite'));assert len(backups)==1
+        backups=list((root/'backups').glob('v4-*/legacy-snapshot.sqlite'));assert len(backups)==1
         with sqlite3.connect(backups[0]) as db:
             assert 'uid' not in {r[1] for r in db.execute('PRAGMA table_info(labels)')}
             assert db.execute("SELECT value FROM settings WHERE key='operator'").fetchone()[0]=='Operador anterior'
     finally:s.close()
+

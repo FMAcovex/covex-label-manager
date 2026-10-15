@@ -20,9 +20,10 @@ def resource_dir() -> Path:
     return package_dir() / 'resources'
 
 
-def data_dir() -> Path:
+def data_dir(create=True) -> Path:
     override = os.environ.get('COVEX_LABEL_DATA')
     path = Path(override).expanduser().resolve() if override else installation_dir() / 'data'
+    if not create:return path
     path.mkdir(parents=True, exist_ok=True)
     for sub in ['sources', 'pdf_masters', 'emissions', 'backups', 'cache']:
         (path / sub).mkdir(exist_ok=True)

@@ -187,9 +187,12 @@ class AdvancedEditorMixin:
         if hasattr(self,'editor_reset_button'):
             self.editor_reset_button.setText('Restablecer' if event.size().width()<1200 else 'Restablecer diseño')
 
+    def editor_record(self,version_id=None):
+        return self.api.version(version_id if version_id is not None else self.current_editor_id)
+
     def editable(self):
         if self.design is None or self.legacy_process: return False
-        v = self.api.version(self.current_editor_id)
+        v = self.editor_record()
         return v is not None and v['state'] == 'PENDING'
 
     def selected_indices(self):
@@ -202,7 +205,7 @@ class AdvancedEditorMixin:
         except (ValueError,OSError) as ex: QMessageBox.warning(self,'Documento no disponible',str(ex)); return
         if vid != self.current_editor_id:
             if not self.resolve_work(): return
-            self.current_editor_id = vid; self.editor_version = dict(self.api.version(vid))
+            self.current_editor_id = vid; self.editor_version = dict(self.editor_record(vid))
             self.expected_layout = layout_from_version(self.editor_version); self.design = LayoutHistory(self.expected_layout)
             self.expected_source = source_identity(self.editor_version)
             self.output_profile = None
@@ -366,7 +369,7 @@ class AdvancedEditorMixin:
         self.undo_button.setEnabled(enabled and bool(self.design.undo_states)); self.redo_button.setEnabled(enabled and bool(self.design.redo_states))
         for b in self.design_buttons: b.setEnabled(enabled)
         if self.design:
-            current=self.api.version(self.current_editor_id); self.editor_version['state']=current['state']
+            current=self.editor_record(); self.editor_version['state']=current['state']
             if not enabled: self.disable_properties()
 
     def undo_edit(self):
@@ -384,7 +387,7 @@ class AdvancedEditorMixin:
         try:
             self.api.save_editor_layout(self.current_editor_id,self.design.state,self.expected_layout,self.expected_source)
             self.expected_layout=copy.deepcopy(self.design.state); self.design.mark_clean()
-            self.editor_version=dict(self.api.version(self.current_editor_id)); self.sync_design()
+            self.editor_version=dict(self.editor_record()); self.sync_design()
             self.refresh(); self.draw_editor(); return True
         except (ValueError,PermissionError,OSError) as ex:
             QMessageBox.warning(self,'No guardado',str(ex)); return False
@@ -402,7 +405,7 @@ class AdvancedEditorMixin:
         code=self.legacy_process.returncode; self.legacy_process=None
         self.set_mutations_enabled(True); self.refresh_facets(); self.refresh()
         if self.current_editor_id is not None:
-            self.editor_version=dict(self.api.version(self.current_editor_id)); self.expected_layout=layout_from_version(self.editor_version)
+            self.editor_version=dict(self.editor_record()); self.expected_layout=layout_from_version(self.editor_version)
             self.expected_source=source_identity(self.editor_version)
             self.design=LayoutHistory(self.expected_layout); self.draw_editor(fit=True)
         self.recheck_actions(); self.statusBar().showMessage('Tkinter cerrado; diseño recargado.' if code==0 else f'Tkinter terminó con código {code}. Revisar antes de continuar.')
@@ -578,3 +581,4 @@ class AdvancedEditorMixin:
         layout.addWidget(button('Ver PDF de prueba',proof)); layout.addWidget(button('Guardar perfil de salida',save_profile))
         buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel); buttons.accepted.connect(dialog.accept); buttons.rejected.connect(dialog.reject); layout.addWidget(buttons)
         if dialog.exec()==QDialog.DialogCode.Accepted: self.output_profile=current()
+

@@ -57,6 +57,9 @@ def test_legacy_r1_can_be_derived_only_from_intact_local_source(monkeypatch,tmp_
     monkeypatch.setattr(storage,'resource_dir',lambda:empty)
     s=Store(tmp_path/'data')
     try:
+        assert not any(v['version']=='00-R1' for v in s.versions(original['id']))
+        s._seed_r1_variant()  # explicit legacy derivation, never part of migration
         r1=next(v for v in s.versions(original['id']) if v['version']=='00-R1')
         assert r1['state']=='PENDING'
     finally:s.close()
+
