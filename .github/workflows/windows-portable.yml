@@ -28,8 +28,10 @@ jobs:
           python -m pip install --require-hashes --only-binary=:all: -r requirements-windows.lock
       - run: python -m pip check
       - name: Core and Tk regression with hang diagnostics
-        timeout-minutes: 6
-        run: python -m pytest -q -o faulthandler_timeout=60 --junitxml=test-results/pytest.xml
+        # The growing synthetic suite + Windows filesystem variability exceeded
+        # six minutes in PR #14. Keep faulthandler and print the active test.
+        timeout-minutes: 10
+        run: python -m pytest -vv --durations=15 -o faulthandler_timeout=60 --junitxml=test-results/pytest.xml
       - run: python scripts/check_build_destination.py dist/COVEXLabelManager
       - run: python -m PyInstaller --noconfirm --clean --onedir --windowed --name COVEXLabelManager --add-data "resources;resources" main.py
       - name: Check packaged core without altering user data
