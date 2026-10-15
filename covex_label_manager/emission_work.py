@@ -47,13 +47,17 @@ def profile_numbers(raw):
     return out
 
 
+def selection_indices(selection,count):
+    selection=selection.strip()
+    indices=[int(n.strip()) for n in selection.split(',')] if selection else list(range(1,count+1))
+    if not indices or len(set(indices))!=len(indices) or any(n<1 or n>count for n in indices):raise ValueError('Selección de recipientes inválida.')
+    return indices
+
+
 def parameters(work):
     count=int(work['count']);copies=int(work['copies'])
     if not 1<=count<=10000 or not 1<=copies<=100:raise ValueError('Recipientes: 1–10000; copias: 1–100.')
-    selection=work.get('selection','').strip()
-    indices=[int(n.strip()) for n in selection.split(',')] if selection else list(range(1,count+1))
-    if not indices or len(set(indices))!=len(indices) or any(n<1 or n>count for n in indices):raise ValueError('Selección de recipientes inválida.')
-    return profile_numbers(work['profile']),indices,count,copies
+    return profile_numbers(work['profile']),selection_indices(work.get('selection',''),count),count,copies
 
 
 class WorkRepository:

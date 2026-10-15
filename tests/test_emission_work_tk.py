@@ -20,6 +20,10 @@ def test_tk_autosave_restart_handoff_cas_and_close_guard(tmp_path,monkeypatch):
     app.current_version_id=vid;app.show('emitir');app.update()
     app.formvars['lote'].set('LOTE-TK');app.emit_count.set('2');app.per_container={'2':{'pn':'0,35','pb':'0,50','lote':'TK-2'}};app._work_changed()
     app.emit_w.set('100');app.emit_h.set('150');app.emit_offx.set('0,5');assert app._work_flush()
+    app.work_selection.set('2');assert app._emit_indices(2)==[2] and app._work_flush()
+    app.preview_issue()
+    import fitz
+    with fitz.open(api.output_path('cache','preview_a4.pdf')) as preview:assert '2/2' in ''.join(p.get_text() for p in preview)
     w=copy.deepcopy(app.emission_work);assert w['values']['lote']=='LOTE-TK' and w['profile']['offset_x_mm']=='0,5'
     app.show('historial');app.show('emitir');app.update();assert app.formvars['lote'].get()=='LOTE-TK'
     app._quit()

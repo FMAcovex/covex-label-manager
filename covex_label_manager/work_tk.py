@@ -29,6 +29,7 @@ class WorkTkMixin:
             try:self.emission_work=self.services.work.create(self.current_version_id,getattr(self.services,'selected_variant_id',None),'Trabajo '+__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
             except Exception as ex:self._work_error=str(ex);self._work_note('NO GUARDADO · '+str(ex));self._work_dirty=True;return
         self._work_dirty=True
+        self._emit_stats()
         if self._work_after:self.after_cancel(self._work_after)
         self._work_after=self.after(400,self._work_autosave)
         self._work_note('Cambios por guardar…')
@@ -71,6 +72,7 @@ class WorkTkMixin:
                 self.work_choice['values']=[r['name']+' · '+r['phase'] for r in self._work_rows]
                 index=next((i for i,r in enumerate(self._work_rows) if r['uid']==w['uid']),-1)
                 if index>=0:self.work_choice.current(index)
+            self._emit_stats()
         finally:self._work_loading=previous_loading
     def _work_attach_traces(self):
         for variable,token in self._work_traces:

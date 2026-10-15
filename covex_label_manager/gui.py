@@ -487,12 +487,16 @@ class BaseApplication(tk.Tk):
                 self.preview_issue()
         except ValueError as ex:messagebox.showerror('Serie',str(ex),parent=self)
 
+    def _emit_indices(self,count):
+        from .emission_work import selection_indices
+        return selection_indices(self.work_selection.get() if hasattr(self,'work_selection') else '',count)
+
     def _emit_stats(self):
         label=getattr(self,'emit_summary',None)
         if not label or not label.winfo_exists():return
         try:
             count=int(self.emit_count.get());p=self._profile_dict()
-            plan=self.services.sheet_plan(p,count*int(self.emit_copies.get()))
+            plan=self.services.sheet_plan(p,len(self._emit_indices(count))*int(self.emit_copies.get()))
             label.configure(text=f'{plan.capacity} etiquetas/hoja  |  {plan.pages} hojas A4  |  {plan.count_physical} impresiones')
         except (LayoutError,ValueError):
             label.configure(text='Compruebe las medidas y la cantidad de etiquetas')
@@ -506,11 +510,12 @@ class BaseApplication(tk.Tk):
             v=self._get_selected_version()
             if not v:return
             p=self._profile_dict();count=int(self.emit_count.get());copy=int(self.emit_copies.get())
-            plan=self.services.sheet_plan(p,count*copy)
-            sample=max(1,min(count,plan.capacity))
+            indices=self._emit_indices(count)
+            plan=self.services.sheet_plan(p,len(indices)*copy)
+            sample=indices[:max(1,min(len(indices),plan.capacity))]
             cache=self.services.output_path('cache','preview_a4.pdf')
             vals=self._emit_values()
-            result=self.services.render(v,vals,p,list(range(1,sample+1)),count,copy,cache,True,
+            result=self.services.render(v,vals,p,sample,count,copy,cache,True,
                                    per_container=self.per_container,status=self._state_object(),status_master=self._state_master())
             img,_=self.services.preview_pdf(cache,maxwidth=480)
             img.thumbnail((580,640))
