@@ -105,7 +105,7 @@ class HistoryMixin:
         dialog=QDialog(self);dialog.setWindowTitle('Reimpresión controlada · #'+str(self.history_id));dialog.resize(650,460);layout=vbox(dialog)
         layout.addWidget(label('Se conservan diseño, datos, copias y números originales.','panelTitle'));form=QFormLayout()
         selection=QLineEdit(','.join(map(str,json.loads(report['issue']['selected_indices']))));reason=QLineEdit();slot=QLineEdit('1')
-        form.addRow('Números originales (1-3,5)',selection);form.addRow('Motivo obligatorio',reason);form.addRow('Casilla inicial A4',slot);layout.addLayout(form)
+        form.addRow('Números originales (1-3,5)',selection);form.addRow('Motivo obligatorio',reason);form.addRow('Casilla inicial de hoja',slot);layout.addLayout(form)
         warning=label('\n'.join(report['warnings']),'subtle');warning.setWordWrap(True);layout.addWidget(warning)
         ack=QCheckBox('He revisado y acepto expresamente estas limitaciones del registro heredado.');ack.setVisible(bool(report['warnings']));layout.addWidget(ack)
         summary=label('','subtle');summary.setWordWrap(True);layout.addWidget(summary);error=label('');error.setObjectName('fieldError');error.setWordWrap(True);layout.addWidget(error)
@@ -114,7 +114,7 @@ class HistoryMixin:
         def validate(*_):
             try:
                 _,indices,profile,plan=self.api.history.prepare(self.history_id,selection.text(),reason.text(),slot.text(),ack.isChecked(),report['token'])
-                summary.setText(f"{len(indices)} números · {report['issue']['copies_per_container']} copias · {plan.count_physical} etiquetas · {plan.pages} hojas A4. Impresión física no confirmada.");error.clear();preview.setEnabled(True);issue.setEnabled(True);return True
+                summary.setText(f"{len(indices)} números · {report['issue']['copies_per_container']} copias · {plan.count_physical} etiquetas · {plan.pages} hojas {json.loads(report['issue']['profile_json']).get('paper','A4')}. Impresión física no confirmada.");error.clear();preview.setEnabled(True);issue.setEnabled(True);return True
             except Exception as ex:error.setText(self.operator_error(ex));preview.setEnabled(False);issue.setEnabled(False);return False
         def execute(proof):
             if not validate():return

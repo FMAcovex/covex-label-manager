@@ -47,21 +47,31 @@ class WorkPanel(QWidget):
         from PySide6.QtGui import QAction
         clear=QAction('Limpiar datos de este recipiente (heredar lote)',self.containers);clear.triggered.connect(self.clear_container_row);self.containers.addAction(clear)
         self.tabs.currentChanged.connect(self.tab_changed)
-        self.containers.setToolTip('Un valor vacío hereda el dato común. Puede pegar una tabla de Excel desde el centro de emisión.')
+        self.containers.setToolTip('Un valor vacío hereda el dato común. Pesos PN/PB: puede escribir 0,3558 o 0,3558 kg. También puede pegar datos desde Excel.')
         cfg=QWidget();cfg.setObjectName('workForm');form=QFormLayout(cfg)
+        self.design_sheet_button=button('Diseñar hoja…',self.design_sheet,'primary');form.addRow(self.design_sheet_button)
         for key,title in [('count','Recipientes'),('copies','Copias por recipiente'),('selection','Números (1-3,5; vacío = todos)')]:
             e=QLineEdit();e.textEdited.connect(self.changed);self.inputs[key]=e;form.addRow(title,self.with_error(e,key))
-        for key,title in [('width_mm','Ancho mm'),('height_mm','Alto mm'),('margin_mm','Margen A4 mm'),('gap_mm','Separación mm'),
+        for key,title in [('width_mm','Ancho mm'),('height_mm','Alto mm'),('margin_mm','Margen de hoja mm'),('gap_mm','Separación mm'),
             ('offset_x_mm','Desplazamiento X mm'),('offset_y_mm','Desplazamiento Y mm'),('start_slot','Casilla inicial'),('safety_mm','Seguridad mm'),('printer_name','Impresora (referencia)')]:
             e=QLineEdit();e.textEdited.connect(self.changed);self.profile_inputs[key]=e;form.addRow(title,self.with_error(e,key))
         self.keep_ratio=QCheckBox('Conservar proporción del diseño');self.keep_ratio.setChecked(True);form.addRow(self.keep_ratio)
         form.addRow(button('Restaurar tamaño del diseño',self.restore_size))
         for key in ('width_mm','height_mm'):self.profile_inputs[key].textEdited.connect(lambda _,k=key:self.scale_size(k))
-        self.orientation=QComboBox();self.orientation.addItem('Vertical','portrait');self.orientation.addItem('Horizontal','landscape');self.orientation.currentTextChanged.connect(self.changed);form.addRow('Orientación A4',self.orientation)
+        self.orientation=QComboBox();self.orientation.addItem('Vertical','portrait');self.orientation.addItem('Horizontal','landscape');self.orientation.currentTextChanged.connect(self.changed);form.addRow('Orientación',self.orientation)
         self.cut=QComboBox();self.cut.addItem('Sin marcas','0');self.cut.addItem('Con marcas','1');self.cut.currentTextChanged.connect(self.changed);form.addRow('Marcas de corte',self.cut)
         self.profile_choice=QComboBox();self.profile_choice.addItem('Aplicar perfil guardado…',None)
         for p in window.api.profile_list():self.profile_choice.addItem(p['name'],p)
+        from ..layout_profiles import LayoutProfiles
+        profile_repo=LayoutProfiles(window.api._repository.root)
+        for p in profile_repo.list(tolerate_corrupt=True):self.profile_choice.addItem(p['name'],p['profile'])
         self.profile_choice.activated.connect(self.apply_profile);form.addRow('Perfil reutilizable',self.profile_choice)
+        if profile_repo.invalid_files:
+            self.profile_corruption_warning=label(
+                f'Hay {len(profile_repo.invalid_files)} perfil(es) visuales no legibles. No se han alterado. '
+                'Consulte con Calidad/IT.', 'fieldError')
+            self.profile_corruption_warning.setWordWrap(True)
+            form.addRow(self.profile_corruption_warning)
         scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(cfg);self.tabs.addTab(scroll,'Formato y emisión')
         status=QWidget();status.setObjectName('workForm');f=QFormLayout(status);self.status_kind=QComboBox();
         for title,key in [('Sin etiqueta de estado','ninguna'),('Sin analizar','sin_analizar'),('Aprobado','aprobado'),('Rechazado','rechazado')]:self.status_kind.addItem(title,key)
@@ -142,7 +152,14 @@ class WorkPanel(QWidget):
             labels={unicodedata.normalize('NFC',f['key']):f.get('label',f['key']) for f in fields if f['key'] not in ('numero','texto_fijo')}
             labels.update({k:labels.get(k,k+' (conservado)') for k in w['values']})
             for key,title in labels.items():
-                e=VariableText(w['values'].get(key,''));e.textEdited.connect(self.changed);self.value_inputs[key]=e;self.common_form.addRow(title,self.with_error(e,'value:'+key))
+                if key in ('pn','pb'):
+                    e=QLineEdit(w['values'].get(key,''))
+                    e.setPlaceholderText('Ej.: 0,3558 kg')
+                    e.setToolTip('Admite 0,3558 o 0,3558 kg. El valor se conserva como lo escribió; el maestro controla cómo aparece KG en la etiqueta.')
+                    if 'kg' not in title.lower():title+=' (kg)'
+                else:
+                    e=VariableText(w['values'].get(key,''))
+                e.textEdited.connect(self.changed);self.value_inputs[key]=e;self.common_form.addRow(title,self.with_error(e,'value:'+key))
             for k,e in self.inputs.items():e.setText(w[k])
             for k,e in self.profile_inputs.items():e.setText(str(w['profile'].get(k,'')))
             self.orientation.setCurrentIndex(max(0,self.orientation.findData(w['profile'].get('orientation','portrait'))));self.cut.setCurrentIndex(max(0,self.cut.findData(str(w['profile'].get('crop_marks',0)))))
@@ -192,9 +209,38 @@ class WorkPanel(QWidget):
         del blocker;self.changed()
     def changed(self,*_):
         if not self.loading:self.window.work_changed(self)
+    def design_sheet(self):
+        w=self.window
+        if not w.emission_work or not w.flush_emission_work():return
+        from .sheet_designer import SheetDesigner
+        from .pdf_view import PdfPane
+        from PySide6.QtWidgets import QDialogButtonBox
+        from ..emission_work import parameters
+        from PySide6.QtWidgets import QDialog
+        import uuid
+        work=copy.deepcopy(w.emission_work)
+        def proof(profile,parent):
+            w.api.work.assert_current(work)
+            trial=copy.deepcopy(work);trial['profile']=profile
+            p,indices,count,copies=parameters(trial);b=trial['binding']
+            path=w.api.output_path('cache','sheet-proof-'+uuid.uuid4().hex+'.pdf')
+            w.api.render(w.api.version(b['revision_id']),trial['values'],p,indices,count,copies,path,True,per_container=trial['per_container'],status=trial['status'],variant_id=b['variant_id'])
+            dialog=QDialog(parent);dialog.setWindowTitle('PDF de prueba · sin emisión');dialog.resize(min(900,parent.width()),max(350,parent.height()-30));lay=vbox(dialog,10);pane=PdfPane(w.api);lay.addWidget(pane);pane.load(path,'PDF de prueba real');close=QDialogButtonBox(QDialogButtonBox.StandardButton.Close);close.rejected.connect(dialog.reject);lay.addWidget(close);dialog.exec()
+        try:
+            b=work['binding'];version=w.api.resolved_design(b['revision_id'],b['variant_id'])
+            thumbnail=w.api.thumbnail(version,width_px=450)
+            dialog=SheetDesigner(w,work['profile'],proof,w.api._repository.root,f"Recipientes: {work['count']} · Copias por recipiente: {work['copies']}",thumbnail=thumbnail,nominal=(version['base_w_mm'],version['base_h_mm']))
+            if dialog.exec()==QDialog.DialogCode.Accepted:
+                w.emission_work=w.api.work.save(work['uid'],work['generation'],{'profile':dialog.profile});w.refresh_work_panels()
+        except (ValueError,OSError) as ex:QMessageBox.warning(w,'Hoja no aplicada',str(ex))
+
     def apply_profile(self,*_):
         p=self.profile_choice.currentData()
         if not p:return
+        if self.window.emission_work and self.window.flush_emission_work():
+            w=self.window.emission_work
+            self.window.emission_work=self.window.api.work.save(w['uid'],w['generation'],{'profile':dict(p)})
+            self.window.refresh_work_panels();return
         for k,e in self.profile_inputs.items():e.setText(str(p.get(k,'')))
         self.orientation.setCurrentIndex(self.orientation.findData(p['orientation']));self.cut.setCurrentIndex(self.cut.findData(str(p['crop_marks'])));self.changed()
 

@@ -16,6 +16,12 @@ def snapshot(store,revision_id,variant_id,profile,status,asset):
         if current is None or current['state']!='APPROVED':raise PermissionError('Maestro de estado no aprobado.')
         verify_documents(current,store.root)
         state=dict(current)
+    # The immutable v4 SQL gate requires snapshot contract 1. Compose the
+    # rendering layout into the snapshot design, retaining its approved base hash.
+    # R3D compares this against its base-only design and refuses reproduction.
+    base_design_sha256=digest(design)
+    if profile.get('layout_version'):
+        design={**design,'sheet_layout':{k:v for k,v in profile.items() if k!='start_slot'},'approved_base_design_sha256':base_design_sha256}
     return {'contract':1,'revision_id':revision_id,'revision_uid':effective['uid'],'variant_id':variant_id,
         'variant_uid':variant['uid'] if variant else None,'generation':variant['generation'] if variant else None,
         'design':design,'design_sha256':digest(design),'source':source_identity(effective),

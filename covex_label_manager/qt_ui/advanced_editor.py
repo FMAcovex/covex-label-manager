@@ -93,7 +93,10 @@ class RectangleDialog(QDialog):
         self.accept()
 
 
-class EditorFieldItem(QGraphicsRectItem):
+from .resize_item import ResizableRect
+
+
+class EditorFieldItem(ResizableRect):
     def __init__(self, field, index, width, height, crop, editable, released):
         self.index = index; self.field = copy.deepcopy(field); self.iw = width; self.ih = height
         self.offset = -field['font_pt']*1.06*height/(crop[3]-crop[1]) if field.get('draw') in ('baseline','continuation') else 0
@@ -104,6 +107,12 @@ class EditorFieldItem(QGraphicsRectItem):
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable,editable and not field.get('locked'))
         self.setPos(field['x']*width,field['y']*height+self.offset); self.released = released
+        self.original_rect = QRectF(self.rect())
+        self.enable_handles(editable and not field.get('locked'))
+
+    def mouseMoveEvent(self,event):
+        super().mouseMoveEvent(event)
+        if hasattr(self,'feedback'):self.feedback()
 
     def mouseReleaseEvent(self, event):
         super().mouseReleaseEvent(event); self.released()
@@ -162,6 +171,16 @@ class AdvancedEditorMixin:
         state.addWidget(button('Seguridad de salida',self.edit_output))
         state.addWidget(label('Prepare los datos variables y emita desde el Centro de emisión.','subtle'))
         legacy_button=button('Editor Tkinter',lambda:self.open_legacy('editor')); legacy_button.setToolTip('Abrir Editor de la versión anterior; misma revisión y carpeta de datos.'); state.addWidget(legacy_button)
+        self.field_action_bar=QWidget();row=QHBoxLayout(self.field_action_bar);row.setContentsMargins(0,0,0,0)
+        self.new_field_button=button('+ Nuevo campo',self.add_field,'primary')
+        self.draw_field_button=button('Dibujar campo',self.draw_new_field)
+        row.addWidget(self.new_field_button); row.addWidget(self.draw_field_button)
+        page.layout().insertWidget(2,self.field_action_bar)
+        self.field_snap=QCheckBox('Snap de campos a 1 mm');self.editor_tools.layout().insertWidget(1,self.field_snap)
+        self.field_grid=QCheckBox('Cuadrícula de campos (10 mm)');self.field_grid.toggled.connect(lambda *_:self.draw_editor() if self.design else None);self.editor_tools.layout().insertWidget(2,self.field_grid)
+        self.variant_edit_button=button('Crear variante editable',self.editable_variant)
+        row.addWidget(self.variant_edit_button);row.addStretch()
+        self.editor_tools.layout().insertWidget(2,label('Solo se editan campos variables superpuestos. El maestro fijo permanece protegido.','subtle'))
         self.field_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.field_list.itemSelectionChanged.connect(self.list_selection)
         self.field_list.setToolTip('Ctrl: varios campos. Mayús: intervalo. Los campos bloqueados no se transforman.')
@@ -232,6 +251,10 @@ class AdvancedEditorMixin:
             scene.addText('Documento no disponible: '+str(ex)); self.field_list.clear()
             self.loading=False; self._drawing=False; self.disable_properties(); self.update_dirty(); return
         scene.addPixmap(pixmap(im)); self.image_w,self.image_h=im.size
+        if self.field_grid.isChecked():
+            bw=self.editor_version['base_w_mm'];bh=self.editor_version['base_h_mm']
+            for x in range(0,int(bw)+1,10):scene.addLine(x/bw*im.width,0,x/bw*im.width,im.height,QPen(QColor('#C4D9DB'),.5))
+            for y in range(0,int(bh)+1,10):scene.addLine(0,y/bh*im.height,im.width,y/bh*im.height,QPen(QColor('#C4D9DB'),.5))
         area = self.design.state['area']
         if area:
             x,y,w,h = area
@@ -241,6 +264,7 @@ class AdvancedEditorMixin:
         self.field_list.clear()
         for i,f in enumerate(self.fields):
             item = EditorFieldItem(f,i,im.width,im.height,self.design.state['crop'],self.editable(),self.drag_finished)
+            item.feedback=lambda item=item:self.statusBar().showMessage(f"Campo: X {(item.x()+item.rect().x())/self.image_w*self.editor_version['base_w_mm']:.2f} mm · Y {(item.y()+item.rect().y()-item.offset)/self.image_h*self.editor_version['base_h_mm']:.2f} mm · Ancho {item.rect().width()/self.image_w*self.editor_version['base_w_mm']:.2f} mm · Alto {item.rect().height()/self.image_h*self.editor_version['base_h_mm']:.2f} mm")
             scene.addItem(item); self.field_items.append(item); self.field_list.addItem(f['label'])
             text = scene.addText(f['key']); text.setDefaultTextColor(QColor('#147D71')); text.setParentItem(item); text.setPos(4,-3)
             text.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
@@ -352,10 +376,17 @@ class AdvancedEditorMixin:
         for item in self.field_items:
             f=candidate['fields'][item.index]
             dx=item.pos().x()/self.image_w-f['x']; dy=(item.pos().y()-item.offset)/self.image_h-f['y']
+            if self.field_snap.isChecked() and (abs(dx)>1e-9 or abs(dy)>1e-9):
+                bw=self.editor_version['base_w_mm'];bh=self.editor_version['base_h_mm']
+                dx=round((f['x']+dx)*bw)/bw-f['x'];dy=round((f['y']+dy)*bh)/bh-f['y']
             if abs(dx)>1e-9 or abs(dy)>1e-9:
                 try: move_field(f,dx,dy,candidate['crop'])
                 except ValueError: self.draw_editor(); return
-        self.command('Mover selección',candidate)
+            r=item.rect(); old=item.original_rect
+            if r!=old:
+                f['x']+=r.left()/self.image_w; f['y']+=r.top()/self.image_h
+                f['w']=r.width()/self.image_w; f['h']=r.height()/self.image_h
+        self.command('Mover / redimensionar selección',candidate)
 
     def update_dirty(self):
         if self._initializing or self.design is None: return
@@ -366,6 +397,9 @@ class AdvancedEditorMixin:
         super().recheck_actions()
         if not hasattr(self,'undo_button'): return
         enabled=self.editable()
+        self.new_field_button.setEnabled(enabled); self.draw_field_button.setEnabled(enabled)
+        self.variant_edit_button.setVisible(not enabled)
+        self.variant_edit_button.setToolTip('La revisión aprobada o retirada es inmutable. Cree una variante cuando el ciclo documental lo permita.')
         self.undo_button.setEnabled(enabled and bool(self.design.undo_states)); self.redo_button.setEnabled(enabled and bool(self.design.redo_states))
         for b in self.design_buttons: b.setEnabled(enabled)
         if self.design:
@@ -410,13 +444,43 @@ class AdvancedEditorMixin:
             self.design=LayoutHistory(self.expected_layout); self.draw_editor(fit=True)
         self.recheck_actions(); self.statusBar().showMessage('Tkinter cerrado; diseño recargado.' if code==0 else f'Tkinter terminó con código {code}. Revisar antes de continuar.')
 
-    def add_field(self):
+    def editable_variant(self):
+        self.select_version(self.current_editor_id)
+        self.library_variant_id=self.current_variant_id
+        self.create_variant_ui(self.current_variant_id is not None)
+
+    def draw_new_field(self):
         if not self.editable(): return
-        from PySide6.QtWidgets import QInputDialog
-        key,ok=QInputDialog.getText(self,'Nuevo campo','Identificador único:')
-        if not ok or not key.strip(): return
+        c=self.design.state['crop']; w=c[2]-c[0]; h=c[3]-c[1]
+        dialog=RectangleDialog(self,'Dibujar campo variable',self.api.thumbnail(self.editor_version,width_px=1000),[0,0,w,h],[w*.1,h*.1,w*.5,h*.2])
+        dialog.view.setCursor(Qt.CursorShape.CrossCursor)
+        if dialog.exec()==QDialog.DialogCode.Accepted:
+            r=dialog.rect; self.add_field([r[0]/w,r[1]/h,(r[2]-r[0])/w,(r[3]-r[1])/h])
+
+    def add_field(self, rect=None):
+        if not self.editable(): return
+        dialog=QDialog(self); dialog.setWindowTitle('Nuevo campo variable'); layout=vbox(dialog); form=QFormLayout()
+        key=QLineEdit(); name=QLineEdit(); size=spin(12,80,' pt',3)
+        kind=QComboBox()
+        for text,value in [('Texto','textbox'),('Numeración','numero'),('Texto fijo','texto_fijo'),('Párrafo','paragraph'),('Línea base','baseline')]: kind.addItem(text,value)
+        kind.currentIndexChanged.connect(lambda *_: key.setText(kind.currentData()) if kind.currentData() in ('numero','texto_fijo') else None)
+        fixed=QLineEdit();form.addRow('Contenido de texto fijo',fixed)
+        required=QCheckBox('Obligatorio'); locked=QCheckBox('Bloqueado'); bold=QCheckBox('Negrita')
+        for title,e in [('Identificador único',key),('Etiqueta',name),('Tipo / dibujo',kind),('Tamaño de fuente',size)]:form.addRow(title,e)
+        layout.addLayout(form)
+        for e in (required,locked,bold):layout.addWidget(e)
+        error=label('Fuente del motor PDF: Arial o alternativa compatible.','subtle');layout.addWidget(error)
+        buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel);layout.addWidget(buttons)
+        def accept():
+            k=key.text().strip()
+            if not k or any(f['key']==k for f in self.fields):error.setText('Introduzca un identificador único.');return
+            dialog.accept()
+        buttons.accepted.connect(accept);buttons.rejected.connect(dialog.reject)
+        if dialog.exec()!=QDialog.DialogCode.Accepted:return
+        x,y,w,h=rect if isinstance(rect,list) else [.1,.1,.4,.08]
+        mode=kind.currentData(); k=key.text().strip()
         candidate=copy.deepcopy(self.design.state)
-        candidate['fields'].append(dict(key=key.strip(),label=key.strip(),x=.1,y=.1,w=.4,h=.08,font_pt=12,bold=False,required=False,locked=False))
+        candidate['fields'].append(dict(key=k,label=name.text().strip() or k,x=x,y=y,w=w,h=h,font_pt=size.value(),bold=bold.isChecked(),required=required.isChecked(),locked=locked.isChecked(),draw=mode if mode not in ('numero','texto_fijo') else 'textbox',text=fixed.text()))
         self.command('Agregar campo',candidate)
 
     def remove_field(self):

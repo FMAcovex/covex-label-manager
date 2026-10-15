@@ -472,6 +472,8 @@ class Store:
         return self.db.execute('SELECT * FROM profiles ORDER BY name').fetchall()
 
     def add_profile(self,profile):
+        from .sheet_layout import require_legacy
+        require_legacy(profile)
         keys=['name','width_mm','height_mm','orientation','margin_mm','gap_mm','offset_x_mm','offset_y_mm','start_slot','crop_marks','printer_name','safety_mm']
         args=[profile.get(k,0) if k=='safety_mm' else profile.get(k) for k in keys]
         with self.txn() as c:

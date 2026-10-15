@@ -27,18 +27,22 @@ class SheetPlan:
     paper_h_mm: float
 
 
-def plan_sheet(profile, physical_count):
+def _plan_sheet(profile, physical_count):
+    from .sheet_layout import validate_profile, paper_size, slots
+    mode=validate_profile(profile)
     w=float(profile['width_mm']); h=float(profile['height_mm'])
     m=float(profile.get('margin_mm',8)); gap=float(profile.get('gap_mm',3))
     first=int(profile.get('start_slot',1))
-    p_w,p_h=A4 if profile.get('orientation','portrait')=='portrait' else A4[::-1]
-    if not (10<=w<=p_w and 10<=h<=p_h and 0<=m<=40 and 0<=gap<=50):
+    p_w,p_h=paper_size(profile)
+    if not (0<=m<=40 and 0<=gap<=50 and (mode=='free' or (10<=w<=p_w and 10<=h<=p_h))):
         raise LayoutError('Compruebe el tamano de etiqueta, margenes y separacion.')
     cols=math.floor((p_w-2*m+gap+1e-9)/(w+gap))
     rows=math.floor((p_h-2*m+gap+1e-9)/(h+gap))
-    capacity=cols*rows
+    boxes=slots(profile,cols,rows)
+    capacity=len(boxes)
+    if mode=='free':cols=capacity;rows=1
     if capacity<1:
-        raise LayoutError('No cabe ninguna etiqueta en una hoja A4 con estos ajustes.')
+        raise LayoutError('No cabe ninguna etiqueta en la hoja con estos ajustes.')
     if first<1 or first>capacity:
         raise LayoutError(f'La casilla inicial debe estar entre 1 y {capacity}.')
     n=int(physical_count)
@@ -47,6 +51,11 @@ def plan_sheet(profile, physical_count):
     first_space=capacity-first+1
     pages=1 if n<=first_space else 1+math.ceil((n-first_space)/capacity)
     return SheetPlan(cols,rows,capacity,pages,n,p_w,p_h)
+
+
+def plan_sheet(profile, physical_count):
+    try:return _plan_sheet(profile,physical_count)
+    except (ValueError,KeyError,TypeError,OverflowError) as ex:raise LayoutError(str(ex)) from ex
 
 
 def text_from_field(field, values, number, total):
@@ -137,6 +146,12 @@ def _overlay_field(page,field,values,number,total,view_rect,font_regular,font_bo
         txt=str(field.get('text',''))
     else:
         txt=str(values.get(key,'')).strip()
+        # A legacy Word master can already define a mandatory ' KG' suffix.
+        # When an operator writes e.g. '0,3558kg', render that unit once, using
+        # the approved template's typography/casing rather than 'kg KG'.
+        if key in ('pn','pb') and str(field.get('suffix','')).strip().lower()=='kg':
+            from .vessels import mass_numeric_text
+            txt=mass_numeric_text(txt)
         if field.get('strip_prefix') and txt.upper().startswith(field['strip_prefix'].upper()):
             txt=txt[len(field['strip_prefix']):]
         if txt and field.get('suffix') and not txt.upper().endswith(field['suffix'].upper()):
@@ -379,11 +394,8 @@ def render_emission(version,root,values,profile,indices,count_containers,copies_
     status_crop=fitz.Rect(*_loaded_json(status_master['crop_json'],[])) if status_doc else None
     base_crop=status_crop if placement=='independiente' else crop
     aspect=base_crop.width/base_crop.height
-    if width_mm/height_mm>aspect:
-        draw_h=height_mm*MM;draw_w=draw_h*aspect
-    else:
-        draw_w=width_mm*MM;draw_h=draw_w/aspect
-    fit_scale=draw_w/base_crop.width
+    from .sheet_layout import slots
+    boxes=slots(profile,plan.cols,plan.rows)
     issues=[]
     for ix,number in enumerate(physical):
         absolute_slot=ix+start-1
@@ -398,10 +410,15 @@ def render_emission(version,root,values,profile,indices,count_containers,copies_
                 page.insert_text((2,10),'PRUEBA - NO APTO PARA USO GMP',fontsize=7,
                                  fontname='helv',color=(.86,.12,.15),overlay=True)
         else:page=out[-1]
-        xslot=(margin+(slot%plan.cols)*(width_mm+gap)+ox)*MM
-        yslot=(margin+(slot//plan.cols)*(height_mm+gap)+oy)*MM
+        box=boxes[slot]; width_mm=box.width; height_mm=box.height
+        xslot=box.x*MM; yslot=box.y*MM
+        if width_mm/height_mm>aspect:
+            draw_h=height_mm*MM;draw_w=draw_h*aspect
+        else:
+            draw_w=width_mm*MM;draw_h=draw_w/aspect
+        fit_scale=draw_w/base_crop.width
         if xslot<0 or yslot<0 or xslot+width_mm*MM>page.rect.width+.01 or yslot+height_mm*MM>page.rect.height+.01:
-            raise LayoutError('La calibración desplaza una etiqueta fuera del A4.')
+            raise LayoutError('La calibración desplaza una etiqueta fuera de la hoja.')
         view=fitz.Rect(xslot+(width_mm*MM-draw_w)/2,yslot+(height_mm*MM-draw_h)/2,
                        xslot+(width_mm*MM+draw_w)/2,yslot+(height_mm*MM+draw_h)/2)
         if profile.get('crop_marks'):
@@ -421,7 +438,7 @@ def render_emission(version,root,values,profile,indices,count_containers,copies_
         item['_crop_width']=crop.width
         if placement!='independiente':
             page.show_pdf_page(view,orig,0,clip=crop,overlay=True,keep_proportion=True)
-            warn=validate_fields(version,item,profile,strict=False)
+            warn=validate_fields(version,item,{**profile,'width_mm':width_mm,'height_mm':height_mm},strict=False)
             if warn and not test_mode:raise LayoutError('; '.join(warn))
             issues.extend(warn)
             before_spans=span_count(page)
@@ -490,9 +507,9 @@ def render_calibration_page(profile,destination):
     ox=float(profile.get('offset_x_mm',0));oy=float(profile.get('offset_y_mm',0))
     d=fitz.open()
     p=d.new_page(width=plan.paper_w_mm*MM,height=plan.paper_h_mm*MM)
-    for index in range(plan.capacity):
-        col=index%plan.cols;row=index//plan.cols
-        x=(m+col*(w+gap)+ox)*MM;y=(m+row*(h+gap)+oy)*MM
+    from .sheet_layout import slots
+    for index,box in enumerate(slots(profile,plan.cols,plan.rows)):
+        w,h=box.width,box.height;x=box.x*MM;y=box.y*MM
         rect=fitz.Rect(x,y,x+w*MM,y+h*MM)
         if rect not in p.rect:
             d.close();raise LayoutError('La calibracion desplaza casillas fuera del papel.')

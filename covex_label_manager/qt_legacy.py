@@ -14,6 +14,9 @@ def launch_legacy(services,target='maestro',version_id=None,mode='production',sm
     if target=='emitir' and version_id:
         ok,reason=services.eligibility(version_id,production=mode!='test',variant_id=getattr(services,'selected_variant_id',None))
         if not ok:raise ValueError(reason)
+    if work_uid is not None:
+        from .sheet_layout import require_legacy
+        require_legacy(services.work.get(work_uid)['profile'])
     env=os.environ.copy();env['COVEX_LABEL_DATA']=services.location()
     command=legacy_command()+['--target',target,'--mode',mode]
     if version_id is not None:command+=['--version-id',str(version_id)]

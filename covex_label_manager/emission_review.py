@@ -17,7 +17,7 @@ def review(api,uid,generation):
     try:api.work.assert_current(w,False)
     except (ValueError,OSError) as ex:error('document',ex);return result
     b=w['binding'];version=api.resolved_design(b['revision_id'],b['variant_id'],False)
-    for key,title,maximum in [('count','Recipientes',10000),('copies','Copias por recipiente',100)]:
+    for key,title,maximum in [('count','Recipientes',10000),('copies','Copias por recipiente',2)]:
         try:
             value=int(w[key])
             if not 1<=value<=maximum:raise ValueError()
@@ -52,10 +52,14 @@ def review(api,uid,generation):
     normalized=lambda data:{unicodedata.normalize('NFC',k):v for k,v in data.items()}
     for field in fields:field['key']=unicodedata.normalize('NFC',field['key'])
     version=dict(version,fields_json=json.dumps(fields))
+    from .sheet_layout import slots
+    boxes=slots(p,plan.cols,plan.rows)
+    smallest=min(boxes,key=lambda box:min(box.width/version['base_w_mm'],box.height/version['base_h_mm']))
+    effective={**p,'width_mm':smallest.width,'height_mm':smallest.height}
     for number in indices:
         overrides=w['per_container'].get(str(number),{})
         values=normalized(w['values']);values.update(normalized(overrides))
-        for message in validate_fields(version,values,p,strict=False):
+        for message in validate_fields(version,values,effective,strict=False):
             field=next((f for f in fields if f.get('label',f['key']) in message),None)
             key=field['key'] if field else 'format'
             error('container:'+key if key in overrides else 'value:'+key,message,number if key in overrides else None)

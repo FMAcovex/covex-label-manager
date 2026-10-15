@@ -34,7 +34,7 @@ class EmissionCentreMixin:
         # The editor retains its shared panel. Emission has one persistent footer.
         for child in self.emission_panel.findChildren(QPushButton):
             if child.text() in ('Guardar borrador','PDF de prueba','Emitir…','Recuperar','Actualizar vínculo documental…'):child.hide()
-        tools=QHBoxLayout();tools.addWidget(button('Pegar Excel…',self.paste_work_containers));tools.addWidget(button('Guardar perfil…',self.save_emission_profile));tools.addWidget(button('Calibrar A4',self.calibrate_emission));ll.addLayout(tools)
+        tools=QHBoxLayout();tools.addWidget(button('Pegar Excel…',self.paste_work_containers));tools.addWidget(button('Guardar perfil…',self.save_emission_profile));tools.addWidget(button('Calibrar hoja',self.calibrate_emission));ll.addLayout(tools)
         self.emission_panel.setMinimumHeight(320);left.setMinimumWidth(330);left_scroll=QScrollArea();left_scroll.setWidgetResizable(True);left_scroll.setWidget(left);left_scroll.setFrameShape(QScrollArea.Shape.NoFrame);split.addWidget(left_scroll);self.emission_left=left_scroll
         right=box();rl=vbox(right,14,8);toolbar=QHBoxLayout();self.emission_check_heading=label('COMPROBAR ANTES DE EMITIR','section');toolbar.addWidget(self.emission_check_heading);toolbar.addStretch()
         self.preview_work_button=button('Actualizar vista previa',self.preview_emission_work);toolbar.addWidget(self.preview_work_button);rl.addLayout(toolbar)
@@ -78,7 +78,7 @@ class EmissionCentreMixin:
         self._emission_document_full=f"{v['name']} · Revisión {v['version']} · "+(f"Variante {variant['code']}" if variant else 'Diseño heredado')+' · '+w['name']
         self.refresh_emission_caption()
         s=review['summary']
-        if s:self.emission_summary.setText(f"{s['selected']} de {s['containers']} recipientes · {s['copies']} copias · {s['physical']} etiquetas · {s['pages']} hojas A4 · {s['capacity']} etiquetas por hoja")
+        if s:self.emission_summary.setText(f"{s['selected']} de {s['containers']} recipientes · {s['copies']} copias · {s['physical']} etiquetas · {s['pages']} hojas {w['profile'].get('paper','A4')} · {s['capacity']} etiquetas por hoja")
         else:self.emission_summary.setText('Revise los datos y el formato antes de generar el PDF.')
         self.emission_panel.show_errors(review['errors'])
         for panel in self.work_panels:
@@ -162,7 +162,7 @@ class EmissionCentreMixin:
             self.navigate('emission');self.preview_emission_work();return False
         if not review['production_allowed'] or self.work_preview['result']['warnings']:return False
         w=self.emission_work;s=review['summary']
-        text=f"Registrar definitivamente «{w['name']}»?\n\n{self.emission_document.text()}\n{s['physical']} etiquetas · {s['pages']} hojas A4\n\nGuardar un borrador no emite. Generar este PDF registra la emisión, sin confirmar la impresión física."
+        text=f"Registrar definitivamente «{w['name']}»?\n\n{self.emission_document.text()}\n{s['physical']} etiquetas · {s['pages']} hojas {w['profile'].get('paper','A4')}\n\nGuardar un borrador no emite. Generar este PDF registra la emisión, sin confirmar la impresión física."
         if QMessageBox.question(self,'Confirmar emisión definitiva',text,QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.Cancel,QMessageBox.StandardButton.Cancel)!=QMessageBox.StandardButton.Yes:return False
         try:
             latest=self.api.review_work(w['uid'],w['generation'])
@@ -214,7 +214,7 @@ class EmissionCentreMixin:
     def paste_work_containers(self):
         if not self.emission_work or not self.flush_emission_work():return
         from ..vessels import parse_tabular_vessels
-        text,ok=QInputDialog.getMultiLineText(self,'Pegar datos por recipiente','Nº | Lote | PN | PB | Conservación. Pegue columnas de Excel:',QApplication.clipboard().text())
+        text,ok=QInputDialog.getMultiLineText(self,'Pegar datos por recipiente','Nº | Lote | PN | PB | Conservación. Pesos: 0,3558 o 0,3558 kg. Pegue columnas de Excel:',QApplication.clipboard().text())
         if not ok:return
         try:
             w=self.emission_work;per=parse_tabular_vessels(text,int(w['count']),w['per_container'])
@@ -222,6 +222,8 @@ class EmissionCentreMixin:
         except Exception as ex:self.emission_error(ex)
     def save_emission_profile(self):
         if not self.emission_work or not self.flush_emission_work():return
+        if self.emission_work['profile'].get('layout_version'):
+            self.emission_panel.design_sheet();return
         name,ok=QInputDialog.getText(self,'Guardar perfil reutilizable','Nombre del perfil:')
         if not ok or not name.strip():return
         try:
@@ -239,7 +241,7 @@ class EmissionCentreMixin:
         if not self.emission_work or not self.flush_emission_work():return
         try:
             out=self.api.output_path('cache','qt-calibration-'+uuid.uuid4().hex+'.pdf');self.api.calibration(profile_numbers(self.emission_work['profile']),out)
-            self.invalidate_work_preview();self.emission_pdf.load(out,'Hoja de calibración A4','Imprima al 100 %, sin ajustar a página. Compruebe las reglas físicas antes de emitir.');self.refresh_emission_review()
+            self.invalidate_work_preview();self.emission_pdf.load(out,'Hoja de calibración','Imprima al 100 %, sin ajustar a página. Compruebe las reglas físicas antes de emitir.');self.refresh_emission_review()
         except Exception as ex:self.emission_error(ex)
     def adapt_emission_layout(self,*_):
         if not hasattr(self,'emission_right'):return

@@ -1,7 +1,19 @@
 """Per-container input and Excel (TSV or semicolon CSV) parsing."""
 from __future__ import annotations
 import csv
+import re
 from io import StringIO
+
+_MASS_UNIT = re.compile(r'\s*kg\s*$',re.IGNORECASE)
+
+
+def mass_numeric_text(value):
+    """Return the numeric display portion of an optional kilograms entry.
+
+    Preserve the user's original text separately in the work/snapshot; this
+    function is only used for numeric validation and masters with a KG suffix.
+    """
+    return _MASS_UNIT.sub('',str(value).strip()).strip()
 
 COLUMN_KEYS = ('numero','lote','pn','pb','conservacion')
 
@@ -55,10 +67,11 @@ def parse_tabular_vessels(text, count, prior=None):
 
 def parse_mass(value):
     if value is None or str(value).strip()=='':return None
-    # EU comma decimal, dot decimal tolerated. No units: the template already prints KG.
-    value=str(value).strip().replace(' ','').replace(',','.')
+    # EU comma/dot decimal. Accept an explicit kg suffix; never accept g or
+    # silently convert a different unit. The numeric comparison remains in kg.
+    value=mass_numeric_text(value).replace(' ','').replace(',','.')
     try:out=float(value)
-    except ValueError:raise ValueError('Introduzca pesos numéricos en kg, por ejemplo 0,3558.')
+    except ValueError:raise ValueError('Introduzca un peso en kg, por ejemplo 0,3558 o 0,3558 kg.')
     if not (0<=out<1e8):raise ValueError('El peso está fuera de rango.')
     return out
 
