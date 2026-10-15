@@ -30,6 +30,8 @@ class SheetPlan:
 def _plan_sheet(profile, physical_count):
     from .sheet_layout import validate_profile, paper_size, slots, available_first_page
     mode=validate_profile(profile)
+    from .printer_calibration import validate as validate_printer_calibration
+    validate_printer_calibration(profile)
     w=float(profile['width_mm']); h=float(profile['height_mm'])
     m=float(profile.get('margin_mm',8)); gap=float(profile.get('gap_mm',3))
     first=int(profile.get('start_slot',1))

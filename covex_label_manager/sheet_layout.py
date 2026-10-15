@@ -62,7 +62,10 @@ def slots(profile, cols=0, rows=0):
     if not 0<=m<=40:raise ValueError('Margen: 0–40 mm.')
     for i,s in enumerate(result):
         # Legacy offsets used the paper boundary. Versioned profiles use printable margins.
-        edge=m if profile.get('layout_version') else 0
+        # An explicitly calibrated profile can require a small mechanical
+        # shift inside the usual design margin. Keep the paper boundary strict.
+        # plan_sheet() checks calibration integrity before calling slots().
+        edge=m if profile.get('layout_version') and not profile.get('printer_calibration') else 0
         if min(s.width,s.height)<10 or s.x<edge-1e-8 or s.y<edge-1e-8 or s.x+s.width>pw-edge+1e-8 or s.y+s.height>ph-edge+1e-8:raise ValueError(f'Posición {i+1} fuera de límites o margen (mínimo 10 mm).')
         if mode=='free':
             for other in result[:i]:
