@@ -10,7 +10,7 @@ def legacy_command():
         return [str(installation_dir()/'legacy'/'COVEXLabelManager_Legacy.exe')]
     return [sys.executable,str(installation_dir()/'legacy_qt_bridge.py')]
 
-def launch_legacy(services,target='maestro',version_id=None,mode='production',smoke_report=None,smoke_issue=False):
+def launch_legacy(services,target='maestro',version_id=None,mode='production',smoke_report=None,smoke_issue=False,work_uid=None,work_generation=None):
     if target=='emitir' and version_id:
         ok,reason=services.eligibility(version_id,production=mode!='test',variant_id=getattr(services,'selected_variant_id',None))
         if not ok:raise ValueError(reason)
@@ -20,12 +20,13 @@ def launch_legacy(services,target='maestro',version_id=None,mode='production',sm
     variant_id=getattr(services,'selected_variant_id',None)
     if variant_id is not None:command+=['--variant-id',str(variant_id)]
     command+=['--writer-protocol','4']
+    if work_uid is not None:command+=['--work-uid',work_uid,'--work-generation',str(work_generation)]
     if smoke_report is not None:
         command+=['--smoke-report',str(smoke_report)];env['COVEX_QT_BRIDGE_SMOKE']='1'
         if smoke_issue:command+=['--smoke-issue']
     return subprocess.Popen(command,env=env)
 
-def run_legacy(target,version_id=None,mode='production',smoke_report=None,variant_id=None,writer_protocol=4,smoke_issue=False):
+def run_legacy(target,version_id=None,mode='production',smoke_report=None,variant_id=None,writer_protocol=4,smoke_issue=False,work_uid=None,work_generation=None):
     from .gui import Application
     from .qt_transition import TransitionServices
     import tkinter as tk
@@ -44,12 +45,14 @@ def run_legacy(target,version_id=None,mode='production',smoke_report=None,varian
             try:super().issue_pdf()
             finally:messagebox.askyesno=original_question
         def select_emission_version(self,row):
+            if not self._work_guard():return
             if row['version_id']!=self.current_version_id:
                 old=self._qt_views.pop('emitir',None)
                 if old:old.destroy()
                 self.per_container=[];self.formvars={}
             super().select_emission_version(row)
         def show(self,page):
+            if not self._work_guard():return
             # Data lists/settings refresh on reentry; active emission form is retained.
             for view in self._qt_views.values():view.pack_forget()
             if page!='emitir' and page in self._qt_views:
@@ -80,6 +83,7 @@ def run_legacy(target,version_id=None,mode='production',smoke_report=None,varian
             if target=='maestro' and str(version_id) in app.library_panel.rows:
                 app.library_panel.tree.selection_set(str(version_id));app.library_panel.tree.see(str(version_id))
     else:app.show('maestro' if target=='editor' else target)
+    if work_uid is not None:app.attach_work(work_uid,work_generation)
     app.title('COVEX Label Manager · Versión anterior durante transición Qt')
     if smoke_report:
         if smoke_issue and api.setting('synthetic_demo')!='1':raise ValueError('Solo datos sintéticos para smoke de emisión definitiva.')
@@ -89,14 +93,18 @@ def run_legacy(target,version_id=None,mode='production',smoke_report=None,varian
             import fitz
             from tkinter import filedialog
             try:
-                before=len(api.issues());app.emit_count.set('1');app.emit_copies.set(1)
+                before=len(api.issues())
+                app.emit_count.set('2' if work_uid else '1');app.emit_copies.set(1)
                 for key,var in app.formvars.items():
-                    if key not in ('numero','texto_fijo'):var.set({'pn':'0,350','pb':'0,500'}.get(key,'DEMO'))
+                    if key not in ('numero','texto_fijo'):var.set({'pn':'0,350','pb':'0,500'}.get(key,'TK-SYNTH' if work_uid and key=='lote' else 'DEMO'))
+                if work_uid:
+                    app.per_container={'2':{'lote':'TK-2','pn':'0,350','pb':'0,500'}};app.emit_offx.set('0.5');app._work_changed()
                 entered=app._emit_values();app.show('historial');app.show('emitir')
                 assert app._emit_values()==entered,'Emission work was rebuilt'
                 output=api.output_path('cache','fictional-bridge-test.pdf')
                 filedialog.asksaveasfilename=lambda **kw:str(output)
                 messagebox.askyesno=lambda title,*a,**kw:title!='PDF generado'
+                messagebox.showinfo=lambda *a,**kw:None
                 errors=[];messagebox.showerror=lambda *a,**kw:errors.append(a)
                 app.issue_pdf()
                 assert not errors,errors
@@ -106,7 +114,7 @@ def run_legacy(target,version_id=None,mode='production',smoke_report=None,varian
                 assert len(api.issues())==before+int(smoke_issue),'Unexpected definitive issue count'
                 if smoke_issue:
                     issue=api.issues()[0];assert issue['design_snapshot_json'] and issue['design_variant_id']==variant_id
-                Path(smoke_report).write_text(json.dumps({'ok':True,'selected_version':app.current_version_id,'selected_variant':variant_id,'writer_protocol':4,'work_retained':True,'test_pdf_watermarked':not smoke_issue,'no_definitive_issue':not smoke_issue,'snapshot_registered':smoke_issue}),encoding='utf-8')
+                Path(smoke_report).write_text(json.dumps({'ok':True,'selected_version':app.current_version_id,'selected_variant':variant_id,'writer_protocol':4,'work_retained':True,'test_pdf_watermarked':not smoke_issue,'no_definitive_issue':not smoke_issue,'snapshot_registered':smoke_issue,'work_uid':app.emission_work['uid'] if app.emission_work else None,'work_generation':app.emission_work['generation'] if app.emission_work else None,'variables':app._emit_values(),'per_container':app.per_container,'offset_x_mm':app.emit_offx.get()}),encoding='utf-8')
             except Exception:
                 import traceback
                 Path(smoke_report).write_text(json.dumps({'ok':False,'error':traceback.format_exc()}),encoding='utf-8')

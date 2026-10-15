@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'covex_label_manager/qt*'
+      - 'covex_label_manager/emission_work.py'
+      - 'covex_label_manager/work_tk.py'
+      - 'tests/test_emission_work*.py'
       - 'covex_label_manager/qt_ui/**'
       - 'tests/test_r3a_qt.py'
       - 'tests/test_r3b1_qt.py'
@@ -23,6 +26,9 @@ on:
       - 'docs/R3A_QT_PLAN.md'
       - 'docs/R3B1_QT_EDITOR.md'
       - 'docs/FUNCTIONAL_PRESERVATION_MATRIX.md'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -58,6 +64,10 @@ jobs:
         run: >-
           python scripts/variant_ui_smoke.py --capture test-results/r3b2-source
           --report test-results/r3b2-source.json --verify-bridge
+      - name: Exercise recoverable work and bidirectional Qt-Tk handoff
+        run: >-
+          python main_qt.py --work-check test-results/r3b3-source.json
+          --capture test-results/r3b3-source --verify-bridge
       - run: python scripts/check_build_destination.py dist/COVEXLabelManager_Qt
       - run: >-
           python -m PyInstaller --noconfirm --clean --onedir --windowed
@@ -96,11 +106,24 @@ jobs:
           if (!$check.ok -or !$check.legacy_definitive_bridge.snapshot_registered) { throw 'Packaged variant contract incomplete' }
           Copy-Item $result test-results/r3b2-packaged.json
           Copy-Item $captures test-results/r3b2-packaged -Recurse
+      - name: Check packaged work recovery and definitive emission
+        shell: pwsh
+        run: |
+          $result = Join-Path $env:RUNNER_TEMP 'r3b3-packaged.json'
+          $captures = Join-Path $env:RUNNER_TEMP 'r3b3-packaged-captures'
+          $process = Start-Process -FilePath dist/COVEXLabelManager_Qt/COVEXLabelManager_Qt.exe -ArgumentList @('--work-check', $result, '--capture', $captures, '--verify-bridge') -Wait -PassThru
+          if (Test-Path $result) { Copy-Item $result test-results/r3b3-packaged.json }
+          if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { throw 'Packaged R3B3 work check failed' }
+          $check = Get-Content $result -Raw | ConvertFrom-Json
+          if (!$check.ok -or !$check.work_issued_once -or !$check.restart_recovered) { throw 'Packaged R3B3 contract incomplete' }
+          Copy-Item $captures test-results/r3b3-packaged -Recurse
       - name: Archive proof separately from production
         shell: pwsh
         run: |
           Copy-Item docs/R3A_QT_PLAN.md dist/COVEXLabelManager_Qt/LEEME.md
           Copy-Item docs/R3B1_QT_EDITOR.md dist/COVEXLabelManager_Qt/R3B1_EDITOR.md
+          Copy-Item docs/R3B3_IMPLEMENTATION.md dist/COVEXLabelManager_Qt/R3B3_IMPLEMENTATION.md
+          Copy-Item docs/R3B3_STORAGE_SPEC.md dist/COVEXLabelManager_Qt/R3B3_WORK.md
           Copy-Item docs/R3B2_IMPLEMENTATION.md dist/COVEXLabelManager_Qt/R3B2_VARIANTS.md
           Copy-Item scripts/PROBAR_DEMO_QT.bat dist/COVEXLabelManager_Qt/
           Copy-Item docs/FUNCTIONAL_PRESERVATION_MATRIX.md dist/COVEXLabelManager_Qt/
@@ -110,7 +133,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: R3B2-Qt-Variants-${{ github.sha }}
+          name: R3B23-Qt-Variants-Work-${{ github.sha }}
           path: |
             COVEXLabelManager_Qt.zip
             test-results/

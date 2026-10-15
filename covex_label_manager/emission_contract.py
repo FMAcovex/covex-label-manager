@@ -24,8 +24,9 @@ def snapshot(store,revision_id,variant_id,profile,status,asset):
         'profile':profile,'status':status,'status_master':state,'build':__import__('covex_label_manager').__version__}
 
 
-def render(api,version,values,profile,indices,count,copies,destination,test_mode=False,per_container=None,status=None,status_master=None,variant_id=None,history_snapshot=None):
+def render(api,version,values,profile,indices,count,copies,destination,test_mode=False,per_container=None,status=None,status_master=None,variant_id=None,history_snapshot=None,work_context=None):
     from .engine import render_emission
+    import unicodedata
     store=api._repository;variant_id=version.get('_variant_id',variant_id) if isinstance(version,dict) else variant_id
     effective,design,variant=store.variants.resolve(version['id'],variant_id,not test_mode)
     if history_snapshot:
@@ -44,11 +45,20 @@ def render(api,version,values,profile,indices,count,copies,destination,test_mode
     snap=None if test_mode else snapshot(store,version['id'],variant_id,profile,status,status_master)
     if history_snapshot and snap:
         snap['design']=history_snapshot['design'];snap['design_sha256']=history_snapshot['design_sha256']
+    if snap and work_context:snap['work']=dict(work_context)
     try:
-        result=render_emission(effective,store.root,values,profile,indices,count,copies,path,test_mode,per_container,status,status_master)
+        # Canonical snapshots normalize Unicode. Match variable identifiers in
+        # memory too, preserving every stored key and all fixed artwork/text.
+        fields=json.loads(effective['fields_json'])
+        for field in fields:field['key']=unicodedata.normalize('NFC',field['key'])
+        if len({f['key'] for f in fields})!=len(fields):raise ValueError('Identificadores Unicode equivalentes duplicados.')
+        effective=dict(effective,fields_json=json.dumps(fields,ensure_ascii=False))
+        render_values={unicodedata.normalize('NFC',k):v for k,v in values.items()}
+        render_containers={str(n):{unicodedata.normalize('NFC',k):v for k,v in data.items()} for n,data in (per_container or {}).items()}
+        result=render_emission(effective,store.root,render_values,profile,indices,count,copies,path,test_mode,render_containers,status,status_master)
         if snap:
             current=snapshot(store,version['id'],variant_id,profile,status,status_master)
-            if digest({k:v for k,v in current.items() if k not in ('design','design_sha256')})!=digest({k:v for k,v in snap.items() if k not in ('design','design_sha256')}):raise ValueError('El estado documental cambió durante el render.')
+            if digest({k:v for k,v in current.items() if k not in ('design','design_sha256','work')})!=digest({k:v for k,v in snap.items() if k not in ('design','design_sha256','work')}):raise ValueError('El estado documental cambió durante el render.')
             store._render_receipts[str(path)]={'snapshot':snap,'pdf_sha256':sha256(path),'data_hash':digest([values,profile,indices,count,copies,per_container or {},status])}
         return result
     except Exception:
@@ -71,7 +81,8 @@ def record_issue(store,version_id,operator,count,copies,indices,values,profile,p
         current=snapshot(store,version_id,variant_id,dict(profile),status or {},store.status_master((status or {}).get('kind','ninguna')))
         # For reprints the saved design can predate a mutable inherited pending
         # layout; approved revision layouts cannot be edited by application routes.
-        if digest(current)!=digest(snap):raise ValueError('Revisión, variante o estado cambió antes de registrar la emisión.')
+        if digest(current)!=digest({k:v for k,v in snap.items() if k!='work'}):raise ValueError('Revisión, variante o estado cambió antes de registrar la emisión.')
+        if 'work' in snap and db.execute("SELECT 1 FROM issues WHERE json_extract(design_snapshot_json,'$.work.operation_uid')=?",(snap['work']['operation_uid'],)).fetchone():raise ValueError('Operación de trabajo ya registrada.')
         if sha256(path)!=receipt['pdf_sha256']:raise ValueError('PDF alterado antes del registro.')
         if source_issue_id is not None:
             origin=store.issue(source_issue_id)

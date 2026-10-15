@@ -42,3 +42,17 @@ COVEXLabelManager_Qt.exe --recover-data RUTA_DATA --recovery-report RUTA_INFORME
 El mismo argumento funciona con el portable Tk o `python main.py`. El recibo indica formato restaurado v3 o v4. No se mezclan bases: si apareció un archivo legacy inesperado, conservarlo junto al backup y restaurar en carpeta distinta; el recuperador aborta antes de eliminar cualquier archivo ajeno. Las copias previas están en `backups/v4-<id>/pre-v4.zip`, con manifiesto SHA-256. Para volver al ejecutable anterior, restaurar íntegramente ese backup pre-v4 en otra carpeta; los cambios hechos después de migrar no están en esa copia.
 
 Backup desde la aplicación incluye DB activa, manifiestos, barrera, maestros, emisiones y evidencia externa. Su restauración en una carpeta nueva puede verificarse con `restore_backup` del módulo de migración; el ZIP es legible con herramientas normales. No sobrescribir un data existente al restaurar. La UI de restauración asistida sigue pendiente, como antes. Si falla el registro de aprobación, el archivo de evidencia puede conservarse sin vincular en `approval_evidence/<UID>`: no se considera aprobación y se informa de su ruta. No eliminar evidencias vinculadas a aprobaciones, aunque la variante esté retirada.
+
+## Trabajos locales R3B3
+
+No requiere otra ampliación de SQLite v4. Conserve `emission_work/` junto con las
+fuentes, evidencias y `storage_v4/` al trasladar el portable. Use el backup completo
+verificado de la aplicación; copiar sólo SQLite no conserva los borradores. Qt y
+Tk muestran los mismos trabajos. Cierre el puente antes de cerrar Qt.
+
+Tras un reinicio, abra el trabajo existente en Emisión. Un intento interrumpido debe
+recuperarse expresamente; si SQLite ya registró la operación, se mostrará emitida
+sin generar otra salida. Ante error de checksum, conserve los archivos y use la
+recuperación explícita de la copia anterior. No borre JSON ni cambie generaciones
+manualmente. Los PDF huérfanos no acreditan emisión ni se incorporan automáticamente
+al historial. Los trabajos emitidos se copian a un nuevo borrador para otro lote.

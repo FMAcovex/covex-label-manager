@@ -21,8 +21,11 @@ def main():
     if '--recover-data' in sys.argv[1:]:
         from covex_label_manager.migration_v4 import recovery_cli
         return recovery_cli(sys.argv[1:])
-    p=argparse.ArgumentParser();p.add_argument('--variant-check',type=Path);p.add_argument('--demo',action='store_true');p.add_argument('--data-dir',type=Path)
+    p=argparse.ArgumentParser();p.add_argument('--work-check',type=Path);p.add_argument('--variant-check',type=Path);p.add_argument('--demo',action='store_true');p.add_argument('--data-dir',type=Path)
     p.add_argument('--verify-bridge',action='store_true');p.add_argument('--capture',type=Path);p.add_argument('--self-check',type=Path);a=p.parse_args()
+    if a.work_check:
+        from covex_label_manager.qt_ui.work_checks import run
+        return run(a.work_check,a.capture,a.verify_bridge)
     if a.variant_check:
         from covex_label_manager.qt_ui.variant_checks import run
         return run(a.variant_check,a.capture,a.verify_bridge)
