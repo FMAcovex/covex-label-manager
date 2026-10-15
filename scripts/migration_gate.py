@@ -20,7 +20,7 @@ def main():
     parser.add_argument('--report',type=Path);args=parser.parse_args()
     if args.crash:
         root,phase=args.crash
-        migrate(root,lambda name,_:os._exit(73) if name==phase else None)
+        migrate(root,lambda name,_:os._exit(73) if name==phase else None,confirmed=True)
         raise RuntimeError('Crash hook did not execute')
     from synthetic_fixtures import activate_for_script
     fixture=activate_for_script()
@@ -39,7 +39,7 @@ def main():
             outcome=recover(root)
             if outcome=='v3':
                 with closing(ro(root/'labels.sqlite')) as db:assert digest(old_rows(db))==before
-                migrate(root)
+                migrate(root,confirmed=True)
             receipt=json.loads((root/'migration-v4.json').read_text())
             archive=root/receipt['area']/'pre-v4.zip'
             restored=restore_backup(archive,temp/(phase+'-restore'))
@@ -69,7 +69,7 @@ def main():
                     p=subprocess.run(cmd,capture_output=True,text=True,timeout=40,env=env,cwd=temp)
                     assert p.returncode!=0 and 'unable to open database' in p.stdout+p.stderr,(name,p.stderr)
                     results['old_writers'].append({'stage':'OS_GUARDED','entrypoint':name,'exit_code':p.returncode,'blocked':True})
-        migrate(root,hook)
+        migrate(root,hook,confirmed=True)
         old_attempts('V4_BARRIER')
         results['active_v4_sha256']=sha(active_path(root))
         results['windows_old_executables_proven']=sys.platform=='win32' and len(commands)==4

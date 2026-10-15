@@ -12,7 +12,9 @@ from covex_label_manager.qt_ui.functional import FunctionalWindow
 class LocalSession:
     fictional=False
     initial_id=None
-    def __init__(self):self.services=TransitionServices()
+    def __init__(self):
+        from covex_label_manager.migration_consent import qt_confirmation
+        self.services=TransitionServices(migration_confirmation=qt_confirmation)
     def close(self):self.services.close()
 
 def main():
@@ -29,7 +31,10 @@ def main():
     if a.demo or a.self_check or a.capture:
         from covex_label_manager.qt_ui.demo import DemoSession
         session=DemoSession();session.fictional=True
-    else:session=LocalSession()
+    else:
+        from covex_label_manager.migration_v4 import MigrationCancelled
+        try:session=LocalSession()
+        except MigrationCancelled:return 0
     try:
         w=FunctionalWindow(session);w.show()
         if a.capture or a.self_check:

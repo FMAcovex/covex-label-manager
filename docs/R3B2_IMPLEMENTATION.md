@@ -43,3 +43,14 @@ Tkinter conservado, protocolo de escritor 4 en puente y selección explícita de
 Pruebas locales funcionales en curso: regresión completa, migración, estados, generaciones obsoletas entre conexiones, fallo de audit con evidencia copiada, aprobación congelada/coexistencia/derivación, evidencia alterada, snapshots con/sin variante, SQL sin snapshot, retiro entre render/registro, geometría y reimpresión, backup/restauración de aprobación. Capturas son de widgets Qt reales con PDF sintético, nunca mockups ni maestros COVEX. La CI ejecuta esas mismas comprobaciones y genera capturas/fuente/portable a 100/125/150 %. Resultados finales se anotarán tras completar CI sobre último commit.
 
 Conservadas las 87 IDs de la matriz y la cobertura heredada. 00-R1 sigue revisión heredada PENDING. Pendientes: Word real, impresión física al 100 %, Windows 10/11 y equipos COVEX, aceptación de uso previsto/validación GMP. Los resultados de Windows Server CI no sustituyen esas pruebas. Auditoría SQLite local no es inviolable; no hay firma electrónica, usuarios/servidor nuevos, R3B3, R3C ni conectores.
+
+### Confirmación de actualización de instalaciones existentes
+
+Qt y Tk solicitan autorización expresa antes de abrir SQLite antiguo, crear carpetas,
+backups o locks. Cancelar es la opción predeterminada y deja idéntico el inventario
+de archivos. El acceso sin interfaz falla cerrado (`MigrationConsentRequired`); no
+existe un interruptor de entorno que autorice silenciosamente. El migrador offline
+exige `confirmed=True`; las pruebas sintéticas lo declaran explícitamente. Instalación
+nueva y v4 ya verificada no solicitan consentimiento. Después de recuperar a v3 se
+requiere una nueva decisión; recuperar una publicación v4 completa no repite el cambio.
+La aceptación de esta actualización no aprueba revisiones ni variantes.

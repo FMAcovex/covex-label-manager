@@ -17,8 +17,8 @@ from .importer import auto_crop,docx_to_pdf
 
 class LocalServices:
     OPERATIONS=frozenset('add_issue add_label add_profile approve approve_status_master audit clone_version close import_materials issue issues labels material_duplicates profile_list replace_pending_fields set_setting setting stats status_master status_masters version versions audit_entries library_records set_favorite mark_recent set_label_metadata'.split())
-    def __init__(self,repository=None):
-        self._repository=repository or Store()
+    def __init__(self,repository=None,*,migration_confirmation=None):
+        self._repository=repository or Store(migration_confirmation=migration_confirmation)
         self.library=LibraryService(self._repository)
     def __getattr__(self,name):
         if name in self.OPERATIONS:return getattr(self._repository,name)

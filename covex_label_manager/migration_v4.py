@@ -284,9 +284,18 @@ def active_path(root):
     return root/ACTIVE
 
 
-def migrate(root,hook=None):
+class MigrationConsentRequired(PermissionError):
+    """Existing installation needs an explicit affirmative user decision."""
+
+
+class MigrationCancelled(MigrationConsentRequired):pass
+
+
+def migrate(root,hook=None,*,confirmed=False):
     """Explicit offline operation. Returns receipt, never seeds a legacy database."""
     root=Path(root).resolve()
+    if not (root/FORMAT).exists() and confirmed is not True:
+        raise MigrationConsentRequired('La migración requiere confirmación expresa del usuario.')
     with folder_lock(root):
         if (root/FORMAT).exists():active_path(root);return read_json(root/JOURNAL)
         if (root/JOURNAL).exists():raise ValueError('Migración interrumpida: recuperar antes de reintentar.')

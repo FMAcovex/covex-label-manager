@@ -44,7 +44,7 @@ def test_canonical_vectors():
 
 def test_preserve_backup_restore(tmp_path):
     root=tmp_path/'v3';before=fixture(root)
-    receipt=migrate(root)
+    receipt=migrate(root,confirmed=True)
     assert (root/'labels.sqlite').is_dir()
     assert active_path(root)==root/'storage_v4'/'labels.sqlite'
     with closing(ro(active_path(root))) as db:
@@ -55,7 +55,7 @@ def test_preserve_backup_restore(tmp_path):
     archive=root/receipt['area']/'pre-v4.zip'
     restored=restore_backup(archive,tmp_path/'restored')
     with closing(ro(restored/'labels.sqlite')) as db:assert old_rows(db)==before
-    assert migrate(root)==receipt
+    assert migrate(root,confirmed=True)==receipt
     # Old unmodified Store: connect fails before _schema/seed.
     original_hash=sha(active_path(root))
     with pytest.raises(sqlite3.OperationalError):sqlite3.connect(root/'labels.sqlite')
@@ -67,10 +67,10 @@ def test_interrupt_each_phase(tmp_path,phase):
     root=tmp_path/'data';fixture(root)
     def crash(name,_):
         if name==phase:raise RuntimeError('synthetic interruption')
-    with pytest.raises(RuntimeError):migrate(root,crash)
+    with pytest.raises(RuntimeError):migrate(root,crash,confirmed=True)
     outcome=recover(root)
     assert outcome==('v4' if phase in ('PUBLISHED','VERIFIED') else 'v3')
-    if outcome=='v3':migrate(root)
+    if outcome=='v3':migrate(root,confirmed=True)
     validate_v4(active_path(root))
 
 
@@ -78,7 +78,7 @@ def test_racing_old_creator_preserved(tmp_path):
     root=tmp_path/'data';fixture(root)
     def race(name,root):
         if name=='LEGACY_ISOLATED':(root/'labels.sqlite').write_bytes(b'old-writer-must-not-be-deleted')
-    with pytest.raises(FileExistsError):migrate(root,race)
+    with pytest.raises(FileExistsError):migrate(root,race,confirmed=True)
     assert not (root/'storage_v4').exists()
     with pytest.raises(ValueError):recover(root)
     assert (root/'labels.sqlite').read_bytes()==b'old-writer-must-not-be-deleted'
@@ -87,11 +87,11 @@ def test_racing_old_creator_preserved(tmp_path):
 def test_unknown_and_corruption_abort(tmp_path):
     root=tmp_path/'data';fixture(root)
     with sqlite3.connect(root/'labels.sqlite') as db:db.execute('PRAGMA user_version=999')
-    with pytest.raises(ValueError):migrate(root)
+    with pytest.raises(ValueError):migrate(root,confirmed=True)
     assert not (root/'storage_v4').exists()
     with sqlite3.connect(root/'labels.sqlite') as db:db.execute('PRAGMA user_version=3')
     source=next((root/'sources').glob('*'));source.write_bytes(b'corrupted')
-    with pytest.raises(ValueError):migrate(root)
+    with pytest.raises(ValueError):migrate(root,confirmed=True)
     assert not (root/'migration-v4.json').exists()
 
 
@@ -99,7 +99,7 @@ def test_failed_ddl_transaction_rolls_back(tmp_path,monkeypatch):
     from covex_label_manager import schema_v4
     root=tmp_path/'data';before=fixture(root)
     monkeypatch.setattr(schema_v4,'STATEMENTS',schema_v4.STATEMENTS+['INVALID SYNTHETIC SQL'])
-    with pytest.raises(sqlite3.Error):migrate(root)
+    with pytest.raises(sqlite3.Error):migrate(root,confirmed=True)
     with closing(ro(root/'labels.sqlite')) as db:assert old_rows(db)==before
     staged=next((root/'backups').glob('*/staged.sqlite'))
     with closing(ro(staged)) as db:
@@ -108,13 +108,13 @@ def test_failed_ddl_transaction_rolls_back(tmp_path,monkeypatch):
 
 
 def test_backup_corruption_rejected(tmp_path):
-    root=tmp_path/'data';fixture(root);receipt=migrate(root)
+    root=tmp_path/'data';fixture(root);receipt=migrate(root,confirmed=True)
     archive=root/receipt['area']/'pre-v4.zip';archive.write_bytes(b'broken backup')
     with pytest.raises(ValueError):recover(root)
 
 
 def test_missing_barrier_future_schema_and_changed_schema(tmp_path):
-    root=tmp_path/'data';fixture(root);migrate(root)
+    root=tmp_path/'data';fixture(root);migrate(root,confirmed=True)
     with sqlite3.connect(root/'storage_v4'/'labels.sqlite') as db:
         db.execute('DROP TRIGGER issues_snapshot_insert')
     with pytest.raises(ValueError):active_path(root)
@@ -122,7 +122,7 @@ def test_missing_barrier_future_schema_and_changed_schema(tmp_path):
 
 def test_new_issue_cannot_omit_snapshot_at_sql_boundary(tmp_path):
     from covex_label_manager.schema_v4 import configure
-    root=tmp_path/'data';fixture(root);migrate(root)
+    root=tmp_path/'data';fixture(root);migrate(root,confirmed=True)
     with sqlite3.connect(active_path(root)) as db:
         configure(db)
         sql="""INSERT INTO issues(version_id,created_at,operator,count_containers,copies_per_container,
@@ -135,7 +135,7 @@ def test_new_issue_cannot_omit_snapshot_at_sql_boundary(tmp_path):
 def test_backup_includes_evidence_and_hashes(tmp_path):
     import zipfile
     from covex_label_manager.migration_v4 import verify_backup
-    root=tmp_path/'data';fixture(root);receipt=migrate(root)
+    root=tmp_path/'data';fixture(root);receipt=migrate(root,confirmed=True)
     archive=root/receipt['area']/'pre-v4.zip'
     manifest=verify_backup(archive)
     assert 'approval_evidence/synthetic/evidence.txt' in manifest['files']
@@ -147,7 +147,7 @@ def test_backup_failure_and_disk_full_leave_legacy_untouched(tmp_path,monkeypatc
     from covex_label_manager import migration_v4 as module
     root=tmp_path/'data';before=fixture(root)
     monkeypatch.setattr(module.shutil,'disk_usage',lambda _:type('Usage',(),{'free':0})())
-    with pytest.raises(OSError,match='Espacio'):migrate(root)
+    with pytest.raises(OSError,match='Espacio'):migrate(root,confirmed=True)
     with closing(ro(root/'labels.sqlite')) as db:assert old_rows(db)==before
     assert not (root/'migration-v4.json').exists()
 
@@ -170,7 +170,7 @@ def test_migration_audit_recovered_exactly_once(tmp_path):
     root=tmp_path/'data';fixture(root)
     def crash(name,_):
         if name=='PUBLISHED':raise RuntimeError('synthetic')
-    with pytest.raises(RuntimeError):migrate(root,crash)
+    with pytest.raises(RuntimeError):migrate(root,crash,confirmed=True)
     recover(root);recover(root)
     with closing(ro(active_path(root))) as db:
         assert db.execute("SELECT count(*) FROM audit WHERE event='MIGRATE_V4'").fetchone()[0]==1
@@ -181,6 +181,6 @@ def test_windows_refuses_existing_old_sqlite_reader(tmp_path):
     root=tmp_path/'data';fixture(root)
     with closing(sqlite3.connect(root/'labels.sqlite')) as reader:
         reader.execute('SELECT * FROM settings').fetchall()
-        with pytest.raises(PermissionError):migrate(root)
+        with pytest.raises(PermissionError):migrate(root,confirmed=True)
     assert (root/'labels.sqlite').is_file()
     assert not (root/'storage_v4').exists()

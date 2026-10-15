@@ -193,7 +193,7 @@ def test_old_database_adds_columns_and_preserves_fields(tmp_path):
     for table,col in [('versions','status_area_json'),('issues','per_container_json'),('issues','status_json')]:
         sql.execute(f'ALTER TABLE {table} DROP COLUMN {col}')
     sql.commit();sql.close()
-    updated=Store(root)
+    updated=Store(root,migration_confirmation=lambda _:True)
     assert updated.setting('operator')=='Operador anterior'
     assert updated.version(vid)['fields_json']==oldfields
     assert updated.stats()['labels']==2

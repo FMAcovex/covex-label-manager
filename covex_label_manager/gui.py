@@ -110,7 +110,13 @@ class ScrolledFrame(tk.Frame):
 class Application(tk.Tk):
     def __init__(self,store=None):
         super().__init__()
-        self.store=store if isinstance(store,LocalServices) else LocalServices(store)
+        from .migration_consent import tk_confirmation
+        try:
+            self.store=store if isinstance(store,LocalServices) else LocalServices(store,
+                migration_confirmation=lambda root:tk_confirmation(root,self))
+        except Exception:
+            self.destroy()
+            raise
         self.services=self.store
         self.current_version_id=None
         self.bind_all('<Control-k>',lambda _:self._open_library_picker())
@@ -1480,6 +1486,8 @@ class AdvancedEditor(tk.Toplevel):
 
 
 def start():
-    app=Application()
+    from .migration_v4 import MigrationCancelled
+    try:app=Application()
+    except MigrationCancelled:return
     app.mainloop()
 

@@ -82,7 +82,7 @@ def test_upgrade_from_legacy_schema_preserves_custom_fields_and_profile(tmp_path
             db.execute(f'ALTER TABLE {table} DROP COLUMN uid')
         db.execute('ALTER TABLE profiles DROP COLUMN safety_mm')
         db.execute('DROP TABLE label_metadata');db.execute('DROP TABLE library_preferences');db.commit()
-    s=Store(root)
+    s=Store(root,migration_confirmation=lambda _:True)
     try:
         assert s.setting('operator')=='Operador anterior'
         assert json.loads(s.version(v['id'])['fields_json'])==custom

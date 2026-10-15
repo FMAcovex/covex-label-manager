@@ -153,10 +153,10 @@ def test_import_name_parsing():
 
 def test_persist_store_and_audit(tmp_path):
     root=tmp_path/'instance'
-    s=Store(root)
+    s=Store(root,migration_confirmation=lambda _:True)
     s.set_setting('operator','Personal LG')
     s.close()
-    t=Store(root)
+    t=Store(root,migration_confirmation=lambda _:True)
     assert t.setting('operator')=='Personal LG'
     assert t.stats()['labels']==2
     assert t.db.execute('SELECT COUNT(*) FROM audit').fetchone()[0]>=1

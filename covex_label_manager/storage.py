@@ -23,22 +23,29 @@ def sha256(path):
 
 
 class Store:
-    def __init__(self, root=None, seed=True):
-        self.root = Path(root) if root else data_dir()
-        self.root.mkdir(parents=True, exist_ok=True)
-        for sub in ['sources', 'pdf_masters', 'emissions', 'backups', 'cache', 'status_masters']:
-            (self.root / sub).mkdir(exist_ok=True)
-        from .migration_v4 import active_path, migrate
+    def __init__(self, root=None, seed=True, *, migration_confirmation=None):
+        self.root = (Path(root) if root else data_dir(create=False)).resolve()
+        from .migration_v4 import active_path, migrate, MigrationConsentRequired, MigrationCancelled
         from .schema_v4 import configure
         candidate=active_path(self.root)
         fresh=not candidate.exists()
+        legacy=candidate==self.root/'labels.sqlite'
+        if legacy and not fresh:
+            if migration_confirmation is None:
+                raise MigrationConsentRequired('Confirme la actualización a SQLite v4 antes de abrir esta instalación.')
+            if migration_confirmation(self.root) is not True:
+                raise MigrationCancelled('Actualización cancelada. Los datos no se han modificado.')
+        # Consent precedes directory creation, backup, DB open and migration lock.
+        self.root.mkdir(parents=True, exist_ok=True)
+        for sub in ['sources', 'pdf_masters', 'emissions', 'backups', 'cache', 'status_masters']:
+            (self.root / sub).mkdir(exist_ok=True)
         if candidate.name=='labels.sqlite' and candidate.parent==self.root:
             if fresh:
                 self.db_file=candidate;self.db=sqlite3.connect(candidate);self.db.row_factory=sqlite3.Row
                 self.db.execute('PRAGMA foreign_keys=ON');self._schema()
                 if seed:self.seed_data();self._seed_r1_variant()
                 self.db.close()
-            migrate(self.root)
+            migrate(self.root,confirmed=True)
             candidate=active_path(self.root)
         self.db_file=candidate;self.db=sqlite3.connect(candidate);self.db.row_factory=sqlite3.Row
         configure(self.db);self.db.execute('PRAGMA journal_mode=WAL')

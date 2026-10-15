@@ -58,7 +58,7 @@ def test_migration_backup_keeps_legacy_schema(tmp_path):
     root=tmp_path/'old';s=create(root);s.set_setting('operator','Operador legado');s.close()
     with closing(sqlite3.connect(root/'labels.sqlite')) as c:
         c.execute('ALTER TABLE versions DROP COLUMN status_area_json');c.commit()
-    s=Store(root)
+    s=Store(root,migration_confirmation=lambda _:True)
     backups=list((root/'backups').glob('v4-*/legacy-snapshot.sqlite'))
     assert len(backups)==1
     with sqlite3.connect(backups[0]) as c:
