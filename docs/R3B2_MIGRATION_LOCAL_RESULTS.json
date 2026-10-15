@@ -1,0 +1,83 @@
+{
+  "canonical_vector": {
+    "text": "{\"a\":[0.0000001,\"é\"],\"z\":0,\"é\":1.23}",
+    "sha256": "c59ed642cbc30ff3b0fbcea26eb3c0e32718a6ebfc1a4ce16959401d83ce33ad"
+  },
+  "synthetic_only": true,
+  "platform": "linux",
+  "crashes": [
+    {
+      "phase": "PREPARED",
+      "exit_code": 73,
+      "recovered": "v3",
+      "restored_row_digest": "31616dea0e8be3ebb26daec575ba7357a731d2e05fa077c80c1c12c34df0968c",
+      "backup_sha256": "53a5f8886482a2b809fe5f9c7bd8f834b94bd04d5ffc5ce4c6a7f3f1d8a11e70",
+      "restore_exact": true
+    },
+    {
+      "phase": "LEGACY_ISOLATED",
+      "exit_code": 73,
+      "recovered": "v3",
+      "restored_row_digest": "95c80d1e51d5039f597ece7294bef9348af366bd4d6357949a6f6d6493a89354",
+      "backup_sha256": "68cd9c13b8c675225119184be950a9edb58fb12951aa260f932848974d185532",
+      "restore_exact": true
+    },
+    {
+      "phase": "BARRIER_INSTALLED",
+      "exit_code": 73,
+      "recovered": "v3",
+      "restored_row_digest": "cd74530683916ede60b6981716195e148912b7bda452cf27456822caf52eed9e",
+      "backup_sha256": "cdc0d283512f46c16e80375a81330ccd8c4155c37b6558f0fd805f214d5aea82",
+      "restore_exact": true
+    },
+    {
+      "phase": "PUBLISHED",
+      "exit_code": 73,
+      "recovered": "v4",
+      "restored_row_digest": "e2ff92e6328829f4288776cbbff80e32fa403239a1cccab55385e89d34b1d9cb",
+      "backup_sha256": "ae4aa5c6a61b475c5d9a4f578ebb8329faec783bda46de67a0aa664fab0fb13b",
+      "restore_exact": true
+    },
+    {
+      "phase": "VERIFIED",
+      "exit_code": 73,
+      "recovered": "v4",
+      "restored_row_digest": "4018dfb60c2027c5328cc7a1bb57af5f5d1a8e0d9356e1b1b3f4f2f95f6260a1",
+      "backup_sha256": "d2250b11da5b0dd260978818f7c7df6da58ef85b52a837ff5f449305d20cd5ad",
+      "restore_exact": true
+    }
+  ],
+  "old_writers": [],
+  "active_v4_sha256": "a7dc916b7491fc524697ea0f7f93d02d99263093ae78eb18b622384dedfdeee4",
+  "windows_old_executables_proven": false,
+  "ok": true,
+  "generated_at": "2026-10-15T07:15:14.222491+00:00",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "pytest": {
+    "all_passed": 144,
+    "skipped": 2,
+    "skip_reasons": [
+      "Word real no disponible",
+      "Windows OS sharing semantics require Windows runner"
+    ],
+    "migration_passed": 17,
+    "migration_skipped": 1
+  },
+  "implementation_status": "Gate 1 only. Store integration, variants, emissions, GUI and new portable NOT implemented.",
+  "windows_actions": {
+    "status": "blocked_before_runner_allocation",
+    "run_id": 38697115989,
+    "attempt": 2,
+    "runner_id": 0,
+    "steps": [],
+    "artifacts": [],
+    "cause": "Not available from connector; do not infer billing or a migration code failure."
+  },
+  "source_sha256": {
+    "covex_label_manager/canonical.py": "8f5539321c4c951c27af42395e24e3736f1e68b371c5fb36cf9e02f3f6106066",
+    "covex_label_manager/schema_v4.py": "0242c3dea1242a3cca0c2bf4d6105835fe561d529177483c13e9c38c388cfd0f",
+    "covex_label_manager/migration_v4.py": "f1eb663c3c0ba80a7098644903ae6b4d4658e2a2b633cbb51856a0b1933705bd",
+    "tests/test_migration_v4.py": "2f14b853cfaa537fa006dac175e761f6c8b57caeb4d141bfb5695ca6e2bd4612",
+    "scripts/migration_gate.py": "e6ddab3faa40c9f8b94e978b6f5b203a2f0bd8bf5beac38ad14514bb1b3f98dc"
+  }
+}

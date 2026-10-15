@@ -31,10 +31,14 @@ def sha(path):
 
 
 def atomic_json(path,value):
-    path=Path(path);temp=path.with_suffix(path.suffix+'.tmp')
+    path=Path(path);temp=path.with_name(path.name+'.'+uuid.uuid4().hex+'.tmp')
     with open(temp,'x',encoding='utf-8') as f:
         f.write(canonical(value));f.flush();os.fsync(f.fileno())
     os.replace(temp,path)
+    if os.name!='nt':
+        fd=os.open(path.parent,os.O_RDONLY)
+        try:os.fsync(fd)
+        finally:os.close(fd)
 
 
 def read_json(path):return json.loads(Path(path).read_text(encoding='utf-8'))
@@ -90,6 +94,19 @@ def validate_v3(db):
     tables={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
     expected={'labels','versions','materials','profiles','issues','status_masters','audit','settings','label_metadata','library_preferences'}
     if tables!=expected:raise ValueError('Esquema v3 desconocido/parcial; no se modifica.')
+    columns={
+        'labels':'id name code category annex origin customer ref_customer created_at uid',
+        'versions':'id label_id version state master_pdf original_file source_sha256 pdf_sha256 crop_json fields_json base_w_mm base_h_mm notes created_at approved_by approval_ref approved_at status_area_json uid',
+        'materials':'id name code category source_ref uid',
+        'profiles':'id name width_mm height_mm paper orientation margin_mm gap_mm offset_x_mm offset_y_mm start_slot crop_marks printer_name safety_mm',
+        'issues':'id version_id created_at operator count_containers copies_per_container selected_indices variables_json profile_json pdf_path source_issue_id reason status pdf_sha256 per_container_json status_json uid',
+        'status_masters':'kind name version state master_pdf original_file pdf_sha256 source_sha256 crop_json approved_by approval_ref approved_at',
+        'audit':'id at event subject detail','settings':'key value',
+        'label_metadata':'label_id key value source_ref',
+        'library_preferences':'label_id favorite last_used last_version_id'}
+    for table,names in columns.items():
+        if set(names.split())!={r[1] for r in db.execute(f'PRAGMA table_info({table})')}:
+            raise ValueError('Columnas v3 desconocidas/parciales: '+table)
     for table,cols in {'labels':{'uid'},'versions':{'uid','status_area_json'},'issues':{'uid','pdf_sha256','per_container_json','status_json'},'profiles':{'safety_mm'}}.items():
         if not cols.issubset({r[1] for r in db.execute(f'PRAGMA table_info({table})')}):raise ValueError('Esquema v3 incompleto.')
     for table in ('labels','versions','issues','materials'):
@@ -313,6 +330,10 @@ def recover(root):
             if not (root/'labels.sqlite').is_dir():raise ValueError('Barrera ausente: recuperar manualmente en carpeta nueva.')
             validate_v4(root/ACTIVE)
             if read_json(root/FORMAT).get('migration_id')!=receipt['migration_id']:raise ValueError('Identidad de corte no coincide.')
+            with closing(sqlite3.connect(root/ACTIVE)) as db:
+                configure(db);referenced_files(db,root)
+                if not db.execute("SELECT 1 FROM audit WHERE event='MIGRATE_V4' AND subject=?",(receipt['migration_id'],)).fetchone():
+                    db.execute('INSERT INTO audit(at,event,subject,detail) VALUES(?,?,?,?)',(now(),'MIGRATE_V4',receipt['migration_id'],canonical({'recovered':True,'backup_sha256':receipt['backup_sha256'],'row_digest':receipt['row_digest']})));db.commit()
             receipt['phase']='VERIFIED';atomic_json(root/JOURNAL,receipt)
             return 'v4'
         legacy=root/'labels.sqlite'

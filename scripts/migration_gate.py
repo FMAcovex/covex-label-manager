@@ -25,7 +25,10 @@ def main():
     from synthetic_fixtures import activate_for_script
     fixture=activate_for_script()
     from covex_label_manager.storage import Store
-    results={'synthetic_only':True,'platform':sys.platform,'crashes':[],'old_writers':[]}
+    from decimal import Decimal
+    vector={'z':-0.0,'é':Decimal('1.2300'),'a':[1e-7,'e\u0301']}
+    assert digest(vector)=='c59ed642cbc30ff3b0fbcea26eb3c0e32718a6ebfc1a4ce16959401d83ce33ad'
+    results={'canonical_vector':{'text':canonical(vector),'sha256':digest(vector)},'synthetic_only':True,'platform':sys.platform,'crashes':[],'old_writers':[]}
     with tempfile.TemporaryDirectory(prefix='r3b2-migration-gate-') as temp:
         temp=Path(temp)
         for phase in PHASES:
