@@ -16,17 +16,18 @@ class PdfPane(QWidget):
         self.view=Preview();self.zoom=label('Vista 100 %','subtle');self.view.zoom_label=self.zoom
         tools.addWidget(button('Ajustar',self.view.fit));tools.addWidget(button('−',lambda:self.view.zoom(1/1.2)));tools.addWidget(button('+',lambda:self.view.zoom(1.2)));tools.addWidget(self.zoom);tools.addStretch();self.expand_button=button('Ampliar PDF',self.expand_pdf)
         self.expand_button.setToolTip('Abrir el PDF completo para comprobar el diseño y las etiquetas')
+        self.expand_button.setEnabled(False)
         self.expand_button.setStyleSheet('background:#E4F1ED;color:#116C62;border:1px solid #B8DCD3;font-weight:700;')
         top.addWidget(self.expand_button)
         self.open_button=button('Abrir PDF',self.open_pdf);self.open_button.setEnabled(False);tools.addWidget(self.open_button);layout.addWidget(self.tools)
         layout.addWidget(self.view,1);self.note=label('Actualice la vista previa con los datos del trabajo.','subtle');layout.addWidget(self.note)
     def clear(self,message='Los datos han cambiado. Actualice la vista previa.'):
-        self.path=None;self.page_count=0;self.validator=None;self.view.scene().clear();self.pages.blockSignals(True);self.pages.clear();self.pages.blockSignals(False);self.open_button.setEnabled(False);self.note.setText(message)
+        self.path=None;self.page_count=0;self.validator=None;self.view.scene().clear();self.pages.blockSignals(True);self.pages.clear();self.pages.blockSignals(False);self.open_button.setEnabled(False);self.expand_button.setEnabled(False);self.note.setText(message)
     def load(self,path,title='Vista previa A4',note=''):
         image,count=self.api.pdf_page(path,0,maxwidth=1600);self.path=path;self.page_count=count
         self._full_title=title;self.title.setText(title);self.pages.blockSignals(True);self.pages.clear()
         for n in range(count):self.pages.addItem(f'Página {n+1} de {count}',n)
-        self.pages.blockSignals(False);self.view.set_image(image);self.note.setText(note);self.note.setWordWrap(True);self.open_button.setEnabled(True);self.elide_title()
+        self.pages.blockSignals(False);self.view.set_image(image);self.note.setText(note);self.note.setWordWrap(True);self.open_button.setEnabled(True);self.expand_button.setEnabled(True);self.elide_title()
     def compact(self,enabled):
         self.tools.setVisible(not enabled);self.note.setVisible(not enabled)
         self.title.setStyleSheet('font-size:14px;' if enabled else '')

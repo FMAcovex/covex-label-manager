@@ -20,7 +20,9 @@ def prepared(studio):
 def test_native_preview_export_cancel_issue_and_recovery(studio,monkeypatch,tmp_path):
     w,api,work=prepared(studio)
     monkeypatch.setattr('covex_label_manager.qt_ui.functional.launch_legacy',lambda *a,**k:pytest.fail('Native emission launched Tk'))
+    assert not w.emission_pdf.expand_button.isEnabled()
     assert w.preview_emission_work(),w.emission_feedback.text()
+    assert w.emission_pdf.expand_button.isEnabled()
     assert not api.issues() and w.native_issue.isEnabled(),w.emission_feedback.text()
     with fitz.open(w.work_preview['path']) as pdf:
         text=''.join(p.get_text() for p in pdf).replace('\xad','-').replace('\xa0',' ')
