@@ -38,13 +38,13 @@ class EmissionCentreMixin:
         self.emission_panel.setMinimumHeight(320);left.setMinimumWidth(330);left_scroll=QScrollArea();left_scroll.setWidgetResizable(True);left_scroll.setWidget(left);left_scroll.setFrameShape(QScrollArea.Shape.NoFrame);split.addWidget(left_scroll);self.emission_left=left_scroll
         right=box();rl=vbox(right,14,8);toolbar=QHBoxLayout();self.emission_check_heading=label('COMPROBAR ANTES DE EMITIR','section');toolbar.addWidget(self.emission_check_heading);toolbar.addStretch()
         self.preview_work_button=button('Actualizar vista previa',self.preview_emission_work);toolbar.addWidget(self.preview_work_button);rl.addLayout(toolbar)
-        self.emission_pdf=PdfPane(self.api);self.emission_pdf.header_layout.insertWidget(1,self.preview_work_button);rl.addWidget(self.emission_pdf,1);split.addWidget(right);self.emission_right=right;split.setSizes([490,960]);split.setStretchFactor(1,1);layout.addWidget(split,1)
-        footer=box();footer.setObjectName('emissionFooter');fl=vbox(footer,12,5)
+        self.emission_pdf=PdfPane(self.api);rl.addWidget(self.emission_pdf,1);split.addWidget(right);self.emission_right=right;split.setSizes([490,960]);split.setStretchFactor(1,1);layout.addWidget(split,1)
+        footer=box();self.emission_footer=footer;footer.setObjectName('emissionFooter');fl=vbox(footer,12,5)
         self.emission_summary=label('Sin trabajo seleccionado.','emissionSummary');self.emission_summary.setObjectName('emissionSummary');self.emission_summary.setWordWrap(True);fl.addWidget(self.emission_summary)
         self.emission_feedback=label('Guardar borrador no registra una emisión.','subtle');self.emission_feedback.setWordWrap(True);fl.addWidget(self.emission_feedback)
         actions=QHBoxLayout();self.native_save=button('Guardar borrador',self.flush_emission_work);actions.addWidget(self.native_save)
         self.native_proof=button('PDF de prueba',self.proof_emission_work);actions.addWidget(self.native_proof)
-        actions.addWidget(button('Opciones…',self.work_options));actions.addStretch()
+        self.native_options=button('Opciones…',self.work_options);actions.addWidget(self.native_options);actions.addStretch()
         self.native_issue=button('Emitir definitivamente',self.issue_emission_work,'primary');actions.addWidget(self.native_issue);fl.addLayout(actions);layout.addWidget(footer)
         return page
     def refresh_work_panels(self):
@@ -67,13 +67,16 @@ class EmissionCentreMixin:
         w=self.emission_work;self.native_issue.setEnabled(False);self.native_save.setEnabled(bool(w and w['phase']=='DRAFT' and not self.native_busy))
         self.native_proof.setEnabled(bool(w and not self.native_busy));self.preview_work_button.setEnabled(bool(w and not self.native_busy))
         if not w:
+            self._emission_document_full='Seleccione un trabajo o cree uno nuevo.'
+            self.refresh_emission_caption()
             self.emission_summary.setText('Sin trabajo seleccionado.');self.work_review=None;return None
         try:review=self.api.review_work(w['uid'],w['generation'])
         except (ValueError,OSError,sqlite3.Error) as ex:
             review={'errors':[{'target':'work','message':self.operator_error(ex),'recipient':None}], 'warnings':[], 'summary':None,'proof_allowed':False,'production_allowed':False}
         self.work_review=review
         b=w['binding'];v=self.api.version(b['revision_id']);variant=self.api.variant(b['variant_id']) if b['variant_id'] else None
-        self.emission_document.setText(f"{v['name']} · Revisión {v['version']} · "+(f"Variante {variant['code']}" if variant else 'Diseño heredado')+' · '+w['name'])
+        self._emission_document_full=f"{v['name']} · Revisión {v['version']} · "+(f"Variante {variant['code']}" if variant else 'Diseño heredado')+' · '+w['name']
+        self.refresh_emission_caption()
         s=review['summary']
         if s:self.emission_summary.setText(f"{s['selected']} de {s['containers']} recipientes · {s['copies']} copias · {s['physical']} etiquetas · {s['pages']} hojas A4 · {s['capacity']} etiquetas por hoja")
         else:self.emission_summary.setText('Revise los datos y el formato antes de generar el PDF.')
@@ -87,6 +90,18 @@ class EmissionCentreMixin:
         self.native_issue.setEnabled(review['production_allowed'] and valid and not self.work_preview['result']['warnings'] and not self.native_busy and not self.legacy_process)
         self.native_issue.setToolTip('Confirmar y registrar la emisión definitiva.' if valid else 'Actualice la vista previa después de modificar el trabajo.')
         return review
+    def refresh_emission_caption(self):
+        """Elide the identifier only in compact view; the full identity stays in its tooltip."""
+        if not hasattr(self,'emission_document'):return
+        full=getattr(self,'_emission_document_full','Seleccione un trabajo o cree uno nuevo.')
+        compact=self.height()<650
+        self.emission_document.setWordWrap(not compact)
+        self.emission_document.setToolTip(full)
+        shown=self.emission_document.fontMetrics().elidedText(
+            full,Qt.TextElideMode.ElideRight,max(100,self.emission_page.width()-35)
+        ) if compact else full
+        if self.emission_document.text()!=shown:self.emission_document.setText(shown)
+
     def verify_work_preview_pdf(self):
         if not self.work_preview or sha256(self.work_preview['path'])!=self.work_preview['sha256']:raise ValueError('La vista previa cambió. Genérela de nuevo.')
     def preview_matches(self,review=None):
@@ -230,10 +245,18 @@ class EmissionCentreMixin:
         if not hasattr(self,'emission_right'):return
         compact=self.height()<650
         self.emission_compact.setVisible(compact);self.emission_subtitle.setVisible(not compact)
+        self.emission_heading.setVisible(not compact)
         self.emission_heading.setStyleSheet('font-size:21px;' if compact else '')
         self.emission_page.layout().setContentsMargins(*([10]*4 if compact else [20]*4));self.emission_page.layout().setSpacing(6 if compact else 10)
-        self.emission_panel.note.setVisible(not compact);self.emission_panel.identity.setVisible(not compact)
+        self.emission_panel.set_compact(compact)
         self.emission_check_heading.setVisible(not compact);self.emission_pdf.compact(compact)
+        footer_layout=self.emission_footer.layout()
+        footer_layout.setContentsMargins(*(10,7,10,7) if compact else (12,12,12,12))
+        footer_layout.setSpacing(3 if compact else 5)
+        self.emission_summary.setStyleSheet('font-size:13px;' if compact else '')
+        for action in (self.native_save,self.native_proof,self.native_options,self.native_issue):
+            action.setStyleSheet('padding:6px 10px;' if compact else '')
+        self.refresh_emission_caption()
         self.emission_left.setVisible(not compact or self.emission_compact.currentIndex()==0)
         self.emission_right.setVisible(not compact or self.emission_compact.currentIndex()==1)
     def resizeEvent(self,event):

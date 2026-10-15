@@ -25,11 +25,14 @@ class VariableText(QPlainTextEdit):
 class WorkPanel(QWidget):
     def __init__(self,window):
         super().__init__();self.window=window;self.loading=False;self.inputs={};self.profile_inputs={};self.error_labels={};self.field_widgets={}
-        layout=vbox(self,12,8)
-        top=QHBoxLayout();self.choice=QComboBox();self.choice.setMinimumWidth(170);top.addWidget(self.choice,1)
+        layout=vbox(self,12,8);self.panel_layout=layout;self._compact=False
+        top=QHBoxLayout();self.top_actions=top;self.choice=QComboBox();self.choice.setMinimumWidth(170);top.addWidget(self.choice,1)
         top.addWidget(button('Abrir',self.open_selected));layout.addLayout(top)
-        actions=QHBoxLayout();actions.addWidget(button('Nuevo',window.new_emission_work));actions.addWidget(button('Copiar',window.copy_emission_work))
-        actions.addWidget(button('Recargar',window.reload_emission_work));layout.addLayout(actions)
+        actions=QHBoxLayout();self.action_row=actions
+        self.shortcut_buttons=[button('Nuevo',window.new_emission_work),button('Copiar',window.copy_emission_work),
+                               button('Recargar',window.reload_emission_work)]
+        for action in self.shortcut_buttons:actions.addWidget(action)
+        layout.addLayout(actions)
         self.note=label('Seleccione o cree un trabajo. Guardar borrador no emite.','subtle');self.note.setWordWrap(True);layout.addWidget(self.note)
         self.identity=label('','subtle');self.identity.setWordWrap(True);layout.addWidget(self.identity)
         self.tabs=QTabWidget();layout.addWidget(self.tabs,1)
@@ -72,6 +75,21 @@ class WorkPanel(QWidget):
         row.addWidget(button('Recuperar',window.recover_emission_work));layout.addLayout(row)
         row=QHBoxLayout();row.addWidget(button('PDF de prueba',window.proof_emission_work));row.addWidget(button('Emitir…',window.issue_emission_work));layout.addLayout(row)
         layout.addWidget(button('Actualizar vínculo documental…',window.refresh_work_binding))
+    def set_compact(self,enabled):
+        """Move the same work buttons into one line in short windows; no commands disappear."""
+        enabled=bool(enabled)
+        if self._compact==enabled:return
+        self._compact=enabled
+        destination=self.top_actions if enabled else self.action_row
+        for action in self.shortcut_buttons:destination.addWidget(action)
+        self.panel_layout.setContentsMargins(*(6,6,6,6) if enabled else (12,12,12,12))
+        self.panel_layout.setSpacing(4 if enabled else 8)
+        self.top_actions.setSpacing(4 if enabled else 6)
+        self.choice.setMinimumWidth(125 if enabled else 170)
+        for action in self.shortcut_buttons:action.setStyleSheet('padding:6px 9px;' if enabled else '')
+        self.note.setVisible(not enabled)
+        self.identity.setVisible(not enabled)
+
     def with_error(self,entry,key):
         holder=QWidget();layout=QVBoxLayout(holder);layout.setContentsMargins(0,0,0,0);layout.setSpacing(3);layout.addWidget(entry)
         error=label('');error.setObjectName('fieldError');error.setWordWrap(True);error.hide();layout.addWidget(error)

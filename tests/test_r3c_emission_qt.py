@@ -109,3 +109,25 @@ def test_editor_pdf_summary_is_readable_and_close_translated(studio,monkeypatch)
             seen.append(True)
         return QDialog.DialogCode.Rejected
     monkeypatch.setattr(QDialog,'exec',execute);w.edit_output();assert seen and not api.issues()
+
+
+def test_compact_centre_keeps_work_actions_and_pdf_controls(studio):
+    w,api,work=prepared(studio);app=studio[2]
+    w.resize(1000,590);app.processEvents()
+    assert w.emission_compact.isVisible()
+    assert not w.emission_heading.isVisible()
+    assert w.emission_panel._compact and w.emission_panel.top_actions.count()>=5
+    assert all(action.isVisible() for action in w.emission_panel.shortcut_buttons)
+    assert w.preview_work_button.parent() is w.emission_right
+    assert w.emission_footer.layout().contentsMargins().top()<=8
+    assert w.emission_left.isVisible() and not w.emission_right.isVisible()
+    assert w.preview_emission_work()
+    assert w.emission_pdf.view.height()>70
+    assert w.emission_pdf.expand_button.text()=='Ampliar PDF'
+    assert w.emission_pdf.title.toolTip()=='Vista previa · PDF de prueba'
+    w.emission_compact.setCurrentIndex(0);app.processEvents()
+    assert w.emission_left.isVisible()
+    w.resize(1500,940);app.processEvents()
+    assert not w.emission_panel._compact
+    assert w.emission_panel.action_row.count()==3
+    assert w.emission_heading.isVisible()

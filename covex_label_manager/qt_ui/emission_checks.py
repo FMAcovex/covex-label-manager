@@ -96,6 +96,9 @@ def run(report,captures=None):
             capture(f'09-centro-{width}x{height}')
             if w.height()<650:
                 check(w.emission_compact.isVisible() and w.emission_pdf.view.height()>70,'compact_preview_not_collapsed')
+                check(w.emission_panel._compact and w.emission_panel.top_actions.count()>=5,'compact_work_actions_available')
+                check(w.emission_footer.layout().contentsMargins().top()<=8,'compact_footer_height')
+                check(w.preview_work_button.parent() is w.emission_right and w.emission_pdf.expand_button.text()=='Ampliar PDF','pdf_toolbar_controls_visible')
                 w.emission_compact.setCurrentIndex(0);app.processEvents();capture(f'10-datos-compactos-{width}x{height}');check(w.emission_left.isVisible() and not w.emission_right.isVisible(),'compact_data_accessible');w.emission_compact.setCurrentIndex(1)
             resolution.append({'target':[width,height],'logical':[w.width(),w.height()],'scale':scale})
         check(dict(api.version(vid))==before and sha256(api.asset_path(before['master_pdf']))==source_hash,'original_master_untouched')
