@@ -77,10 +77,32 @@ def exercise(w,app,captures=None):
     w.navigate('library');w.select_version(approved)
     w.choose_column(6,True);check(not w.table.isColumnHidden(6),'Optional metadata columns accessible');w.reset_columns()
     w.navigate('history');check(w.stack.currentWidget() is w.history_page,'Native history replaces the previous companion-only section')
+    w.navigate('settings');settle()
+    check(w.stack.currentWidget() is w.settings_page and w.settings_tabs.count()==5,
+          'Native settings opens five administration sections, not Tkinter')
+    check(w.settings_data_path.isReadOnly() and w.settings_data_path.text()==w.api.location(),
+          'Settings exposes only a read-only data location')
+    check(w.settings_counts['labels'].text()==str(w.api.stats()['labels']),
+          'Settings counters are read from the existing service')
+    snap('R3D_Qt_Configuracion_Resumen.png')
+    w.settings_tabs.setCurrentIndex(1);settle();snap('R3D_Qt_Configuracion_Datos.png')
+    w.settings_tabs.setCurrentIndex(2);settle();snap('R3D_Qt_Configuracion_CM.png')
+    w.settings_tabs.setCurrentIndex(3);settle();snap('R3D_Qt_Configuracion_Estados.png')
+    w.settings_tabs.setCurrentIndex(4);settle();snap('R3D_Qt_Configuracion_Auditoria.png')
+    dialog=QMessageBox(QMessageBox.Icon.Information,'Confirmación de prueba',
+        'Vista de ejemplo del cuadro emergente. Solo contiene datos ficticios.',
+        QMessageBox.StandardButton.Ok,w)
+    dialog.show();settle()
+    from PySide6.QtGui import QPalette
+    check(dialog.palette().color(QPalette.ColorRole.Window).lightness()>150,
+          'Dialog uses a light background even under a dark OS theme')
+    if captures:assert dialog.grab().save(str(captures/'R3D_Qt_Cuadro_Emergente_Claro.png'))
+    dialog.close();dialog.deleteLater()
+    w.navigate('library')
     w.quick_search();settle();check(w.search.hasFocus(),'Ctrl+K focuses search')
     QTest.keyClick(w,Qt.Key.Key_K,Qt.KeyboardModifier.ControlModifier);settle();check(w.stack.currentWidget() is w.library,'Ctrl+K actual shortcut')
     w.reset_filters();w.select_version(w.session.initial_id);w.resize(1100,760);settle()
-    check(all(not w.nav[k].text() and title in w.nav[k].toolTip() and ('nativas Qt' if k=='history' else 'Tkinter') in w.nav[k].toolTip() and w.nav[k].accessibleName()==title for k,title in [('history','Historial'),('settings','Configuración')]),'Compact navigation icons have clear tooltips and accessible names')
+    check(all(not w.nav[k].text() and title in w.nav[k].toolTip() and ('nativas Qt' if k=='history' else 'Función nativa Qt') in w.nav[k].toolTip() and w.nav[k].accessibleName()==title for k,title in [('history','Historial'),('settings','Configuración')]),'Compact navigation icons have clear tooltips and accessible names')
     check(not w.inspector.isVisible(),'Compact inspector folded');snap('R3A_Qt_Compacta.png')
     w.inspector_button.click();settle();check(w.inspector.isVisible(),'Compact inspector can reopen');w.inspector_button.click()
     resolution=[]
@@ -90,6 +112,11 @@ def exercise(w,app,captures=None):
         check(all(not w.table.isColumnHidden(c) for c in (1,2,4,8)),'Priority columns retained')
         w.open_editor();settle();check(w.width()<=target[0] and w.height()<=target[1],'Editor within compact bounds')
         snap(f'R3A_Qt_{width}x{height}_Editor.png');resolution.append({'target':[width,height],'actual_logical':[w.width(),w.height()],'scale':scale});w.navigate('library')
+        w.navigate('settings');settle()
+        check(w.settings_tabs.isVisible() and w.settings_page.isEnabled(),
+              'Settings controls remain available at '+str(width)+'x'+str(height))
+        snap(f'R3D_Qt_Configuracion_{width}x{height}.png')
+        w.navigate('library')
     from .advanced_checks import exercise_advanced
     checks.extend(exercise_advanced(w,app,captures))
     return {'ok':True,'fictional':True,'count':len(checks),'checks':checks,'resolution':resolution,'native_windows_monitor_acceptance':False}

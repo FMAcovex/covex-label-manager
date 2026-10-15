@@ -293,8 +293,9 @@ from .work import EmissionWorkMixin
 
 from .emission_centre import EmissionCentreMixin
 from .history import HistoryMixin
+from .settings import SettingsMixin
 
-class FunctionalWindow(HistoryMixin,EmissionCentreMixin, EmissionWorkMixin, VariantsMixin, AdvancedEditorMixin, BaseFunctionalWindow):
+class FunctionalWindow(SettingsMixin, HistoryMixin, EmissionCentreMixin, EmissionWorkMixin, VariantsMixin, AdvancedEditorMixin, BaseFunctionalWindow):
     """R3B1 tools on the approved R3A library and legacy transition controller."""
 
 
