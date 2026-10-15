@@ -22,7 +22,13 @@ def test_autosave_restart_panels_and_document_identity(studio):
     w,api,app=studio;vid=next(r['version_id'] for r in api.library.entries() if r['state']=='APPROVED')
     w.select_version(vid);work=api.work.create(vid,name='Lote Qt sintético');assert w.load_emission_work(work['uid'])
     w.navigate('emission');p=w.emission_panel
-    QTest.keyClicks(p.value_inputs['lote'],'SYNTHETIC-QT');QTest.qWait(600)
+    p.value_inputs['lote'].setFocus();QTest.keyClicks(p.value_inputs['lote'],'SYNTHETIC-QT')
+    assert p.value_inputs['lote'].text()=='SYNTHETIC-QT'
+    # Wait for durable completion, not a fixed 200 ms scheduling margin on a
+    # loaded Windows runner. Do not call explicit save: this tests autosave.
+    for _ in range(100):
+        if api.work.get(work['uid'])['values'].get('lote')=='SYNTHETIC-QT':break
+        QTest.qWait(30)
     saved=api.work.get(work['uid']);assert saved['values']['lote']=='SYNTHETIC-QT'
     assert w.editor_work_panel.value_inputs['lote'].text()=='SYNTHETIC-QT'
     p.inputs['count'].setText('2');p.changed();assert w.flush_emission_work()

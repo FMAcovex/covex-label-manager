@@ -48,10 +48,8 @@ def profile_numbers(raw):
 
 
 def selection_indices(selection,count):
-    selection=selection.strip()
-    indices=[int(n.strip()) for n in selection.split(',')] if selection else list(range(1,count+1))
-    if not indices or len(set(indices))!=len(indices) or any(n<1 or n>count for n in indices):raise ValueError('Selección de recipientes inválida.')
-    return indices
+    from .emission_selection import parse_ranges
+    return parse_ranges(selection.strip() or f'1-{count}',count)
 
 
 def parameters(work):

@@ -76,11 +76,11 @@ def exercise(w,app,captures=None):
     snap('R3A_Qt_Editor_Retirada_Solo_Lectura.png')
     w.navigate('library');w.select_version(approved)
     w.choose_column(6,True);check(not w.table.isColumnHidden(6),'Optional metadata columns accessible');w.reset_columns()
-    w.navigate('history');check('versión Tkinter' in w.catalog_text.text(),'Unmigrated section explicitly identified')
+    w.navigate('history');check(w.stack.currentWidget() is w.history_page,'Native history replaces the previous companion-only section')
     w.quick_search();settle();check(w.search.hasFocus(),'Ctrl+K focuses search')
     QTest.keyClick(w,Qt.Key.Key_K,Qt.KeyboardModifier.ControlModifier);settle();check(w.stack.currentWidget() is w.library,'Ctrl+K actual shortcut')
     w.reset_filters();w.select_version(w.session.initial_id);w.resize(1100,760);settle()
-    check(all(not w.nav[k].text() and title in w.nav[k].toolTip() and 'Tkinter' in w.nav[k].toolTip() and w.nav[k].accessibleName()==title for k,title in [('history','Historial'),('settings','Configuración')]),'Compact navigation icons have clear tooltips and accessible names')
+    check(all(not w.nav[k].text() and title in w.nav[k].toolTip() and ('nativas Qt' if k=='history' else 'Tkinter') in w.nav[k].toolTip() and w.nav[k].accessibleName()==title for k,title in [('history','Historial'),('settings','Configuración')]),'Compact navigation icons have clear tooltips and accessible names')
     check(not w.inspector.isVisible(),'Compact inspector folded');snap('R3A_Qt_Compacta.png')
     w.inspector_button.click();settle();check(w.inspector.isVisible(),'Compact inspector can reopen');w.inspector_button.click()
     resolution=[]

@@ -24,7 +24,7 @@ def snapshot(store,revision_id,variant_id,profile,status,asset):
         'profile':profile,'status':status,'status_master':state,'build':__import__('covex_label_manager').__version__}
 
 
-def render(api,version,values,profile,indices,count,copies,destination,test_mode=False,per_container=None,status=None,status_master=None,variant_id=None,history_snapshot=None,work_context=None):
+def render(api,version,values,profile,indices,count,copies,destination,test_mode=False,per_container=None,status=None,status_master=None,variant_id=None,history_snapshot=None,work_context=None,reprint_context=None):
     from .engine import render_emission
     import unicodedata
     store=api._repository;variant_id=version.get('_variant_id',variant_id) if isinstance(version,dict) else variant_id
@@ -59,7 +59,7 @@ def render(api,version,values,profile,indices,count,copies,destination,test_mode
         if snap:
             current=snapshot(store,version['id'],variant_id,profile,status,status_master)
             if digest({k:v for k,v in current.items() if k not in ('design','design_sha256','work')})!=digest({k:v for k,v in snap.items() if k not in ('design','design_sha256','work')}):raise ValueError('El estado documental cambió durante el render.')
-            store._render_receipts[str(path)]={'snapshot':snap,'pdf_sha256':sha256(path),'data_hash':digest([values,profile,indices,count,copies,per_container or {},status])}
+            store._render_receipts[str(path)]={'snapshot':snap,'pdf_sha256':sha256(path),'data_hash':digest([values,profile,indices,count,copies,per_container or {},status]),'reprint':reprint_context}
         return result
     except Exception:
         # Output is never declared issued. Preserve failed renders only in cache;
@@ -75,6 +75,7 @@ def record_issue(store,version_id,operator,count,copies,indices,values,profile,p
     if not receipt:raise PermissionError('Falta el contrato del PDF renderizado; genere mediante el servicio de emisión.')
     expected=digest([values,dict(profile),indices,count,copies,per_container or {},status or {}])
     if expected!=receipt['data_hash'] or receipt['snapshot']['revision_id']!=version_id:raise ValueError('Los datos no corresponden al PDF renderizado.')
+    if receipt.get('reprint') and source_issue_id!=receipt['reprint']['issue_id']:raise ValueError('Vínculo de reimpresión obligatorio.')
     snap=receipt['snapshot'];variant_id=snap['variant_id']
     with store.txn() as db:
         db.execute('BEGIN IMMEDIATE')
@@ -85,9 +86,16 @@ def record_issue(store,version_id,operator,count,copies,indices,values,profile,p
         if 'work' in snap and db.execute("SELECT 1 FROM issues WHERE json_extract(design_snapshot_json,'$.work.operation_uid')=?",(snap['work']['operation_uid'],)).fetchone():raise ValueError('Operación de trabajo ya registrada.')
         if sha256(path)!=receipt['pdf_sha256']:raise ValueError('PDF alterado antes del registro.')
         if source_issue_id is not None:
-            origin=store.issue(source_issue_id)
+            from .emission_history import original,reprint_document
+            from .services import LocalServices
+            origin,_,historical,fingerprint=original(store,source_issue_id)
+            reprint_document(LocalServices(store),origin,historical)
+            context=receipt.get('reprint')
+            if context and (context['issue_id']!=source_issue_id or context['fingerprint']!=fingerprint):raise ValueError('El origen de reimpresión cambió antes del registro.')
+            original_profile=json.loads(origin['profile_json']);original_profile['start_slot']=dict(profile).get('start_slot',1)
+            if digest([values,count,copies,per_container or {},status or {},dict(profile)])!=digest([json.loads(origin['variables_json']),origin['count_containers'],origin['copies_per_container'],json.loads(origin['per_container_json'] or '{}'),json.loads(origin['status_json'] or '{}'),original_profile]):raise ValueError('La reimpresión debe conservar los datos y el formato originales.')
             if not origin or origin['version_id']!=version_id or origin['design_variant_id']!=variant_id:raise ValueError('Origen de reimpresión incompatible.')
-            if not reason.strip() or not set(indices).issubset(json.loads(origin['selected_indices'])):raise ValueError('Motivo y números originales obligatorios.')
+            if len(reason.strip())<5 or not set(indices).issubset(json.loads(origin['selected_indices'])):raise ValueError('Motivo y números originales obligatorios.')
         cur=db.execute('''INSERT INTO issues(uid,version_id,created_at,operator,count_containers,copies_per_container,
             selected_indices,variables_json,profile_json,pdf_path,source_issue_id,reason,per_container_json,status_json,pdf_sha256,
             design_variant_id,design_snapshot_json,design_snapshot_sha256) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
