@@ -63,7 +63,8 @@ class VariantsMixin:
         from ..editor_layout import version_with_layout
         row=self.api.variant(self.current_variant_id)
         if row['revision_id']!=vid:raise ValueError('Variante de otra revisión.')
-        record=version_with_layout(self.api.version(vid),json.loads(row['design_json'])['layout']);record['_variant_id']=row['id']
+        design=json.loads(row['design_json']);record=version_with_layout(self.api.version(vid),design['layout']);record['_variant_id']=row['id']
+        record['base_w_mm']=design['nominal_size_mm']['width'];record['base_h_mm']=design['nominal_size_mm']['height']
         return record
     def editable(self):
         if self.current_variant_id is None:return super().editable()
@@ -86,6 +87,14 @@ class VariantsMixin:
         if not self.resolve_work():self.fill_variants(self.editor_variant_selector,self.current_editor_id,self.current_variant_id);return
         self.select_version(self.current_editor_id);self.library_variant_id=selected
         self.variant_selector.setCurrentIndex(self.variant_selector.findData(selected));self.open_editor()
+    def sync_design(self):
+        super().sync_design()
+        if self.current_variant_id is not None:
+            row=self.api.variant(self.current_variant_id)
+            design=update_design_layout(json.loads(row['design_json']),self.design.state)
+            self.editor_version['base_w_mm']=design['nominal_size_mm']['width']
+            self.editor_version['base_h_mm']=design['nominal_size_mm']['height']
+
     def draw_editor(self,fit=False):
         super().draw_editor(fit)
         if self.current_variant_id is not None and self.design:

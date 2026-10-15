@@ -134,7 +134,7 @@ Las 87 filas anteriores permanecen como línea base. R3B2 mantiene sus accesos, 
 |---|---|
 | B01–B13, D01–D07 | Regresión Qt existente, filtros/favoritos/revisiones sin multiplicar filas por variantes. Selector en Inspector y Editor. |
 | D08–D13 | `test_variants_v4`: aprobación independiente, congelación, coexistencia, evidencia/hash, derivación sin aprobación y revisión 00-R1 PENDING. No hay conversión ni siembra automática al migrar. |
-| D14 | Comparador básico Tk conservado; comparación documental revisión/variante adicional en Qt. |
+| `D14` | Comparador básico Tk conservado; comparación documental revisión/variante adicional en Qt. |
 | E01–E15 | Suite R3B1 y controles de widgets conservados; edición de layout completo en variante DRAFT. Originales intactos. |
 | M01–M18 | `emission_contract`: selección y generación obsoletas bloqueadas, snapshot de toda emisión nueva incluso heredada; smoke Tk fuente/portable con variante, PDF de prueba y emisión sintética definitiva. |
 | P01–P07 | Perfiles/escala A4 independientes de diseño nominal; geometría de variante cotejada con posiciones PDF con tolerancia 0.1 mm. Herramientas de impresión existentes conservadas. |

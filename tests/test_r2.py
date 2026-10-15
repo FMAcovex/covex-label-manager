@@ -1,3 +1,4 @@
+from contextlib import closing
 import json
 import sqlite3
 import zipfile
@@ -74,13 +75,13 @@ def test_upgrade_from_legacy_schema_preserves_custom_fields_and_profile(tmp_path
     s.replace_pending_fields(v['id'],custom)
     s.set_setting('operator','Operador anterior')
     s.close()
-    with sqlite3.connect(root/'labels.sqlite') as db:
+    with closing(sqlite3.connect(root/'labels.sqlite')) as db:
         for table in ('labels','versions','materials','issues'):
             db.execute(f'DROP TRIGGER {table}_assign_uid')
             db.execute(f'DROP INDEX {table}_uid')
             db.execute(f'ALTER TABLE {table} DROP COLUMN uid')
         db.execute('ALTER TABLE profiles DROP COLUMN safety_mm')
-        db.execute('DROP TABLE label_metadata');db.execute('DROP TABLE library_preferences')
+        db.execute('DROP TABLE label_metadata');db.execute('DROP TABLE library_preferences');db.commit()
     s=Store(root)
     try:
         assert s.setting('operator')=='Operador anterior'

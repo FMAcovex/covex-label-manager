@@ -1,3 +1,4 @@
+from contextlib import closing
 import json
 import sqlite3
 import fitz
@@ -55,7 +56,8 @@ def test_migration_backup_keeps_legacy_schema(tmp_path):
     from covex_label_manager.storage import Store
     from v3_fixture import create
     root=tmp_path/'old';s=create(root);s.set_setting('operator','Operador legado');s.close()
-    with sqlite3.connect(root/'labels.sqlite') as c:c.execute('ALTER TABLE versions DROP COLUMN status_area_json')
+    with closing(sqlite3.connect(root/'labels.sqlite')) as c:
+        c.execute('ALTER TABLE versions DROP COLUMN status_area_json');c.commit()
     s=Store(root)
     backups=list((root/'backups').glob('v4-*/legacy-snapshot.sqlite'))
     assert len(backups)==1

@@ -119,13 +119,13 @@ def test_variant_geometry_matches_pdf_without_changing_source(context):
     field=design['layout']['fields'][0];delta=0.03 if field['x']+field['w']+0.03<1 else -0.03
     field['x']+=delta
     row=api.save_variant(row['id'],row['generation'],design,'Test QA');row=approve(api,row,evidence)
-    text=values();text['lote']='VARIANT-ONLY'
+    text=values();text['lote']='VXYZ'
     files=[]
     for variant_id in (None,row['id']):
         path=s.root/'cache'/('geometry-'+str(variant_id)+'.pdf')
         api.render(api.resolved_design(vid,variant_id),text,profile(),[1],1,1,path,True)
         with fitz.open(path) as doc:
-            boxes=doc[0].search_for('VARIANT-ONLY');assert len(boxes)==1;files.append(boxes[0])
+            boxes=doc[0].search_for('VXYZ');assert len(boxes)==1;files.append(boxes[0])
     crop=design['layout']['crop'];scale=min(profile()['width_mm']*72/25.4/(crop[2]-crop[0]),profile()['height_mm']*72/25.4/(crop[3]-crop[1]))
     assert files[1].x0-files[0].x0==pytest.approx(delta*(crop[2]-crop[0])*scale,abs=0.1*72/25.4)
 
@@ -138,3 +138,15 @@ def test_reprint_uses_snapshot_and_original_number_link(context):
     second=api.add_issue(vid,'Test QA',2,1,[2],values(),profile(),output,source_issue_id=first,reason='Damaged synthetic label')
     assert api.issue(second)['source_issue_id']==first and api.issue(second)['design_variant_id']==row['id']
     assert json.loads(api.issue(second)['design_snapshot_json'])['design']==snap['design']
+
+
+def test_nominal_format_is_persistent_and_independent_of_print_profile(context):
+    s,api,vid,evidence=context;row=create(api,vid);design=json.loads(row['design_json'])
+    size=design['nominal_size_mm'];design['nominal_size_mm']={k:v/2 for k,v in size.items()}
+    row=api.save_variant(row['id'],row['generation'],design,'Test QA')
+    resolved=api.resolved_design(vid,row['id'])
+    assert resolved['base_w_mm']==pytest.approx(size['width']/2)
+    assert resolved['base_h_mm']==pytest.approx(size['height']/2)
+    assert s.version(vid)['base_w_mm']!=resolved['base_w_mm']
+    prior=copy.deepcopy(row);s.add_profile({'name':'SYNTHETIC PRINT','width_mm':80,'height_mm':50,'orientation':'portrait','margin_mm':8,'gap_mm':3,'offset_x_mm':0,'offset_y_mm':0,'start_slot':1,'crop_marks':0,'printer_name':''})
+    assert api.variant(row['id'])==prior

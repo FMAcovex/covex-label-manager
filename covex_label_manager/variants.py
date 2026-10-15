@@ -173,6 +173,8 @@ class VariantRepository:
             self.validate(version,design)
             if variant['state']=='APPROVED':self.verify_evidence(variant)
         effective=version_with_layout(version,design['layout'])
+        if variant:
+            effective['base_w_mm']=design['nominal_size_mm']['width'];effective['base_h_mm']=design['nominal_size_mm']['height']
         effective['_variant_id']=variant_id
         if variant:effective['_variant_code']=variant['code'];effective['_variant_state']=variant['state']
         return effective,design,variant
