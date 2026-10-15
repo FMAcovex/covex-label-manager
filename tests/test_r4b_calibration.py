@@ -46,3 +46,39 @@ def test_legacy_profile_unmodified():
     old=profile()
     assert 'printer_calibration' not in old
     plan_sheet(old,1)
+
+def test_versioned_profile_accepts_measured_negative_offset_within_paper():
+    p={**profile(),'layout_version':1,'paper':'A4','layout_mode':'grid'}
+    corrected=calibrated(p,'Synthetic Printer',9,8,8,8)
+    assert corrected['offset_x_mm']==-1
+    assert plan_sheet(corrected,1).capacity>0
+    from covex_label_manager.sheet_layout import slots
+    assert slots(corrected)[0].x==pytest.approx(7.0)
+    # An ordinary uncalibrated versioned layout still protects its nominal margin.
+    legacy=dict(corrected);legacy.pop('printer_calibration')
+    with pytest.raises(ValueError,match='margen'):
+        plan_sheet(legacy,1)
+
+
+@pytest.mark.parametrize('tamper',[None,{},'invalid',{'contract':2}])
+def test_missing_or_invalid_calibration_contract_fails_closed(tamper):
+    p=calibrated(profile(),'Synthetic Printer',8,8,8,8)
+    p['printer_calibration']=tamper
+    with pytest.raises(ValueError,match='Contrato'):
+        plan_sheet(p,1)
+
+
+def test_calibration_signature_includes_both_offsets_and_detects_drift():
+    p=calibrated(profile(),'Synthetic Printer',9,7,8,8)
+    assert plan_sheet(p,1)
+    for key in ('offset_x_mm','offset_y_mm'):
+        changed=dict(p)
+        changed[key]=float(p[key]) + 0.1
+        with pytest.raises(ValueError,match='calibración'):
+            plan_sheet(changed,1)
+
+
+def test_versioned_calibration_rejects_shift_outside_paper():
+    p={**profile(),'layout_version':1,'layout_mode':'grid','paper':'A4','margin_mm':0}
+    with pytest.raises(ValueError,match='límites|margen'):
+        plan_sheet(calibrated(p,'Synthetic Printer',10,0,0,0),1)

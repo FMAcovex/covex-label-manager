@@ -14,16 +14,24 @@ def numeric(value):
 def signature(profile,printer):
     printer=str(printer).strip()
     if not printer or len(printer)>160:raise ValueError('Identifique la impresora antes de calibrar.')
-    plan=plan_sheet(profile,1)
-    boxes=slots(profile,plan.cols,plan.rows)
+    # Calculate the NOMINAL geometry in isolation. A calibrated profile is
+    # validated by plan_sheet(), so calling it on the full profile here would
+    # recurse through validate() -> signature() -> plan_sheet().
+    nominal={k:v for k,v in profile.items() if k!='printer_calibration'}
+    nominal['offset_x_mm']=0
+    nominal['offset_y_mm']=0
+    plan=plan_sheet(nominal,1)
+    boxes=slots(nominal,plan.cols,plan.rows)
     return {
         'printer':printer,
         'paper':profile.get('paper','A4'),
         'orientation':profile.get('orientation','portrait'),
         'paper_size_mm':list(paper_size(profile)),
         'layout_mode':profile.get('layout_mode','grid'),
-        'boxes_mm':[[round(s.x-numeric(profile.get('offset_x_mm',0)),6),
-                     round(s.y-numeric(profile.get('offset_y_mm',0)),6),
+        'offset_x_mm':round(numeric(profile.get('offset_x_mm',0)),6),
+        'offset_y_mm':round(numeric(profile.get('offset_y_mm',0)),6),
+        'boxes_mm':[[round(s.x,6),
+                     round(s.y,6),
                      round(s.width,6),round(s.height,6)] for s in boxes],
     }
 
@@ -53,8 +61,8 @@ def calibrated(profile,printer,measured_x,measured_y,reference_x,reference_y):
 
 
 def validate(profile):
-    entry=profile.get('printer_calibration')
-    if not entry:return
+    if 'printer_calibration' not in profile:return
+    entry=profile['printer_calibration']
     if not isinstance(entry,dict) or entry.get('contract')!=1:
         raise ValueError('Contrato de calibración no soportado.')
     if entry.get('signature')!=signature(profile,profile.get('printer_name','')):

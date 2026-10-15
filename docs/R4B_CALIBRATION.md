@@ -11,3 +11,9 @@ Base `574e869a668118449ca0a8416d74a29566cc0e15` (R4A integrada). Rama `feature/r
 
 ## R4C pendiente
 Envío controlado a impresora y confirmación física verificable; diseño con selección de dispositivo, validación de escala, fallos de spooler y sin afirmar impresión cuando sólo se genera PDF.
+
+## Corrección de regresión CI
+- La firma se calcula sobre una copia nominal sin la sección de calibración para romper el ciclo validación → planificador → firma.
+- Se incluyen X/Y efectivos en la firma: la edición manual posterior de cualquiera de ellos bloquea la preparación.
+- Una corrección validada permite desplazar el diseño dentro del margen nominal, **nunca fuera del papel**. Sin calibración, el límite original de margen sigue sin cambios.
+- La ausencia del campo mantiene compatibilidad con perfiles anteriores; un campo de calibración malformado se rechaza.
