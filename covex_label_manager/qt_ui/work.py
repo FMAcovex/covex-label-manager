@@ -255,3 +255,5 @@ class EmissionWorkMixin:
         if not self.flush_emission_work():
             QMessageBox.warning(self,'No guardado','El trabajo sigue en pantalla. Reintente guardar o recargue expresamente antes de cerrar.');event.ignore();return
         super().closeEvent(event)
+        if event.isAccepted():
+            for timer in (self.work_timer,self.legacy_timer,self.poll_timer):timer.stop()

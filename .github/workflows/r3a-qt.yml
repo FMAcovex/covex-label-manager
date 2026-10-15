@@ -122,6 +122,7 @@ jobs:
         run: |
           Copy-Item docs/R3A_QT_PLAN.md dist/COVEXLabelManager_Qt/LEEME.md
           Copy-Item docs/R3B1_QT_EDITOR.md dist/COVEXLabelManager_Qt/R3B1_EDITOR.md
+          Copy-Item docs/R3B3_IMPLEMENTATION.md dist/COVEXLabelManager_Qt/R3B3_IMPLEMENTATION.md
           Copy-Item docs/R3B3_STORAGE_SPEC.md dist/COVEXLabelManager_Qt/R3B3_WORK.md
           Copy-Item docs/R3B2_IMPLEMENTATION.md dist/COVEXLabelManager_Qt/R3B2_VARIANTS.md
           Copy-Item scripts/PROBAR_DEMO_QT.bat dist/COVEXLabelManager_Qt/

@@ -541,39 +541,25 @@ class BaseApplication(tk.Tk):
                 path=filedialog.asksaveasfilename(parent=self,defaultextension='.pdf',filetypes=[('PDF','*.pdf')],
                        initialfile='PRUEBA_'+slug(v['name'])+'.pdf')
                 if not path:return
-            else:
-                timestamp=datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-                path=self.services.output_path('emissions',f'EM_{timestamp}_{slug(v["name"])}.pdf')
             if self.emission_work is None:self._work_changed()
             if not self._work_guard():return
-            if self.emission_work and not test_mode:
-                if not messagebox.askyesno('Emitir definitivamente','Registrar la emisión definitiva del trabajo guardado? No equivale a guardar un borrador ni a confirmar impresión física.',parent=self):return
+            if self.emission_work is None:raise PermissionError('Guarde el trabajo antes de generar un PDF.')
+            if not test_mode:
+                if not messagebox.askyesno('Emitir definitivamente','Registrar la emisión definitiva del trabajo guardado? No equivale a guardar un borrador ni a confirmar impresión física.',parent=self,default='no'):return
                 w,path,data=self.services.work.issue(self.emission_work['uid'],self.emission_work['generation'],self.store.setting('operator'))
                 self.emission_work=w;self._work_note(w['name']+' · ISSUED · emisión #'+str(w['issue_id']))
-                self.last_issue_pdf=path
-                messagebox.showinfo('Emisión registrada','Emisión #'+str(w['issue_id'])+' registrada con snapshot.\n'+str(path),parent=self)
-                return
-            if self.emission_work:
-                w=self.emission_work
-                data=self.services.work.proof(w['uid'],w['generation'],path)
+                msg=f'Emisión #{w["issue_id"]} registrada con snapshot.\n\n{data["physical"]} etiquetas en {data["pages"]} hojas A4.\n\nPDF:\n{path}\n\nLa aplicación registra la generación del PDF, no confirma la impresión física.'
             else:
-                data=self.services.render(v,self._emit_values(),p,inds,count,copies,path,test_mode,
-                                     per_container=self.per_container,status=self._state_object(),status_master=self._state_master())
-            if not test_mode:
-                pk=self.store.add_issue(v['id'],self.store.setting('operator'),count,copies,inds,
-                                        self._emit_values(),p,path,per_container=self.per_container,status=self._state_object())
-                self.last_issue_pdf=path
-                msg=f'Emisión #{pk} registrada.\n\n{data["physical"]} etiquetas en {data["pages"]} hojas A4.\n\nPDF:\n{path}\n\nLa aplicacion registra la generacion del PDF, no confirma la impresión fisica.'
-            else:
-                self.last_issue_pdf=path
+                w=self.emission_work;data=self.services.work.proof(w['uid'],w['generation'],path)
                 msg=f'PDF de prueba creado.\n\n{data["physical"]} etiquetas en {data["pages"]} hojas A4.\n\nNo apto para uso productivo.\n\n{path}'
+            self.last_issue_pdf=path
             if data['warnings']:
                 msg+='\n\nAdvertencias:\n'+'\n'.join(data['warnings'][:4])
             if messagebox.askyesno('PDF generado',msg+'\n\nDesea abrir el archivo ahora?',parent=self):
                 try:open_path(path)
                 except Exception as ex:messagebox.showwarning('Visor PDF',str(ex))
         except (ValueError,PermissionError,LayoutError,OSError) as ex:
-            if self.emission_work:
+            if self.emission_work and not self._work_dirty:
                 try:self.emission_work=self.services.work.get(self.emission_work['uid']);self._work_note(self.emission_work['phase']+' · '+str(ex))
                 except (ValueError,OSError):pass
             messagebox.showerror('No se ha podido emitir',str(ex),parent=self)
@@ -636,6 +622,7 @@ class BaseApplication(tk.Tk):
         cv=tk.Canvas(holder,width=310,height=370,bg='#E9EFF6',bd=0,highlightthickness=0)
         cv.pack(pady=10)
         def paint(*_):
+            if not cv.winfo_exists():return
             cv.delete('all')
             try:
                 p=self._profile_dict();plan=self.services.sheet_plan(p,1)

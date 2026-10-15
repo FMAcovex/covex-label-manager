@@ -142,3 +142,22 @@ Las 87 filas anteriores permanecen como línea base. R3B2 mantiene sus accesos, 
 | C01–C10 | Backup v4 incluye evidencias/barrera/manifiesto y SQLite consistente; restauración íntegra; UID/datos previos preservados; recuentos no incluyen variantes como revisiones. |
 
 La normalización aditiva histórica se ejecuta sobre staging, antes de v3→v4, con backup del esquema original. Se conservan las pruebas de actualización 0.1/0.2: cambian sus rutas de backup a las del protocolo nuevo y se ensaya conservación de campos/perfiles/operador. Fuente nueva sin maestros sigue vacía.
+
+## Evidencias adicionales de R3B3 (se conservan las 87 IDs)
+
+La línea base R3A/R3B1 y las evidencias de R3B2 anteriores describen cada etapa.
+R3B3 sustituye la limitación anterior de ausencia de autoguardado de datos variables.
+El diseño estructural conserva guardado explícito y las herramientas avanzadas.
+
+| Grupo de capacidad conservada | Evidencia conjunta R3B2+B3 |
+|---|---|
+| Biblioteca, fuentes, revisiones, variantes | Selección independiente de trabajo/revisión/variante, huella documental, 00-R1 heredada PENDING; `test_variants_v4.py` y checks de variantes. |
+| Editor y datos variables | Panel compartido con Emisión, datos de lote y recipiente, autoguardado local; `test_emission_work_qt.py` y capturas `04-editor-variable-panel`. |
+| Formato y perfiles | Configuración del trabajo separada del diseño; perfiles reutilizables y offsets conservados en Qt→Tk→Qt. |
+| Emisión definitiva e historial | Snapshot SQLite v4 obligatorio con/sin variante, operación de trabajo única, revalidación y reconciliación; `test_emission_work.py`, contrato de emisión y reimpresiones heredadas. |
+| Transición Qt/Tk | Tk conserva edición/impresión y usa el mismo repositorio, CAS y guardado antes de navegar/cerrar; `test_emission_work_tk.py`, smoke fuente/portable. |
+| Backup, recuperación y compatibilidad | Consentimiento expreso v3→v4, cancelación intacta, barrera frente a EXE previos, archivos de trabajo incluidos en backup, recuperación tras muerte del proceso. |
+
+`--self-check` mantiene los 80 controles de interacción existentes a 100/125/150 %.
+`--variant-check` y `--work-check` añaden cobertura real sin sustituir esos controles.
+La matriz no afirma validación Word, impresión física, equipos COVEX ni GMP.

@@ -87,8 +87,12 @@ class WorkTkMixin:
         self.work_choice['values']=[r['name']+' · '+r['phase'] for r in rows]
         button(line,'Abrir trabajo',self._work_open_choice,'soft').pack(side='left',padx=3)
         button(line,'Nuevo borrador',self._work_new,'soft').pack(side='left',padx=3)
-        button(line,'Guardar borrador',self._work_flush,'soft').pack(side='left',padx=3)
+        button(line,'Guardar borrador',self._work_guard,'soft').pack(side='left',padx=3)
         button(line,'Recargar',self._work_reload,'soft').pack(side='left',padx=3)
+        extra=tk.Frame(panel,bg='white');extra.pack(fill='x',pady=(5,0))
+        button(extra,'Copiar trabajo',self._work_copy,'soft').pack(side='left',padx=3)
+        button(extra,'Recuperar intento / archivo',self._work_recover,'soft').pack(side='left',padx=3)
+        button(extra,'Actualizar vínculo documental',self._work_refresh_doc,'soft').pack(side='left',padx=3)
         if not hasattr(self,'work_selection'):self.work_selection=tk.StringVar(value='')
         selection=tk.Frame(panel,bg='white');selection.pack(fill='x',pady=(6,0))
         text(selection,'Recipientes (vacío = todos; separados por comas)',9,bg='white').pack(side='left')
@@ -118,6 +122,35 @@ class WorkTkMixin:
             self.emission_work=self.services.work.create(self.current_version_id,getattr(self.services,'selected_variant_id',None),name)
             self._work_apply(self.emission_work)
         except Exception as ex:messagebox.showerror('Trabajo no creado',str(ex),parent=self)
+    def _work_copy(self):
+        if not self.emission_work or not self._work_guard():return
+        try:
+            w=self.emission_work;b=w['binding']
+            self.emission_work=self.services.work.create(b['revision_id'],b['variant_id'],w['name']+' · copia',w)
+            self._work_apply(self.emission_work)
+        except Exception as ex:messagebox.showerror('No copiado',str(ex),parent=self)
+    def _work_recover(self):
+        if not self._work_guard():return
+        w=self.emission_work
+        index=self.work_choice.current() if hasattr(self,'work_choice') else -1
+        uid=w['uid'] if w else (self._work_rows[index]['uid'] if index>=0 else None)
+        if not uid:return
+        if not messagebox.askyesno('Recuperar trabajo','Reconciliar el intento o recuperar la copia anterior? Se conservarán archivos de diagnóstico.',parent=self,default='no'):return
+        try:
+            from .emission_work import WorkCorrupt
+            try:
+                w=self.services.work.get(uid)
+                w=self.services.work.recover_attempt(uid,w['generation']) if w['phase']=='EMITTING' else w
+            except WorkCorrupt:w=self.services.work.recover_previous(uid)
+            self.emission_work=w;self.attach_work(uid)
+        except Exception as ex:messagebox.showerror('No recuperado',str(ex),parent=self)
+    def _work_refresh_doc(self):
+        if not self.emission_work or not self._work_guard():return
+        if not messagebox.askyesno('Actualizar vínculo','Conservar datos y actualizar el vínculo documental? Revise campos y formato antes de emitir.',parent=self,default='no'):return
+        try:
+            w=self.emission_work;self.emission_work=self.services.work.refresh_binding(w['uid'],w['generation'])
+            self.attach_work(w['uid'])
+        except Exception as ex:messagebox.showerror('Vínculo no actualizado',str(ex),parent=self)
     def _work_reload(self):
         if self.emission_work is None:return
         if self._work_dirty and not messagebox.askyesno('Recargar','Descartar expresamente los valores de pantalla y cargar la versión guardada?',parent=self):return
