@@ -75,3 +75,17 @@ def test_sheet_light_palette_even_with_dark_application(studio):
         d=SheetDesigner(w,profile());assert d.palette().color(QPalette.ColorRole.Window).lightness()>220
         assert d.palette().color(QPalette.ColorRole.Base).lightness()>220
     finally:app.setPalette(original)
+
+
+def test_sheet_canvas_keeps_calibration_offsets_in_mm(studio):
+    from covex_label_manager.sheet_layout import slots
+    w,s,app=studio;p=profile('A3',1);p.update(offset_x_mm=2,offset_y_mm=3)
+    p['slots'][0].update(width=100,height=60)
+    d=SheetDesigner(w,p);b=slots(p)[0];item=d.items[0]
+    assert (item.x(),item.y())==(b.x,b.y)
+    item.setSelected(True);item.moveBy(4,5);d.gesture()
+    assert d.profile['slots'][0]['x']==p['slots'][0]['x']+4
+    assert d.profile['slots'][0]['y']==p['slots'][0]['y']+5
+    assert (d.items[0].x(),d.items[0].y())==(b.x+4,b.y+5)
+    d.items[0].setSelected(True);d.box_inputs['x'].setValue(20);d.numeric_box()
+    assert d.items[0].x()==20 and d.profile['slots'][0]['x']==18

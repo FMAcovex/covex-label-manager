@@ -118,7 +118,10 @@ class SheetDesigner(QDialog):
             # Display invalid free boxes too, with an explicit blocking error below.
             if self.profile.get('layout_mode')=='free':
                 from ..sheet_layout import LayoutSlot
-                boxes=[LayoutSlot(**s) for s in self.profile.get('slots',[])]
+                try:boxes=slots(self.profile)
+                except ValueError:
+                    ox=float(self.profile.get('offset_x_mm',0));oy=float(self.profile.get('offset_y_mm',0))
+                    boxes=[LayoutSlot(s['x']+ox,s['y']+oy,s['width'],s['height']) for s in self.profile.get('slots',[])]
             else:boxes=slots(self.profile)
             for i,b in enumerate(boxes):
                 item=SlotItem(b,i,self,self.profile.get('layout_mode')=='free');scene.addItem(item);self.items.append(item)
@@ -143,14 +146,15 @@ class SheetDesigner(QDialog):
         if self.profile.get('layout_mode')!='free':return
         p=copy.deepcopy(self.profile);boxes=[]
         for b in self.items:
-            r=b.rect();v=[b.x()+r.x(),b.y()+r.y(),r.width(),r.height()]
+            r=b.rect();v=[b.x()+r.x()-float(p.get('offset_x_mm',0)),b.y()+r.y()-float(p.get('offset_y_mm',0)),r.width(),r.height()]
             if self.snap.isChecked():v=[round(x) for x in v]
             boxes.append(dict(zip(('x','y','width','height'),v)))
         p['slots']=boxes;self.push(p,'Mover / redimensionar posiciones')
     def numeric_box(self):
         selected=[i.index for i in self.items if i.isSelected()]
         if self.profile.get('layout_mode')!='free' or not selected:return
-        p=copy.deepcopy(self.profile);p['slots'][selected[0]]={k:e.value() for k,e in self.box_inputs.items()};self.push(p,'Medidas de posición')
+        p=copy.deepcopy(self.profile);p['slots'][selected[0]]={k:e.value() for k,e in self.box_inputs.items()}
+        p['slots'][selected[0]]['x']-=float(p.get('offset_x_mm',0));p['slots'][selected[0]]['y']-=float(p.get('offset_y_mm',0));self.push(p,'Medidas de posición')
     def align(self,mode):
         selected=[i.index for i in self.items if i.isSelected()]
         if self.profile.get('layout_mode')!='free' or not selected:return
