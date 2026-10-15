@@ -58,6 +58,31 @@ class LocalServices:
     def variant_evidence(self,variant_id):return self._repository.variants.verify_evidence(self.variant(variant_id))
     def resolved_design(self,revision_id,variant_id=None,production=False):
         return self._repository.variants.resolve(revision_id,variant_id,production)[0]
+    def export_proof(self,source,destination,expected_sha256):
+        import os,shutil,uuid
+        source=Path(source).resolve();target=Path(destination).resolve();root=self._repository.root.resolve()
+        if not source.is_relative_to(root/'cache') or sha256(source)!=expected_sha256:raise ValueError('La prueba cambió. Genérela de nuevo.')
+        if target.suffix.lower()!='.pdf':raise ValueError('Elija un archivo PDF.')
+        if target.is_relative_to(root) and not target.is_relative_to(root/'cache'):raise PermissionError('Exporte fuera de los datos protegidos de la aplicación.')
+        if target==source:return target
+        temp=target.with_name(target.name+'.'+uuid.uuid4().hex+'.tmp')
+        try:
+            with source.open('rb') as src,temp.open('xb') as dst:shutil.copyfileobj(src,dst);dst.flush();os.fsync(dst.fileno())
+            if sha256(temp)!=expected_sha256:raise ValueError('La copia de prueba no coincide con la vista previa.')
+            os.replace(temp,target)
+        finally:
+            if temp.exists():temp.unlink()
+        return target
+    def review_work(self,uid,generation):
+        from .emission_review import review
+        return review(self,uid,generation)
+    def pdf_page(self,path,index=0,maxwidth=1100):
+        from PIL import Image
+        with fitz.open(path) as document:
+            if not 0<=index<len(document):raise ValueError('Página PDF inexistente.')
+            page=document[index];scale=maxwidth/page.rect.width
+            pix=page.get_pixmap(matrix=fitz.Matrix(scale,scale),alpha=False)
+            return Image.frombytes('RGB',(pix.width,pix.height),pix.samples),len(document)
     def sheet_plan(self,profile,count):
         from .engine import plan_sheet
         return plan_sheet(profile,count)

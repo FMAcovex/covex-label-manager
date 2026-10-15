@@ -2,9 +2,10 @@
 import copy
 import json
 import uuid
-from PySide6.QtCore import Qt,QTimer
+import unicodedata
+from PySide6.QtCore import Qt,QTimer,QSignalBlocker
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QLineEdit,QComboBox,
-    QTabWidget,QTableWidget,QTableWidgetItem,QHeaderView,QScrollArea,QDockWidget,QMessageBox,QInputDialog)
+    QTabWidget,QTableWidget,QTableWidgetItem,QHeaderView,QScrollArea,QDockWidget,QMessageBox,QInputDialog,QPlainTextEdit,QLabel)
 from .window import button,label,vbox
 from ..emission_work import WorkConflict
 
@@ -13,7 +14,7 @@ PHASE={'DRAFT':'Borrador','EMITTING':'Intento interrumpido','ISSUED':'Emitido','
 
 class WorkPanel(QWidget):
     def __init__(self,window):
-        super().__init__();self.window=window;self.loading=False;self.inputs={};self.profile_inputs={}
+        super().__init__();self.window=window;self.loading=False;self.inputs={};self.profile_inputs={};self.error_labels={};self.field_widgets={}
         layout=vbox(self,12,8)
         top=QHBoxLayout();self.choice=QComboBox();self.choice.setMinimumWidth(170);top.addWidget(self.choice,1)
         top.addWidget(button('Abrir',self.open_selected));layout.addLayout(top)
@@ -26,31 +27,59 @@ class WorkPanel(QWidget):
         scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(common);self.tabs.addTab(scroll,'Datos de lote')
         self.containers=QTableWidget(0,5);self.containers.setHorizontalHeaderLabels(['Nº','Lote','PN kg','PB kg','Conservación'])
         self.containers.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.container_keys=['lote','pn','pb','conservacion']
+        self.containers.setAlternatingRowColors(True);self.containers.verticalHeader().hide()
         self.containers.itemChanged.connect(self.changed);self.tabs.addTab(self.containers,'Recipientes')
         self.tabs.currentChanged.connect(self.tab_changed)
+        self.containers.setToolTip('Un valor vacío hereda el dato común. Puede pegar una tabla de Excel desde el centro de emisión.')
         cfg=QWidget();form=QFormLayout(cfg)
-        for key,title in [('count','Recipientes'),('copies','Copias por recipiente'),('selection','Selección (1,2; vacío=todos)')]:
-            e=QLineEdit();e.textEdited.connect(self.changed);self.inputs[key]=e;form.addRow(title,e)
+        for key,title in [('count','Recipientes'),('copies','Copias por recipiente'),('selection','Números (1-3,5; vacío = todos)')]:
+            e=QLineEdit();e.textEdited.connect(self.changed);self.inputs[key]=e;form.addRow(title,self.with_error(e,key))
         for key,title in [('width_mm','Ancho mm'),('height_mm','Alto mm'),('margin_mm','Margen A4 mm'),('gap_mm','Separación mm'),
             ('offset_x_mm','Desplazamiento X mm'),('offset_y_mm','Desplazamiento Y mm'),('start_slot','Casilla inicial'),('safety_mm','Seguridad mm'),('printer_name','Impresora (referencia)')]:
-            e=QLineEdit();e.textEdited.connect(self.changed);self.profile_inputs[key]=e;form.addRow(title,e)
-        self.orientation=QComboBox();self.orientation.addItems(['portrait','landscape']);self.orientation.currentTextChanged.connect(self.changed);form.addRow('Orientación A4',self.orientation)
-        self.cut=QComboBox();self.cut.addItems(['0','1']);self.cut.currentTextChanged.connect(self.changed);form.addRow('Marcas de corte',self.cut)
+            e=QLineEdit();e.textEdited.connect(self.changed);self.profile_inputs[key]=e;form.addRow(title,self.with_error(e,key))
+        self.orientation=QComboBox();self.orientation.addItem('Vertical','portrait');self.orientation.addItem('Horizontal','landscape');self.orientation.currentTextChanged.connect(self.changed);form.addRow('Orientación A4',self.orientation)
+        self.cut=QComboBox();self.cut.addItem('Sin marcas','0');self.cut.addItem('Con marcas','1');self.cut.currentTextChanged.connect(self.changed);form.addRow('Marcas de corte',self.cut)
         self.profile_choice=QComboBox();self.profile_choice.addItem('Aplicar perfil guardado…',None)
         for p in window.api.profile_list():self.profile_choice.addItem(p['name'],p)
         self.profile_choice.activated.connect(self.apply_profile);form.addRow('Perfil reutilizable',self.profile_choice)
         scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(cfg);self.tabs.addTab(scroll,'Formato y emisión')
-        status=QWidget();f=QFormLayout(status);self.status_kind=QComboBox();self.status_kind.addItems(['ninguna','sin_analizar','aprobado','rechazado'])
+        status=QWidget();f=QFormLayout(status);self.status_kind=QComboBox();
+        for title,key in [('Sin etiqueta de estado','ninguna'),('Sin analizar','sin_analizar'),('Aprobado','aprobado'),('Rechazado','rechazado')]:self.status_kind.addItem(title,key)
         self.status_kind.currentTextChanged.connect(self.changed);f.addRow('Etiqueta de estado',self.status_kind)
-        self.placement=QComboBox();self.placement.addItems(['integrada','independiente']);self.placement.currentTextChanged.connect(self.changed);f.addRow('Ubicación',self.placement)
+        self.placement=QComboBox();self.placement.addItem('Integrada','integrada');self.placement.addItem('Independiente','independiente');self.placement.currentTextChanged.connect(self.changed);f.addRow('Ubicación',self.placement)
         self.status_inputs={}
         for key,title in [('fecha','Fecha'),('persona','Responsable'),('caducidad_reanalisis','Caducidad / reanálisis')]:
-            e=QLineEdit();e.textEdited.connect(self.changed);self.status_inputs[key]=e;f.addRow(title,e)
+            e=QLineEdit();e.textEdited.connect(self.changed);self.status_inputs[key]=e;f.addRow(title,self.with_error(e,'status:'+key))
         self.tabs.addTab(status,'Estado')
         row=QHBoxLayout();self.save=button('Guardar borrador',window.flush_emission_work,'primary');row.addWidget(self.save)
         row.addWidget(button('Recuperar',window.recover_emission_work));layout.addLayout(row)
         row=QHBoxLayout();row.addWidget(button('PDF de prueba',window.proof_emission_work));row.addWidget(button('Emitir…',window.issue_emission_work));layout.addLayout(row)
         layout.addWidget(button('Actualizar vínculo documental…',window.refresh_work_binding))
+    def with_error(self,entry,key):
+        holder=QWidget();layout=QVBoxLayout(holder);layout.setContentsMargins(0,0,0,0);layout.setSpacing(3);layout.addWidget(entry)
+        error=label('');error.setObjectName('fieldError');error.setWordWrap(True);error.hide();layout.addWidget(error)
+        self.error_labels[key]=error;self.field_widgets[key]=entry
+        return holder
+    def show_errors(self,errors):
+        from PySide6.QtGui import QColor
+        blocker=QSignalBlocker(self.containers)
+        for key,error in list(self.error_labels.items()):
+            try:error.hide();self.field_widgets[key].setProperty('invalid',False);self.field_widgets[key].style().unpolish(self.field_widgets[key]);self.field_widgets[key].style().polish(self.field_widgets[key])
+            except RuntimeError:self.error_labels.pop(key,None);self.field_widgets.pop(key,None)
+        for row in range(self.containers.rowCount()):
+            for col in range(1,self.containers.columnCount()):
+                item=self.containers.item(row,col)
+                if item:item.setBackground(QColor('transparent'));item.setToolTip(item.text())
+        for error in errors:
+            key=error['target'];target=self.error_labels.get(key)
+            if target:
+                target.setText(error['message']);target.show();entry=self.field_widgets[key];entry.setProperty('invalid',True);entry.style().unpolish(entry);entry.style().polish(entry)
+            if key.startswith('container:') and error.get('recipient'):
+                field=key.split(':',1)[1]
+                if field in self.container_keys:
+                    item=self.containers.item(error['recipient']-1,self.container_keys.index(field)+1)
+                    if item:item.setBackground(QColor('#FCE9E7'));item.setToolTip(error['message'])
     def tab_changed(self,index):
         if not self.loading and index==1 and self.window.emission_work:
             if self.window.flush_emission_work():self.display(self.window.emission_work)
@@ -71,19 +100,19 @@ class WorkPanel(QWidget):
             self.value_inputs={}
             if not w:self.identity.setText('Sin trabajo activo');self.tabs.setEnabled(False);return
             b=w['binding'];v=self.window.api.version(b['revision_id']);variant=self.window.api.variant(b['variant_id']) if b['variant_id'] else None
-            self.identity.setText(f"{v['name']} · Revisión {v['version']} · "+('Variante '+variant['code'] if variant else 'Diseño heredado')+'\nTrabajo '+w['uid'][:8]+' · generación '+str(w['generation']))
+            self.identity.setText(f"{v['name']} · Revisión {v['version']} · "+('Variante '+variant['code'] if variant else 'Diseño heredado'));self.identity.setToolTip('Trabajo '+w['uid']+' · generación '+str(w['generation']))
             self.note.setText(PHASE[w['phase']]+' · Guardado localmente')
             # Include removed/unknown keys to prevent silent loss on document changes.
             fields=json.loads(v['fields_json'])
             if variant:fields=json.loads(variant['design_json'])['layout']['fields']
-            labels={f['key']:f.get('label',f['key']) for f in fields if f['key'] not in ('numero','texto_fijo')}
+            labels={unicodedata.normalize('NFC',f['key']):f.get('label',f['key']) for f in fields if f['key'] not in ('numero','texto_fijo')}
             labels.update({k:labels.get(k,k+' (conservado)') for k in w['values']})
             for key,title in labels.items():
-                e=QLineEdit(w['values'].get(key,''));e.textEdited.connect(self.changed);self.value_inputs[key]=e;self.common_form.addRow(title,e)
+                e=QLineEdit(w['values'].get(key,''));e.textEdited.connect(self.changed);self.value_inputs[key]=e;self.common_form.addRow(title,self.with_error(e,'value:'+key))
             for k,e in self.inputs.items():e.setText(w[k])
             for k,e in self.profile_inputs.items():e.setText(str(w['profile'].get(k,'')))
-            self.orientation.setCurrentText(w['profile'].get('orientation','portrait'));self.cut.setCurrentText(str(w['profile'].get('crop_marks',0)))
-            state=w['status'];self.status_kind.setCurrentText(state.get('kind','ninguna'));self.placement.setCurrentText(state.get('placement','integrada'))
+            self.orientation.setCurrentIndex(max(0,self.orientation.findData(w['profile'].get('orientation','portrait'))));self.cut.setCurrentIndex(max(0,self.cut.findData(str(w['profile'].get('crop_marks',0)))))
+            state=w['status'];self.status_kind.setCurrentIndex(max(0,self.status_kind.findData(state.get('kind','ninguna'))));self.placement.setCurrentIndex(max(0,self.placement.findData(state.get('placement','integrada'))))
             for k,e in self.status_inputs.items():e.setText(state.get(k,''))
             try:count=int(w['count'])
             except ValueError:count=0
@@ -103,10 +132,10 @@ class WorkPanel(QWidget):
                 else:data.pop(key,None)
             if data:per[str(row+1)]=data
             else:per.pop(str(row+1),None)
-        status={'kind':self.status_kind.currentText()}
-        if status['kind']!='ninguna':status.update(placement=self.placement.currentText(),**{k:e.text() for k,e in self.status_inputs.items()})
+        status={'kind':self.status_kind.currentData()}
+        if status['kind']!='ninguna':status.update(placement=self.placement.currentData(),**{k:e.text() for k,e in self.status_inputs.items()})
         return {'values':{k:e.text() for k,e in self.value_inputs.items()},'per_container':per,
-            'profile':{**w['profile'],**{k:e.text() for k,e in self.profile_inputs.items()},'orientation':self.orientation.currentText(),'crop_marks':self.cut.currentText()},
+            'profile':{**w['profile'],**{k:e.text() for k,e in self.profile_inputs.items()},'orientation':self.orientation.currentData(),'crop_marks':self.cut.currentData()},
             'status':status,**{k:e.text() for k,e in self.inputs.items()}}
     def changed(self,*_):
         if not self.loading:self.window.work_changed(self)
@@ -114,7 +143,7 @@ class WorkPanel(QWidget):
         p=self.profile_choice.currentData()
         if not p:return
         for k,e in self.profile_inputs.items():e.setText(str(p.get(k,'')))
-        self.orientation.setCurrentText(p['orientation']);self.cut.setCurrentText(str(p['crop_marks']));self.changed()
+        self.orientation.setCurrentIndex(self.orientation.findData(p['orientation']));self.cut.setCurrentIndex(self.cut.findData(str(p['crop_marks'])));self.changed()
 
 
 class EmissionWorkMixin:
@@ -122,9 +151,7 @@ class EmissionWorkMixin:
         self.emission_work=None;self.work_dirty_panel=None;self.work_panels=[];self._work_ready=False
         super().__init__(session)
         self.work_timer=QTimer(self);self.work_timer.setSingleShot(True);self.work_timer.timeout.connect(self.flush_emission_work)
-        self.emission_page=QWidget();layout=vbox(self.emission_page,20,8)
-        layout.addWidget(label('Trabajos de emisión','title'));layout.addWidget(label('Borradores locales recuperables · Datos de lote y recipiente separados del diseño','subtle'))
-        self.emission_panel=WorkPanel(self);self.work_panels.append(self.emission_panel);layout.addWidget(self.emission_panel,1);self.stack.addWidget(self.emission_page)
+        self.emission_page=self.build_emission_page();self.stack.addWidget(self.emission_page)
         self.work_dock=QDockWidget('Datos variables del trabajo',self);self.work_dock.setObjectName('emissionWork')
         self.editor_work_panel=WorkPanel(self);self.work_panels.append(self.editor_work_panel);self.work_dock.setWidget(self.editor_work_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea,self.work_dock);self.work_dock.hide()
@@ -135,6 +162,11 @@ class EmissionWorkMixin:
         self._work_ready=True;self.refresh_work_panels()
         self.setWindowTitle('COVEX Label Manager · R3B2+B3 · Variantes y trabajos')
         if self.api.work.list():self.statusBar().showMessage('Hay trabajos locales recuperables. Ábralos en Emisión.')
+    def build_emission_page(self):
+        page=QWidget();layout=vbox(page,20,8)
+        layout.addWidget(label('Trabajos de emisión','title'))
+        self.emission_panel=WorkPanel(self);self.work_panels.append(self.emission_panel);layout.addWidget(self.emission_panel,1)
+        return page
     def refresh_work_panels(self):
         for p in self.work_panels:p.display(self.emission_work)
     def show_editor_work(self):
@@ -162,7 +194,7 @@ class EmissionWorkMixin:
             for other in self.work_panels:
                 if other is not panel:other.display(self.emission_work)
             panel.note.setText('Borrador guardado localmente · generación '+str(self.emission_work['generation']))
-            panel.identity.setText(panel.identity.text().rsplit('generación ',1)[0]+'generación '+str(self.emission_work['generation']))
+            panel.identity.setToolTip('Trabajo '+self.emission_work['uid']+' · generación '+str(self.emission_work['generation']))
             # Count changes resize the table on explicit reload/tab switch, keeping
             # typing focus stable during ordinary autosaves.
             return True

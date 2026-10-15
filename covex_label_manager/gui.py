@@ -71,22 +71,7 @@ def open_path(path):
         raise OSError('No hay visor de PDF disponible')
 
 
-def parse_ranges(s,count):
-    values=[]
-    for part in s.replace(' ','').split(','):
-        if not part:continue
-        if '-' in part:
-            bits=part.split('-')
-            if len(bits)!=2:raise ValueError('Rango invalido')
-            start,end=map(int,bits)
-            if end<start or end-start>10000: raise ValueError('Rango invalido')
-            values.extend(range(start,end+1))
-        else:
-            values.append(int(part))
-    values=list(dict.fromkeys(values))
-    if not values or any(i<1 or i>count for i in values):
-        raise ValueError('Introduzca numeros validos dentro de la emisión original')
-    return values
+from .emission_selection import parse_ranges
 
 
 class ScrolledFrame(tk.Frame):

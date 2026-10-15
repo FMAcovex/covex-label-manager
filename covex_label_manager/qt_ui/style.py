@@ -96,3 +96,12 @@ def icon(kind, color='#607B80'):
         for x,y,x2,y2 in ((12,2,12,5),(12,19,12,22),(2,12,5,12),(19,12,22,12)):p.drawLine(x,y,x2,y2)
     p.end();return QIcon(pix)
 
+
+STYLE += """
+QLineEdit[invalid="true"], QPlainTextEdit[invalid="true"] { border: 1px solid #B04C49; background: #FFF8F7; }
+QLabel#fieldError { color: #A13935; font-size: 11px; }
+QLabel#emissionSummary { color: #173940; font-size: 15px; font-weight: 600; }
+QFrame#emissionFooter { background: white; border: 1px solid #DCE5E7; border-radius: 8px; }
+QPlainTextEdit { background: white; border: 1px solid #DCE5E7; border-radius: 7px; padding: 7px; }
+QTableWidget:alternate-background { background: #F8FAFA; }
+"""
