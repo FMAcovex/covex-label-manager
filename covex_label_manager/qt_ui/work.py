@@ -50,6 +50,8 @@ class WorkPanel(QWidget):
         self.containers.setToolTip('Un valor vacío hereda el dato común. Pesos PN/PB: puede escribir 0,3558 o 0,3558 kg. También puede pegar datos desde Excel.')
         cfg=QWidget();cfg.setObjectName('workForm');form=QFormLayout(cfg)
         self.design_sheet_button=button('Diseñar hoja…',self.design_sheet,'primary');form.addRow(self.design_sheet_button)
+        self.calibrate_button=button('Calibrar impresora…',self.calibrate_printer)
+        form.addRow(self.calibrate_button)
         for key,title in [('count','Recipientes'),('copies','Copias por recipiente'),('selection','Números (1-3,5; vacío = todos)')]:
             e=QLineEdit();e.textEdited.connect(self.changed);self.inputs[key]=e;form.addRow(title,self.with_error(e,key))
         for key,title in [('width_mm','Ancho mm'),('height_mm','Alto mm'),('margin_mm','Margen de hoja mm'),('gap_mm','Separación mm'),
@@ -209,6 +211,20 @@ class WorkPanel(QWidget):
         del blocker;self.changed()
     def changed(self,*_):
         if not self.loading:self.window.work_changed(self)
+    def calibrate_printer(self):
+        w=self.window
+        if not w.emission_work or not w.flush_emission_work():return
+        from .printer_calibration_ui import CalibrationDialog
+        try:
+            draft=copy.deepcopy(w.emission_work)
+            dialog=CalibrationDialog(w,w.api,draft['profile'])
+            if dialog.exec()==QDialog.DialogCode.Accepted:
+                w.emission_work=w.api.work.save(draft['uid'],draft['generation'],
+                    {'profile':dialog.profile})
+                w.refresh_work_panels()
+        except (ValueError,OSError) as ex:
+            QMessageBox.warning(w,'Calibración no aplicada',str(ex))
+
     def design_sheet(self):
         w=self.window
         if not w.emission_work or not w.flush_emission_work():return
