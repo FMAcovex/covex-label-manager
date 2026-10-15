@@ -122,18 +122,31 @@ def test_unknown_contract_symlink_and_no_rollback_of_issued(work):
     assert len(api.issues())==1
 
 
-@pytest.mark.parametrize('phase',['INTENT','RENDERED','COMMITTED'])
+@pytest.mark.parametrize('phase',['INTENT','RENDERED','COMMITTED','WRITE_BEFORE','WRITE_AFTER'])
 def test_real_process_exit_during_issue(work,phase):
     api,w=work
     script="""import os,sys
 from covex_label_manager.storage import Store
 from covex_label_manager.services import LocalServices
 api=LocalServices(Store(sys.argv[1]))
-api.work.issue(sys.argv[2],int(sys.argv[3]),'Synthetic process',lambda phase,w:os._exit(73) if phase==sys.argv[4] else None)
+if sys.argv[4].startswith('WRITE_'):
+ real=os.replace;target=api.work.path(sys.argv[2])
+ def replace(src,dest):
+  if str(dest)==str(target) and sys.argv[4]=='WRITE_BEFORE':os._exit(73)
+  real(src,dest)
+  if str(dest)==str(target) and sys.argv[4]=='WRITE_AFTER':os._exit(73)
+ os.replace=replace
+ api.work.save(sys.argv[2],int(sys.argv[3]),{'count':'3'})
+else:api.work.issue(sys.argv[2],int(sys.argv[3]),'Synthetic process',lambda phase,w:os._exit(73) if phase==sys.argv[4] else None)
 """
     p=subprocess.run([sys.executable,'-c',script,api.location(),w['uid'],str(w['generation']),phase],capture_output=True,text=True,timeout=30)
     assert p.returncode==73,p.stderr
-    recovered=api.work.get(w['uid']);assert recovered['phase']==('ISSUED' if phase=='COMMITTED' else 'EMITTING')
+    recovered=api.work.get(w['uid'])
+    if phase.startswith('WRITE_'):
+        assert recovered['phase']=='DRAFT' and recovered['count']==('3' if phase=='WRITE_AFTER' else w['count'])
+        assert recovered['generation']==w['generation']+int(phase=='WRITE_AFTER')
+        assert not api.issues();return
+    assert recovered['phase']==('ISSUED' if phase=='COMMITTED' else 'EMITTING')
     assert len(api.issues())==int(phase=='COMMITTED')
 
 
