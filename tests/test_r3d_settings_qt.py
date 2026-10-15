@@ -63,6 +63,7 @@ def test_cm_import_no_delete_and_duplicates(studio,monkeypatch,tmp_path):
 def test_pending_status_never_autoapproves(studio,monkeypatch):
     w,api,app=studio;w.navigate('settings')
     assert w.settings_status.rowCount()==len(api.status_masters())
+    monkeypatch.setattr(QMessageBox,'information',lambda *a,**k:QMessageBox.StandardButton.Ok)
     assert not w.approve_settings_status()  # no selection
     # The genuine service is the only approval boundary; cancelled modals never call it.
     pending={'kind':'synthetic','name':'Estado ficticio','version':'00','state':'PENDING','approval_ref':None}

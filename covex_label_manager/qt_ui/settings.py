@@ -191,6 +191,11 @@ class SettingsMixin:
             return
         return super().navigate(key)
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if getattr(self, 'settings_ready', False):
+            self.nav['settings'].setToolTip('Configuración · Función nativa Qt')
+
     def set_mutations_enabled(self, enabled):
         super().set_mutations_enabled(enabled)
         if getattr(self, 'settings_ready', False):
