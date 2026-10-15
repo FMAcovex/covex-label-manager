@@ -80,5 +80,40 @@ def template(profile,count):
     return [asdict(LayoutSlot(m+(i%cols)*(w+g),m+(i//cols)*(h+g),w,h)) for i in range(count)]
 
 
+def available_first_page(profile,capacity):
+    """Zero-based printable slots on sheet one. Other sheets remain pristine.
+
+    Existing profiles without occupied_slots use precisely the old ordering.
+    """
+    start=profile.get('start_slot',1)
+    if type(start) is not int or not 1<=start<=capacity:
+        raise ValueError(f'La casilla inicial debe estar entre 1 y {capacity}.')
+    raw=profile.get('occupied_slots',[])
+    if type(raw) is not list:
+        raise ValueError('Las casillas utilizadas deben ser una lista.')
+    if raw and profile.get('layout_version')!=1:
+        raise ValueError('Casillas utilizadas requieren el diseñador Qt versionado.')
+    if any(type(v) is not int or not 1<=v<=capacity for v in raw):
+        raise ValueError('Casilla utilizada fuera del número de posiciones de la hoja.')
+    if len(raw)!=len(set(raw)):
+        raise ValueError('Hay casillas utilizadas repetidas.')
+    occupied=set(raw)
+    result=[i for i in range(start-1,capacity) if i+1 not in occupied]
+    if not result:
+        raise ValueError('La primera hoja no tiene casillas libres. Use una hoja nueva o desmarque una posición.')
+    return result
+
+
+def physical_placements(profile,capacity,count):
+    """(page number, zero-based slot): first sheet skips only marked positions."""
+    first=available_first_page(profile,capacity)
+    for index in range(count):
+        if index<len(first):
+            yield 0,first[index]
+        else:
+            following=index-len(first)
+            yield 1+following//capacity,following%capacity
+
+
 def require_legacy(profile):
-    if profile.get('layout_version') or profile.get('layout_mode','grid')!='grid' or profile.get('paper','A4')!='A4':raise ValueError('Este formato requiere el Centro de emisión nativo Qt. No se puede abrir en Tkinter.')
+    if profile.get('occupied_slots') or profile.get('layout_version') or profile.get('layout_mode','grid')!='grid' or profile.get('paper','A4')!='A4':raise ValueError('Este formato requiere el Centro de emisión nativo Qt. No se puede abrir en Tkinter.')
