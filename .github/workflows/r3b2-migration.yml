@@ -21,7 +21,9 @@ jobs:
         with:
           python-version: '3.11.9'
           architecture: x64
-      - run: python -m pip install --require-hashes --only-binary=:all: -r requirements-windows.lock -r requirements-qt-windows.lock
+      - run: >-
+          python -m pip install --require-hashes --only-binary=:all:
+          -r requirements-windows.lock -r requirements-qt-windows.lock
       - run: python -m pytest -q tests/test_migration_v4.py --junitxml=test-results/migration.xml
       - name: Build the unchanged previous Tk entrypoint
         working-directory: .legacy-r3b1
