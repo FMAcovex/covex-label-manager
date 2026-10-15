@@ -162,6 +162,7 @@ class EmissionWorkMixin:
             for other in self.work_panels:
                 if other is not panel:other.display(self.emission_work)
             panel.note.setText('Borrador guardado localmente · generación '+str(self.emission_work['generation']))
+            panel.identity.setText(panel.identity.text().rsplit('generación ',1)[0]+'generación '+str(self.emission_work['generation']))
             # Count changes resize the table on explicit reload/tab switch, keeping
             # typing focus stable during ordinary autosaves.
             return True
@@ -172,6 +173,8 @@ class EmissionWorkMixin:
         except (ValueError,OSError,PermissionError) as ex:QMessageBox.warning(self,'Trabajo conservado',str(ex));return None
     def selected_work_design(self):
         if self.stack.currentWidget()==self.editor and self.current_editor_id:return self.current_editor_id,self.current_variant_id
+        if getattr(self,'emission_page',None) is self.stack.currentWidget() and self.emission_work:
+            b=self.emission_work['binding'];return b['revision_id'],b['variant_id']
         if self.row:return self.row['version_id'],self.library_variant_id
         raise ValueError('Seleccione una revisión en Biblioteca.')
     def new_emission_work(self):

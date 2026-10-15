@@ -11,7 +11,9 @@ El esquema y su checksum se comprueban en regresión. Cada trabajo local indepen
 fija ID+UID de revisión y variante, diseño/fuentes/estado/aprobación, valores comunes,
 valores por recipiente, formato, selección, copias y etiqueta de estado.
 
-Sobre JSON canónico con checksum y contrato 1. Rechazo de formatos desconocidos,
+Sobre JSON canónico con checksum y contrato 1. Se comparan huellas canónicas,
+incluido Unicode compuesto/descompuesto; el adaptador empareja identificadores de
+campos en memoria sin cambiar claves almacenadas ni textos fijos. Rechazo de formatos desconocidos,
 rutas/locks enlazados y archivos corruptos. Guardado atómico, fsync, copia anterior,
 lock OS no bloqueante por trabajo y CAS por generación. Un fallo conserva pantalla
 y bloquea navegación/cierre. Recargar requiere descarte explícito si hay cambios.

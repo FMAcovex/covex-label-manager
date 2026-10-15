@@ -108,7 +108,7 @@ class WorkRepository:
             'variant_generation':variant['generation'] if variant else None}
     def assert_current(self,w,production=False):
         b=w['binding']
-        if self.binding(b['revision_id'],b['variant_id'])!=b:raise WorkConflict('El documento o la variante cambió. Conserve el trabajo y actualice explícitamente el vínculo documental.')
+        if digest(self.binding(b['revision_id'],b['variant_id']))!=digest(b):raise WorkConflict('El documento o la variante cambió. Conserve el trabajo y actualice explícitamente el vínculo documental.')
         self.api.resolved_design(b['revision_id'],b['variant_id'],production)
     def _write(self,w,previous=None):
         self.validate(w);path=self.path(w['uid'])

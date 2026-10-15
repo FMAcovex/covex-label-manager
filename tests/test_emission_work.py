@@ -149,3 +149,19 @@ def test_schema_unchanged_and_document_withdrawn_after_render(work):
     assert not api.issues() and api.work.get(w['uid'])['phase']=='EMITTING'
     assert db.execute('PRAGMA user_version').fetchone()[0]==4
     assert db.execute("SELECT type,name,sql FROM sqlite_master ORDER BY type,name").fetchall()==before
+
+
+
+def test_canonical_unicode_work_matches_document_and_render(work):
+    import fitz
+    api,w=work;vid=api.clone_version(w['binding']['revision_id'],'UNICODE','Synthetic Unicode vector')
+    v=api.version(vid);fields=json.loads(v['fields_json']);fields[0]['key']='cafe\u0301'
+    api.replace_pending_fields(vid,fields)
+    api.approve(vid,'Re\u0301viseur','SYNTHETIC UNICODE APPROVAL')
+    created=api.work.create(vid,name='Cafe\u0301 synthe\u0301tique')
+    created=api.work.save(created['uid'],1,{'values':dict(w['values'],**{'cafe\u0301':'VECTOR-12345'}),'profile':dict(w['profile'])})
+    loaded=api.work.get(created['uid']);assert loaded['name']=='Café synthétique'
+    issued,path,_=api.work.issue(loaded['uid'],loaded['generation'],'Synthetic')
+    with fitz.open(path) as pdf:assert 'VECTOR-12345' in ''.join(p.get_text() for p in pdf)
+    assert json.loads(api.version(vid)['fields_json'])[0]['key']=='cafe\u0301'
+    assert api.version(vid)['approved_by']=='Re\u0301viseur'

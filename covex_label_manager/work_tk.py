@@ -66,6 +66,11 @@ class WorkTkMixin:
             self.status_persona.set(state.get('persona',''));self.status_expiry.set(state.get('caducidad_reanalisis',''))
             self._work_dirty=False;self._work_error=''
             self._work_note(w['name']+' · '+w['phase']+' · generación '+str(w['generation']))
+            if hasattr(self,'work_choice') and self.work_choice.winfo_exists():
+                self._work_rows=self.services.work.list()
+                self.work_choice['values']=[r['name']+' · '+r['phase'] for r in self._work_rows]
+                index=next((i for i,r in enumerate(self._work_rows) if r['uid']==w['uid']),-1)
+                if index>=0:self.work_choice.current(index)
         finally:self._work_loading=previous_loading
     def _work_attach_traces(self):
         for variable,token in self._work_traces:
