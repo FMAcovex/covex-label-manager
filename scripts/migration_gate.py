@@ -24,7 +24,7 @@ def main():
         raise RuntimeError('Crash hook did not execute')
     from synthetic_fixtures import activate_for_script
     fixture=activate_for_script()
-    from covex_label_manager.storage import Store
+    from v3_fixture import create as Store
     from decimal import Decimal
     vector={'z':-0.0,'é':Decimal('1.2300'),'a':[1e-7,'e\u0301']}
     assert digest(vector)=='c59ed642cbc30ff3b0fbcea26eb3c0e32718a6ebfc1a4ce16959401d83ce33ad'

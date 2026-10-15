@@ -79,7 +79,9 @@ def test_approved_issuance_and_double_labels(store,tmp_path):
     store.approve(v['id'],'Tecnico GC','TEST-APPROVAL-001 - synthetic reference')
     v=store.version(v['id'])
     emitted=store.root/'emissions'/'ok.pdf'
-    res=render_emission(v,store.root,vals(),profile(),[1,2],2,2,emitted,False)
+    from covex_label_manager.services import LocalServices
+    api=LocalServices(store)
+    res=api.render(v,vals(),profile(),[1,2],2,2,emitted,False)
     assert res['pages']==4 and res['physical']==4
     d=fitz.open(emitted)
     assert '1/2' in d[0].get_text() and '1/2' in d[1].get_text()
@@ -90,7 +92,7 @@ def test_approved_issuance_and_double_labels(store,tmp_path):
     issue=store.issue(k)
     assert issue['pdf_sha256']==sha256(emitted)
     reprinted=store.root/'emissions'/'reprint.pdf'
-    res2=render_emission(v,store.root,vals(),profile(),[2],2,2,reprinted,False)
+    res2=api.render(v,vals(),profile(),[2],2,2,reprinted,False)
     assert res2['physical']==2
     r=store.add_issue(v['id'],'Operador',2,2,[2],vals(),profile(),reprinted,source_issue_id=k,reason='Etiqueta danada')
     assert store.issue(r)['source_issue_id']==k
@@ -170,3 +172,4 @@ def test_calibration_sheet_marks(tmp_path):
     assert 'POS. 1' in t and 'POS. 10' in t
     assert '50 mm' in t
     doc.close()
+

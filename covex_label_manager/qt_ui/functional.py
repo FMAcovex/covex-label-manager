@@ -132,7 +132,7 @@ class BaseFunctionalWindow(StudioWindow):
         menu=QMenu(self)
         for title,action in [('Ficha completa',self.document_details),('Abrir PDF maestro',lambda:self.open_document()),
             ('Abrir documento original',lambda:self.open_document(True)),('Editar metadatos con fuente',self.edit_metadata),
-            ('Crear nueva revisión / variante',self.clone_revision),('Registrar aprobación externa',self.approve_revision),
+            ('Crear nueva revisión documental',self.clone_revision),('Registrar aprobación externa',self.approve_revision),
             ('Importar PDF / Word',self.import_document)]:menu.addAction(title,action)
         menu.addSeparator()
         menu.addAction('Importar carpeta — versión anterior',lambda:self.open_legacy('maestro'))
@@ -287,6 +287,9 @@ class BaseFunctionalWindow(StudioWindow):
 from .advanced_editor import AdvancedEditorMixin
 
 
-class FunctionalWindow(AdvancedEditorMixin, BaseFunctionalWindow):
+from .variants import VariantsMixin
+
+class FunctionalWindow(VariantsMixin, AdvancedEditorMixin, BaseFunctionalWindow):
     """R3B1 tools on the approved R3A library and legacy transition controller."""
+
 

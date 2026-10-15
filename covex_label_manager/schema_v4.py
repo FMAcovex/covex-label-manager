@@ -10,7 +10,7 @@ STATEMENTS=[
  id INTEGER PRIMARY KEY,uid TEXT NOT NULL UNIQUE CHECK(length(uid)=32 AND uid NOT GLOB '*[^0-9a-f]*'),
  revision_id INTEGER NOT NULL REFERENCES versions(id) ON DELETE RESTRICT ON UPDATE RESTRICT,
  origin_variant_id INTEGER REFERENCES design_variants(id) ON DELETE RESTRICT ON UPDATE RESTRICT,
- code TEXT NOT NULL CHECK(length(code) BETWEEN 1 AND 40 AND code NOT GLOB '*[^A-Z0-9._-]*'),
+ code TEXT NOT NULL CHECK(length(code) BETWEEN 1 AND 40 AND code NOT GLOB '*[^A-Z0-9._-]*' AND code GLOB '[A-Z0-9]*'),
  name TEXT NOT NULL CHECK(length(trim(name))>0),reason TEXT NOT NULL CHECK(length(trim(reason))>0),
  state TEXT NOT NULL DEFAULT 'DRAFT' CHECK(state IN ('DRAFT','PENDING','APPROVED','RETIRED')),
  design_contract INTEGER NOT NULL DEFAULT 1 CHECK(design_contract=1),
@@ -60,6 +60,9 @@ STATEMENTS=[
  OR new.name IS NOT old.name OR new.reason IS NOT old.reason))
  OR canonical_hash(new.design_json)<>new.design_sha256
  BEGIN SELECT RAISE(ABORT,'Variante congelada o transición inválida'); END''',
+'''CREATE TRIGGER variants_approval_guard BEFORE UPDATE ON design_variants
+ WHEN new.state='APPROVED' AND NOT EXISTS(SELECT 1 FROM versions WHERE id=new.revision_id AND state='APPROVED')
+ BEGIN SELECT RAISE(ABORT,'La revisión documental no está aprobada'); END''',
 '''CREATE TRIGGER variants_keep_approval BEFORE UPDATE ON design_variants
  WHEN old.state='APPROVED' AND (new.approved_by IS NOT old.approved_by OR new.approval_ref IS NOT old.approval_ref
  OR new.approval_date IS NOT old.approval_date OR new.approval_recorded_at IS NOT old.approval_recorded_at
@@ -72,6 +75,16 @@ STATEMENTS=[
  OR json_extract(new.design_snapshot_json,'$.contract') IS NOT 1
  OR json_extract(new.design_snapshot_json,'$.revision_id') IS NOT new.version_id
  OR json_extract(new.design_snapshot_json,'$.variant_id') IS NOT new.design_variant_id
+ OR json_type(new.design_snapshot_json,'$.design.layout.fields') IS NOT 'array'
+ OR json_type(new.design_snapshot_json,'$.design.layout.crop') IS NOT 'array'
+ OR json_array_length(new.design_snapshot_json,'$.design.layout.crop')<>4
+ OR json_type(new.design_snapshot_json,'$.design.layout.area') IS NOT 'array'
+ OR json_type(new.design_snapshot_json,'$.design.nominal_size_mm') IS NOT 'object'
+ OR json_type(new.design_snapshot_json,'$.source') IS NOT 'object'
+ OR json_type(new.design_snapshot_json,'$.profile') IS NOT 'object'
+ OR json_type(new.design_snapshot_json,'$.revision_approval') IS NOT 'object'
+ OR json_extract(new.design_snapshot_json,'$.design_sha256') IS NOT canonical_hash(json_extract(new.design_snapshot_json,'$.design'))
+ OR json_extract(new.design_snapshot_json,'$.source.uid') IS NOT (SELECT uid FROM versions WHERE id=new.version_id)
  OR length(new.design_snapshot_sha256)<>64 OR canonical_hash(new.design_snapshot_json)<>new.design_snapshot_sha256
  OR (new.design_variant_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM design_variants
  WHERE id=new.design_variant_id AND revision_id=new.version_id AND state='APPROVED'))
@@ -88,7 +101,7 @@ CHECKSUM=hashlib.sha256('\n'.join(STATEMENTS).encode()).hexdigest()
 
 def configure(db):
     from .canonical import json_digest
-    db.create_function('canonical_hash',1,json_digest,deterministic=True)
+    db.create_function('canonical_hash',1,lambda value:json_digest(value) if value is not None else None,deterministic=True)
     db.execute('PRAGMA foreign_keys=ON')
 
 

@@ -95,7 +95,7 @@ Base oficial: main `5d27de30ce98ee89f17485225e3a45b92f544484`, R3A integrada por
 | C10 | Recuentos de etiquetas/vigentes/pendientes/emisiones/materiales y accesos rápidos del Inicio 0.3.1 | page_home / Store.stats | Versión anterior → Inicio (recuentos) / Configuración | Anterior operativa; no migrada Qt, puente explícito. |
 ## No confundir pendientes con capacidades actuales
 
-R2.5, tarjetas opcionales, composición nativa, entidad separada de variante/plantilla/trabajo, autoguardado/recuperación, nueva sincronización Editor/Emisión, importador Excel automatizado, QR/barcode dinámicos, etiquetas vinculadas, emisión recurrente, integraciones, servidor/multiusuario, driver de impresión, firma electrónica y restaurar ZIP desde UI no están implementados. La restauración actual es manual. No son funciones perdidas por esta prueba.
+R2.5, tarjetas opcionales, composición nativa, entidad de trabajo de emisión independiente, autoguardado/recuperación, nueva sincronización Editor/Emisión, importador Excel automatizado, QR/barcode dinámicos, etiquetas vinculadas, emisión recurrente, integraciones, servidor/multiusuario, driver de impresión, firma electrónica y restaurar ZIP desde UI no están implementados. La restauración actual es manual. No son funciones perdidas por esta prueba.
 
 ## Aceptación del 100 %
 
@@ -124,3 +124,21 @@ Las 87 IDs se conservan. Clasificación en esta rama: 38 Qt, 8 parciales, 34 ant
 Ampliaciones nuevas, fuera del recuento histórico de 87 capacidades: selección múltiple, alineación/distribución geométrica, transformación proporcional de campos/auxiliares/estado, historial de deshacer/rehacer, anclas persistentes verificables y prueba PDF desde el diseño en memoria. No incluyen composición libre de textos fijos, tablas o imágenes.
 
 Pruebas: `tests/test_editor_layout.py`, `tests/test_r3b1_qt.py` y `qt_ui/advanced_checks.py`; regresión R3A y núcleo existente. Los resultados ejecutados y CI se presentan en la PR de esta revisión. Word real, impresión física, Windows 10/11/equipos COVEX y GMP siguen pendientes. 00-R1 continúa PENDING; sin R3B2/R3B3, autoguardado ni sincronización bidireccional de variables.
+
+
+## Evidencias adicionales de R3B2 (sin reemplazar las 87 IDs)
+
+Las 87 filas anteriores permanecen como línea base. R3B2 mantiene sus accesos, añade variantes reales y refuerza los contratos siguientes. No se reclasifica como Qt ninguna pantalla que continúe en Tkinter.
+
+| IDs existentes afectadas | Evidencia R3B2 |
+|---|---|
+| B01–B13, D01–D07 | Regresión Qt existente, filtros/favoritos/revisiones sin multiplicar filas por variantes. Selector en Inspector y Editor. |
+| D08–D13 | `test_variants_v4`: aprobación independiente, congelación, coexistencia, evidencia/hash, derivación sin aprobación y revisión 00-R1 PENDING. No hay conversión ni siembra automática al migrar. |
+| D14 | Comparador básico Tk conservado; comparación documental revisión/variante adicional en Qt. |
+| E01–E15 | Suite R3B1 y controles de widgets conservados; edición de layout completo en variante DRAFT. Originales intactos. |
+| M01–M18 | `emission_contract`: selección y generación obsoletas bloqueadas, snapshot de toda emisión nueva incluso heredada; smoke Tk fuente/portable con variante, PDF de prueba y emisión sintética definitiva. |
+| P01–P07 | Perfiles/escala A4 independientes de diseño nominal; geometría de variante cotejada con posiciones PDF con tolerancia 0.1 mm. Herramientas de impresión existentes conservadas. |
+| H01–H05 | Reimpresión con snapshot, enlace/motivo/números originales, rechazo de retirada o PDF alterado. Histórico NULL conserva ruta heredada y advertencia explícita, sin snapshot inferido retrospectivo. |
+| C01–C10 | Backup v4 incluye evidencias/barrera/manifiesto y SQLite consistente; restauración íntegra; UID/datos previos preservados; recuentos no incluyen variantes como revisiones. |
+
+La normalización aditiva histórica se ejecuta sobre staging, antes de v3→v4, con backup del esquema original. Se conservan las pruebas de actualización 0.1/0.2: cambian sus rutas de backup a las del protocolo nuevo y se ensaya conservación de campos/perfiles/operador. Fuente nueva sin maestros sigue vacía.

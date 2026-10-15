@@ -16,8 +16,14 @@ class LocalSession:
     def close(self):self.services.close()
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--demo',action='store_true');p.add_argument('--data-dir',type=Path)
+    if '--recover-data' in sys.argv[1:]:
+        from covex_label_manager.migration_v4 import recovery_cli
+        return recovery_cli(sys.argv[1:])
+    p=argparse.ArgumentParser();p.add_argument('--variant-check',type=Path);p.add_argument('--demo',action='store_true');p.add_argument('--data-dir',type=Path)
     p.add_argument('--verify-bridge',action='store_true');p.add_argument('--capture',type=Path);p.add_argument('--self-check',type=Path);a=p.parse_args()
+    if a.variant_check:
+        from covex_label_manager.qt_ui.variant_checks import run
+        return run(a.variant_check,a.capture,a.verify_bridge)
     if a.data_dir:os.environ['COVEX_LABEL_DATA']=str(a.data_dir.resolve())
     app=QApplication(sys.argv[:1]);app.setStyle('Fusion')
     if a.demo or a.self_check or a.capture:
@@ -50,3 +56,4 @@ def main():
         return app.exec()
     finally:session.close()
 if __name__=='__main__':sys.exit(main())
+

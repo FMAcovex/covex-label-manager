@@ -77,7 +77,9 @@ def referenced_files(db,root):
                 if rel:
                     path=safe_file(root,rel)
                     if sha(path)!=expected:raise ValueError('Hash fuente no conforme: '+rel)
-    for rel,expected in db.execute('SELECT pdf_path,pdf_sha256 FROM issues'):
+    issue_cols={r[1] for r in db.execute('PRAGMA table_info(issues)')}
+    hash_column='pdf_sha256' if 'pdf_sha256' in issue_cols else "''"
+    for rel,expected in db.execute('SELECT pdf_path,'+hash_column+' FROM issues'):
         path=safe_file(root,rel)
         if expected and sha(path)!=expected:raise ValueError('Hash emisión no conforme: '+rel)
 
@@ -87,6 +89,30 @@ def safe_file(root,rel):
     if Path(rel).is_absolute() or not p.resolve().is_relative_to(root) or not p.is_file() or p.is_symlink():
         raise ValueError('Archivo ausente o fuera de data: '+str(rel))
     return p
+
+
+def validate_legacy(db):
+    version=db.execute('PRAGMA user_version').fetchone()[0]
+    if version not in (0,1,2,3):raise ValueError('Formato legacy desconocido.')
+    tables={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
+    required={'labels','versions','materials','profiles','issues','status_masters','audit','settings'}
+    if not required.issubset(tables) or tables-required-{'label_metadata','library_preferences'}:
+        raise ValueError('Esquema legacy desconocido/parcial.')
+    for table in ('labels','versions','issues','materials'):
+        cols={r[1] for r in db.execute(f'PRAGMA table_info({table})')}
+        if 'uid' in cols and db.execute(f"SELECT 1 FROM {table} WHERE uid='' OR uid IS NULL").fetchone():raise ValueError('UID existente inválido.')
+    integrity(db)
+
+
+def normalize_legacy_v3(db,root):
+    # Existing, tested 0.1/0.2 additive normalizer, applied ONLY to staging.
+    # No seeds/files/labels are created; existing nonempty UIDs stay unchanged.
+    from .storage import Store
+    staging=Store.__new__(Store);staging.db=db;staging.root=Path(root)
+    original_factory=db.row_factory;db.row_factory=sqlite3.Row
+    try:staging._schema()
+    finally:db.row_factory=original_factory
+    validate_v3(db)
 
 
 def validate_v3(db):
@@ -239,7 +265,9 @@ def restore_backup(archive,destination):
     with zipfile.ZipFile(archive) as z:
         for rel in manifest['files']:
             p=destination/rel;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(z.read(rel))
-    with closing(ro(destination/'labels.sqlite')) as db:validate_v3(db)
+    if (destination/ACTIVE).is_file():active_path(destination)
+    else:
+        with closing(ro(destination/'labels.sqlite')) as db:validate_legacy(db)
     return destination
 
 
@@ -267,13 +295,14 @@ def migrate(root,hook=None):
         # Gather a SQLite-consistent snapshot before OS-exclusive cutover, then
         # lock and compare byte hashes of all legacy files before publishing.
         with closing(ro(legacy)) as db:
-            validate_v3(db);referenced_files(db,root);before=old_rows(db)
+            validate_legacy(db);referenced_files(db,root);before=old_rows(db)
             migration_id=uuid.uuid4().hex;area=root/'backups'/('v4-'+migration_id);area.mkdir(parents=True)
             required=sum(p.stat().st_size for p in root.rglob('*') if p.is_file() and 'backups' not in p.relative_to(root).parts)
             if shutil.disk_usage(root).free<required*3+10_000_000:raise OSError('Espacio insuficiente para backup, staging y recuperación.')
             archive,snap,files=make_backup(root,area,db)
         staged=area/'staged.sqlite';shutil.copy2(snap,staged)
         with closing(sqlite3.connect(staged)) as db:
+            normalize_legacy_v3(db,root)
             apply(db,now(),'R3B2');integrity(db);check_rows(db,before)
             if db.execute('SELECT count(*) FROM design_variants').fetchone()[0]:raise ValueError('Conversión histórica indebida.')
             if db.execute('SELECT 1 FROM issues WHERE design_variant_id IS NOT NULL OR design_snapshot_json IS NOT NULL OR design_snapshot_sha256 IS NOT NULL').fetchone():raise ValueError('Snapshot histórico modificado.')
@@ -286,7 +315,7 @@ def migrate(root,hook=None):
         # Files may have changed during backup: compare live rows and contents
         # again, checkpoint/close, then verify physical DB/WAL/SHM under OS guard.
         with closing(sqlite3.connect(legacy,timeout=0)) as db:
-            db.execute('BEGIN IMMEDIATE');validate_v3(db);check_rows(db,before);referenced_files(db,root)
+            db.execute('BEGIN IMMEDIATE');validate_legacy(db);check_rows(db,before);referenced_files(db,root)
             if inventory(root)!={k:v for k,v in files.items() if k!='labels.sqlite'}:raise ValueError('Archivos cambiaron durante backup.')
             db.rollback()
             result=db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()
@@ -340,7 +369,7 @@ def recover(root):
         original=area/'legacy-original.sqlite'
         if legacy.is_file() and original.exists():raise ValueError('Base legacy inesperada: conservar ambas y recuperar en carpeta nueva.')
         if legacy.is_file():
-            with closing(ro(legacy)) as db:validate_v3(db)
+            with closing(ro(legacy)) as db:validate_legacy(db)
         else:
             if (root/ACTIVE).exists():raise ValueError('Existe v4 no publicada: recuperar en carpeta nueva.')
             if legacy.exists():
@@ -350,6 +379,24 @@ def recover(root):
             for suffix in ('','-wal','-shm'):
                 p=area/('legacy-original.sqlite'+suffix)
                 if p.exists():os.rename(p,Path(str(legacy)+suffix))
-            with closing(ro(legacy)) as db:validate_v3(db)
+            with closing(ro(legacy)) as db:validate_legacy(db)
         (root/JOURNAL).unlink()
         return 'v3'
+
+
+def recovery_cli(arguments):
+    """Same offline recovery in source and portable entries; no UI/server required."""
+    import argparse
+    parser=argparse.ArgumentParser(description='Recuperación de una migración interrumpida')
+    parser.add_argument('--recover-data',type=Path,required=True)
+    parser.add_argument('--recovery-report',type=Path,required=True)
+    args=parser.parse_args(arguments)
+    result=recover(args.recover_data)
+    args.recovery_report.parent.mkdir(parents=True,exist_ok=True)
+    args.recovery_report.write_text(json.dumps({'ok':True,'recovered_format':result}),encoding='utf-8')
+    return 0
+
+
+if __name__=='__main__':
+    import sys
+    sys.exit(recovery_cli(sys.argv[1:]))

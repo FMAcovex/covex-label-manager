@@ -96,7 +96,8 @@ def test_bridge_selects_same_data_and_explicit_test(studio,monkeypatch):
     monkeypatch.setattr('covex_label_manager.qt_legacy.subprocess.Popen',lambda cmd,env:calls.append((cmd,env)))
     launch_legacy(s.services,'emitir',w.row['version_id'],'test')
     command,env=calls[0]
-    assert command[-2:]==['--version-id',str(w.row['version_id'])]
+    assert command[command.index('--version-id')+1]==str(w.row['version_id'])
+    assert command[command.index('--writer-protocol')+1]=='4'
     assert '--mode' in command and 'test' in command
     assert env['COVEX_LABEL_DATA']==s.services.location()
 
@@ -183,3 +184,4 @@ def test_disabled_prepare_click_cannot_open_legacy(studio,monkeypatch):
         assert not w.prepare_button.isEnabled()
         QTest.mouseClick(w.prepare_button,Qt.MouseButton.LeftButton)
     assert not started
+

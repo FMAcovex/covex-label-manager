@@ -14,6 +14,8 @@ class DemoSession:
         self.temp=tempfile.TemporaryDirectory(prefix='covex_qt_fictional_')
         self.root=Path(self.temp.name)
         self.services=TransitionServices(Store(self.root/'demo-data',seed=False))
+        self.services.set_setting('operator','Operador ficticio')
+        self.services.set_setting('synthetic_demo','1')
         self.initial_id=None
         names=['Solución Alfa','Granulado Beta','Reactivo Gamma','Producto Delta','Mezcla Sigma',
                'Extracto Omega','Solución Épsilon','Granulado Zeta','Reactivo Eta','Producto Theta',
@@ -49,3 +51,4 @@ class DemoSession:
     def close(self):
         self.services.close()
         self.temp.cleanup()
+

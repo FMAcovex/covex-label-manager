@@ -6,13 +6,14 @@ from decimal import Decimal
 from pathlib import Path
 import pytest
 from covex_label_manager.storage import Store
+from v3_fixture import create as create_v3,add_legacy_issue
 from covex_label_manager.canonical import canonical,digest,parse
 from covex_label_manager.migration_v4 import (migrate,recover,active_path,restore_backup,
     validate_v4,old_rows,check_rows,ro,PHASES,sha)
 
 
 def fixture(root):
-    with closing(Store(root)) as s:
+    with closing(create_v3(root)) as s:
         s.set_setting('synthetic','preserve')
         import fitz
         selected=s.db.execute("SELECT id FROM versions WHERE version='00' ORDER BY id LIMIT 1").fetchone()[0]
@@ -20,8 +21,8 @@ def fixture(root):
         path=root/'emissions'/'synthetic-history.pdf'
         with fitz.open() as doc:
             doc.new_page().insert_text((10,40),'SYNTHETIC HISTORICAL OUTPUT');doc.save(path)
-        issue=s.add_issue(selected,'Synthetic operator',2,1,[1,2],{'lote':'DEMO'}, {'width_mm':80},path,per_container={'1':{'peso':'10'}},status={})
-        s.add_issue(selected,'Synthetic operator',2,1,[1],{'lote':'DEMO'}, {'width_mm':80},path,source_issue_id=issue,reason='Synthetic reprint')
+        issue=add_legacy_issue(s,selected,'Synthetic operator',2,1,[1,2],{'lote':'DEMO'}, {'width_mm':80},path,per_container={'1':{'peso':'10'}},status={})
+        add_legacy_issue(s,selected,'Synthetic operator',2,1,[1],{'lote':'DEMO'}, {'width_mm':80},path,source_issue_id=issue,reason='Synthetic reprint')
         evidence=root/'approval_evidence'/'synthetic';evidence.mkdir(parents=True)
         (evidence/'evidence.txt').write_text('SYNTHETIC EXTERNAL EVIDENCE',encoding='utf-8')
         before=old_rows(s.db)
@@ -57,7 +58,7 @@ def test_preserve_backup_restore(tmp_path):
     assert migrate(root)==receipt
     # Old unmodified Store: connect fails before _schema/seed.
     original_hash=sha(active_path(root))
-    with pytest.raises(sqlite3.OperationalError):Store(root)
+    with pytest.raises(sqlite3.OperationalError):sqlite3.connect(root/'labels.sqlite')
     assert sha(active_path(root))==original_hash
 
 

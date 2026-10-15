@@ -116,7 +116,7 @@ def test_service_save_is_atomic_and_detects_external_crop_change(tmp_path,layout
     api.save_editor_layout(vid,candidate,expected,identity)
     assert layout_from_version(api.version(vid))==candidate
     assert source_identity(api.version(vid))==identity
-    assert store.db.execute('PRAGMA user_version').fetchone()[0]==schema==3
+    assert store.db.execute('PRAGMA user_version').fetchone()[0]==schema==4
     with pytest.raises(ValueError): api.save_editor_layout(vid,expected,expected,identity)
     assert layout_from_version(api.version(vid))==candidate
     invalid=copy.deepcopy(candidate); invalid['crop']=[0,0,999,999]
@@ -125,3 +125,4 @@ def test_service_save_is_atomic_and_detects_external_crop_change(tmp_path,layout
     api.approve(vid,'Synthetic reviewer','SYNTHETIC APPROVAL REFERENCE')
     with pytest.raises(PermissionError): api.save_editor_layout(vid,candidate,candidate,identity)
     api.close()
+
