@@ -15,6 +15,7 @@ from .storage import now
 
 class WorkConflict(ValueError):pass
 class WorkCorrupt(ValueError):pass
+class WorkUnsupported(WorkCorrupt):pass
 
 
 @contextmanager
@@ -74,12 +75,13 @@ class WorkRepository:
             from .canonical import parse
             # Parse duplicate keys strictly, then plain JSON keeps engine numbers native.
             raw=path.read_text(encoding='utf-8');parse(raw);envelope=json.loads(raw)
-            if envelope.get('contract')!=1:raise ValueError('Contrato de trabajo desconocido.')
+            if envelope.get('contract')!=1:raise WorkUnsupported('Contrato de trabajo desconocido; use una versión compatible. No se permite restaurar encima.')
             w=envelope['payload']
             if digest(w)!=envelope['sha256']:raise ValueError('Checksum de trabajo incorrecto.')
             self.validate(w)
             if path.name not in (w['uid']+'.json',w['uid']+'.previous.json'):raise ValueError('Identidad de archivo incorrecta.')
             return w
+        except WorkUnsupported:raise
         except (OSError,ValueError,KeyError,TypeError) as ex:
             raise WorkCorrupt('Trabajo no legible; no se ha sobrescrito: '+str(path)+'. '+str(ex)) from ex
     def validate(self,w):
@@ -173,6 +175,7 @@ class WorkRepository:
                     current=self._read(path)
                     if current['phase']!='DRAFT':raise PermissionError('No retroceda un intento o emisión registrada.')
                     previous['generation']=max(previous['generation'],current['generation'])
+                except WorkUnsupported:raise
                 except WorkCorrupt:pass
                 forensic=path.with_name(uid+'.corrupt-'+uuid.uuid4().hex+'.txt');forensic.write_bytes(current_bytes)
             previous.update(generation=max(previous['generation']+1,__import__('time').time_ns()),updated_at=now())

@@ -115,6 +115,9 @@ def test_unknown_contract_symlink_and_no_rollback_of_issued(work):
     api,w=work;path=api.work.path(w['uid']);raw=path.read_text()
     path.write_text(raw.replace('"contract":1','"contract":2'))
     with pytest.raises(WorkCorrupt):api.work.get(w['uid'])
+    unknown=path.read_bytes()
+    with pytest.raises(WorkCorrupt):api.work.recover_previous(w['uid'])
+    assert path.read_bytes()==unknown
     path.write_text(raw)
     issued,_,_=api.work.issue(w['uid'],w['generation'],'Synthetic')
     path.write_bytes(b'corrupted after commit')
