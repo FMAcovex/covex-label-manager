@@ -106,3 +106,22 @@ def test_designer_proof_rejects_document_changed_while_open(studio,monkeypatch):
     monkeypatch.setattr(w.api,'render',lambda *a,**k:pytest.fail('Stale work must not reach renderer'))
     w.emission_panel.design_sheet()
     assert w.api.work.get(work['uid'])['generation']==work['generation']
+
+
+def test_corrupt_visual_profile_does_not_prevent_native_windows(studio):
+    from covex_label_manager.layout_profiles import LayoutProfiles
+    from covex_label_manager.qt_ui.work import WorkPanel
+    w,s,app=studio
+    root=s.services._repository.root
+    valid=LayoutProfiles(root).save('good-r3e','Perfil válido',profile('A3',5))
+    damaged=root/'layout_profiles'/'bad-r3e.json'
+    damaged.write_text('not valid JSON',encoding='utf-8')
+    original=damaged.read_bytes()
+    panel=WorkPanel(w)
+    assert any(panel.profile_choice.itemText(i)=='Perfil válido' for i in range(panel.profile_choice.count()))
+    assert 'no legibles' in panel.profile_corruption_warning.text()
+    dialog=SheetDesigner(w,profile('A4'),root=root)
+    assert any(dialog.saved.itemText(i)=='Perfil válido' for i in range(dialog.saved.count()))
+    assert 'no legibles' in dialog.profile_corruption_warning.text()
+    assert LayoutProfiles(root).get('good-r3e')==valid
+    assert damaged.read_bytes()==original

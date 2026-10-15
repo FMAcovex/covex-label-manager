@@ -63,8 +63,15 @@ class WorkPanel(QWidget):
         self.profile_choice=QComboBox();self.profile_choice.addItem('Aplicar perfil guardado…',None)
         for p in window.api.profile_list():self.profile_choice.addItem(p['name'],p)
         from ..layout_profiles import LayoutProfiles
-        for p in LayoutProfiles(window.api._repository.root).list():self.profile_choice.addItem(p['name'],p['profile'])
+        profile_repo=LayoutProfiles(window.api._repository.root)
+        for p in profile_repo.list(tolerate_corrupt=True):self.profile_choice.addItem(p['name'],p['profile'])
         self.profile_choice.activated.connect(self.apply_profile);form.addRow('Perfil reutilizable',self.profile_choice)
+        if profile_repo.invalid_files:
+            self.profile_corruption_warning=label(
+                f'Hay {len(profile_repo.invalid_files)} perfil(es) visuales no legibles. No se han alterado. '
+                'Consulte con Calidad/IT.', 'fieldError')
+            self.profile_corruption_warning.setWordWrap(True)
+            form.addRow(self.profile_corruption_warning)
         scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(cfg);self.tabs.addTab(scroll,'Formato y emisión')
         status=QWidget();status.setObjectName('workForm');f=QFormLayout(status);self.status_kind=QComboBox();
         for title,key in [('Sin etiqueta de estado','ninguna'),('Sin analizar','sin_analizar'),('Aprobado','aprobado'),('Rechazado','rechazado')]:self.status_kind.addItem(title,key)

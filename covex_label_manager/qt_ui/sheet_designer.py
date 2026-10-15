@@ -72,8 +72,14 @@ class SheetDesigner(QDialog):
         form.addRow(button('Ver PDF de prueba real',self.preview))
         if self.repo:
             self.saved=QComboBox();self.saved.addItem('Perfil reutilizable…',None)
-            for p in self.repo.list():self.saved.addItem(p['name'],p)
+            for p in self.repo.list(tolerate_corrupt=True):self.saved.addItem(p['name'],p)
             self.saved.activated.connect(self.load_profile);form.addRow(self.saved);form.addRow(button('Guardar perfil…',self.save_profile))
+            if self.repo.invalid_files:
+                self.profile_corruption_warning=label(
+                    f'Hay {len(self.repo.invalid_files)} perfil(es) no legibles. No se han alterado. '
+                    'Revise los archivos con Calidad/IT antes de utilizarlos.', 'fieldError')
+                self.profile_corruption_warning.setWordWrap(True)
+                form.addRow(self.profile_corruption_warning)
         self.error=label('','subtle');layout.addWidget(self.error)
         actions=QHBoxLayout()
         for t,fn in [('Deshacer',self.undo),('Rehacer',self.redo),('Restablecer',self.reset),('Ajustar vista',self.view.fit),('+',lambda:self.view.zoom(1.2)),('−',lambda:self.view.zoom(1/1.2))]:actions.addWidget(button(t,fn))

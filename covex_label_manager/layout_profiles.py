@@ -12,6 +12,7 @@ class LayoutProfiles:
         (root/'emission_work').mkdir(exist_ok=True)
         self.root=root/'layout_profiles';self.root.mkdir(exist_ok=True)
         if self.root.is_symlink():raise ValueError('Carpeta de perfiles inválida.')
+        self.invalid_files=[]
     def path(self,uid):
         if not re.fullmatch('[a-zA-Z0-9_-]{1,64}',uid):raise ValueError('Identificador de perfil inválido.')
         return self.root/(uid+'.json')
@@ -32,4 +33,16 @@ class LayoutProfiles:
             p=dict(uid=uid,name=name.strip(),profile=profile,generation=expected+1,updated_at=now())
             atomic_json(path,dict(contract=1,payload=p,hash=digest(p)))
             return p
-    def list(self):return [self.get(p.stem) for p in sorted(self.root.glob('*.json'))]
+    def list(self, *, tolerate_corrupt=False):
+        """Keep valid profiles usable when an unrelated sidecar is corrupt.
+
+        The strict default still fails closed for callers requiring full
+        catalog integrity. Tolerant UI listings never repair or overwrite files.
+        """
+        found=[];self.invalid_files=[]
+        for path in sorted(self.root.glob('*.json')):
+            try:found.append(self.get(path.stem))
+            except (OSError,ValueError,KeyError,TypeError):
+                if not tolerate_corrupt:raise
+                self.invalid_files.append(path.name)
+        return found

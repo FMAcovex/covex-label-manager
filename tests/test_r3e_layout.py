@@ -114,3 +114,19 @@ def test_backup_restores_work_profiles_and_conflicting_writer(demo,tmp_path):
         assert LayoutProfiles(restored).get('restore-test')['profile']==p
         recovered.work.proof(w['uid'],w['generation'],recovered.output_path('cache','restore-proof.pdf'))
     finally:recovered.close()
+
+
+def test_corrupt_layout_profile_is_isolated_without_silent_repair(demo):
+    root=demo.services._repository.root
+    repo=LayoutProfiles(root)
+    good=repo.save('known-good','Perfil sintético válido',profile('A3',5))
+    bad=repo.root/'corrupt-r3e.json'
+    bad.write_text('{"contract":1,"payload":',encoding='utf-8')
+    original=bad.read_bytes()
+    with pytest.raises(ValueError):
+        repo.list()
+    available=repo.list(tolerate_corrupt=True)
+    assert [entry['uid'] for entry in available]==['known-good']
+    assert repo.invalid_files==['corrupt-r3e.json']
+    assert repo.get('known-good')==good
+    assert bad.read_bytes()==original
