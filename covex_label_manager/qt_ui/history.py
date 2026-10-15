@@ -3,7 +3,7 @@ import json
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QSplitter,QLineEdit,QTableWidget,
     QTableWidgetItem,QHeaderView,QAbstractItemView,QTabWidget,QPlainTextEdit,QDialog,QFormLayout,
-    QDialogButtonBox,QCheckBox,QMessageBox,QPushButton)
+    QDialogButtonBox,QCheckBox,QMessageBox,QPushButton,QComboBox,QScrollArea)
 from .window import label,button,vbox,box
 from .pdf_view import PdfPane
 
@@ -16,7 +16,7 @@ class HistoryMixin:
         self.refresh_native_history()
     def build_native_history(self):
         page=QWidget();layout=vbox(page,20,10)
-        row=QHBoxLayout();row.addWidget(label('Historial y reimpresión','title'));row.addStretch();row.addWidget(button('Actualizar',self.refresh_native_history));layout.addLayout(row)
+        row=QHBoxLayout();self.history_heading=label('Historial y reimpresión','title');row.addWidget(self.history_heading);row.addStretch();self.history_compact=QComboBox();self.history_compact.addItems(['Historial y detalle','PDF registrado']);self.history_compact.currentIndexChanged.connect(self.adapt_history_layout);self.history_compact.hide();row.addWidget(self.history_compact);row.addWidget(button('Actualizar',self.refresh_native_history));layout.addLayout(row)
         layout.addWidget(label('PDF registrados · La generación del PDF no confirma la impresión física.','subtle'))
         self.history_search=QLineEdit();self.history_search.setPlaceholderText('Buscar producto, revisión, variante, fecha, operador o motivo…');self.history_search.textChanged.connect(self.filter_native_history);layout.addWidget(self.history_search)
         split=QSplitter(Qt.Orientation.Horizontal);self.history_split=split
@@ -29,8 +29,8 @@ class HistoryMixin:
         self.history_detail=QTabWidget();self.history_text={}
         for key,title in [('summary','Resumen documental'),('values','Datos de lote'),('containers','Recipientes'),('format','Formato y estado')]:
             text=QPlainTextEdit();text.setReadOnly(True);self.history_text[key]=text;self.history_detail.addTab(text,title)
-        ll.addWidget(self.history_detail,1);split.addWidget(left)
-        right=box();rl=vbox(right,12,8);self.history_pdf=PdfPane(self.api);rl.addWidget(self.history_pdf,1);split.addWidget(right)
+        ll.addWidget(self.history_detail,1);left.setMinimumHeight(330);scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(left);scroll.setFrameShape(QScrollArea.Shape.NoFrame);split.addWidget(scroll);self.history_left=scroll
+        right=box();rl=vbox(right,12,8);self.history_pdf=PdfPane(self.api);rl.addWidget(self.history_pdf,1);split.addWidget(right);self.history_right=right
         split.setSizes([690,760]);split.setStretchFactor(0,1);split.setStretchFactor(1,1);layout.addWidget(split,1)
         self.history_feedback=label('Seleccione una emisión para verificar su PDF y consultar sus datos.','subtle');self.history_feedback.setWordWrap(True);layout.addWidget(self.history_feedback)
         row=QHBoxLayout();row.addWidget(button('Verificar y ver PDF',self.preview_native_issue));row.addStretch();self.reprint_button=button('Reimpresión controlada…',self.native_reprint,'primary');row.addWidget(self.reprint_button);layout.addLayout(row)
@@ -94,7 +94,7 @@ class HistoryMixin:
         try:
             report=self.api.history.inspect(self.history_id)
             self.history_pdf.validator=lambda:self.api.history.inspect(report['issue']['id'])
-            self.history_pdf.load(report['path'],'PDF histórico · #'+str(self.history_id),'PDF registrado · Impresión física no confirmada.');return True
+            self.history_pdf.load(report['path'],'PDF histórico · #'+str(self.history_id),'PDF registrado · Impresión física no confirmada.');self.history_compact.setCurrentIndex(1);return True
         except Exception as ex:
             self.history_pdf.clear();self.history_feedback.setText(self.operator_error(ex));return False
     def native_reprint(self):
@@ -133,7 +133,11 @@ class HistoryMixin:
     def set_mutations_enabled(self,enabled):
         super().set_mutations_enabled(enabled)
         if hasattr(self,'history_page'):self.history_page.setEnabled(enabled)
+    def adapt_history_layout(self,*_):
+        if not hasattr(self,'history_right'):return
+        compact=self.height()<650;self.history_compact.setVisible(compact);self.history_pdf.compact(compact);self.history_heading.setStyleSheet('font-size:21px;' if compact else '')
+        self.history_left.setVisible(not compact or self.history_compact.currentIndex()==0);self.history_right.setVisible(not compact or self.history_compact.currentIndex()==1)
     def resizeEvent(self,event):
         super().resizeEvent(event)
-        if hasattr(self,'history_split'):self.history_split.setOrientation(Qt.Orientation.Vertical if event.size().width()<1150 else Qt.Orientation.Horizontal)
+        if hasattr(self,'history_split'):self.adapt_history_layout()
         if hasattr(self,'nav'):self.nav['history'].setToolTip('Historial · Consulta y reimpresión nativas Qt')

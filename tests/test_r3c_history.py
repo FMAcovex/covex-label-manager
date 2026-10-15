@@ -24,13 +24,13 @@ def test_reprint_proof_original_numbers_and_document_snapshot(work):
     api,pk=emitted(work);report=api.history.inspect(pk);first=dict(report['issue'])
     _,path,_=api.history.reproduce(pk,'2','Synthetic damage','QA',expected_token=report['token'],proof=True)
     assert len(api.issues())==1
-    with fitz.open(path) as pdf:assert 'PRUEBA' in ''.join(p.get_text() for p in pdf)
+    with fitz.open(path) as pdf:assert 'PRUEBA' in ''.join(p.get_text() for p in pdf).replace('\xad','-').replace('\xa0',' ')
     second,path,result=api.history.reproduce(pk,'2','Synthetic damage','QA',expected_token=report['token'])
     row=api.issue(second);assert row['source_issue_id']==pk and json.loads(row['selected_indices'])==[2]
     assert row['variables_json']==first['variables_json'] and row['per_container_json']==first['per_container_json']
     assert json.loads(row['design_snapshot_json'])['design']==report['snapshot']['design']
     with fitz.open(path) as pdf:
-        text=''.join(p.get_text() for p in pdf);assert '2/2' in text and 'SYNTH-2' in text and 'PRUEBA' not in text
+        text=''.join(p.get_text() for p in pdf).replace('\xad','-').replace('\xa0',' ');assert '2/2' in text and 'SYNTH-2' in text and 'PRUEBA' not in text
     assert dict(api.issue(pk))==first
 
 

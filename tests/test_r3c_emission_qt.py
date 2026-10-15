@@ -23,7 +23,7 @@ def test_native_preview_export_cancel_issue_and_recovery(studio,monkeypatch,tmp_
     assert w.preview_emission_work(),w.emission_feedback.text()
     assert not api.issues() and w.native_issue.isEnabled(),w.emission_feedback.text()
     with fitz.open(w.work_preview['path']) as pdf:
-        text=''.join(p.get_text() for p in pdf)
+        text=''.join(p.get_text() for p in pdf).replace('\xad','-').replace('\xa0',' ')
         assert 'PRUEBA' in text and 'SYNTHETIC-R3C' in text and 'SYNTHETIC-RECIPIENTE-2' in text
     dest=tmp_path/'PRUEBA.pdf';monkeypatch.setattr(QFileDialog,'getSaveFileName',lambda *a,**k:(str(dest),'PDF'))
     assert w.proof_emission_work() and sha256(dest)==w.work_preview['sha256'] and not api.issues()
@@ -34,7 +34,7 @@ def test_native_preview_export_cancel_issue_and_recovery(studio,monkeypatch,tmp_
     issue=api.issues()[0];snap=json.loads(issue['design_snapshot_json'])
     assert snap['work']['uid']==work['uid'] and json.loads(issue['selected_indices'])==[1,2,3]
     with fitz.open(api.asset_path(issue['pdf_path'])) as pdf:
-        text=''.join(p.get_text() for p in pdf)
+        text=''.join(p.get_text() for p in pdf).replace('\xad','-').replace('\xa0',' ')
         assert 'PRUEBA' not in text and 'SYNTHETIC-RECIPIENTE-2' in text
     assert api.work.get(work['uid'])['phase']=='ISSUED'
     assert not w.issue_emission_work() and len(api.issues())==1

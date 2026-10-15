@@ -5,7 +5,7 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QApplication,QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
+from PySide6.QtWidgets import (QApplication,QWidget,QScrollArea,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
     QDialog,QDialogButtonBox,QComboBox,QLineEdit,QMessageBox,QFileDialog,QInputDialog,QPushButton,QMenu)
 from .window import label,button,vbox,box
 from .work import WorkPanel
@@ -24,8 +24,9 @@ class EmissionCentreMixin:
         self.statusBar().showMessage('Emisión e historial nativos · Fuentes originales protegidas')
     def build_emission_page(self):
         page=QWidget();layout=vbox(page,20,10)
-        head=QHBoxLayout();titles=QVBoxLayout();titles.addWidget(label('Centro de emisión','title'))
-        titles.addWidget(label('Prepare, compruebe y emita etiquetas desde un trabajo recuperable.','subtle'));head.addLayout(titles);head.addStretch()
+        head=QHBoxLayout();titles=QVBoxLayout();self.emission_heading=label('Centro de emisión','title');titles.addWidget(self.emission_heading)
+        self.emission_subtitle=label('Prepare, compruebe y emita etiquetas desde un trabajo recuperable.','subtle');titles.addWidget(self.emission_subtitle);head.addLayout(titles,1);head.addStretch()
+        self.emission_compact=QComboBox();self.emission_compact.addItems(['Datos del trabajo','Vista previa PDF']);self.emission_compact.currentIndexChanged.connect(self.adapt_emission_layout);self.emission_compact.hide();head.addWidget(self.emission_compact)
         head.addWidget(button('Biblioteca',lambda:self.navigate('library')));layout.addLayout(head)
         self.emission_document=label('Seleccione un trabajo o cree uno nuevo.','subtle');self.emission_document.setWordWrap(True);layout.addWidget(self.emission_document)
         split=QSplitter(Qt.Orientation.Horizontal);self.emission_split=split
@@ -34,10 +35,10 @@ class EmissionCentreMixin:
         for child in self.emission_panel.findChildren(QPushButton):
             if child.text() in ('Guardar borrador','PDF de prueba','Emitir…','Recuperar','Actualizar vínculo documental…'):child.hide()
         tools=QHBoxLayout();tools.addWidget(button('Pegar Excel…',self.paste_work_containers));tools.addWidget(button('Guardar perfil…',self.save_emission_profile));tools.addWidget(button('Calibrar A4',self.calibrate_emission));ll.addLayout(tools)
-        left.setMinimumWidth(350);split.addWidget(left)
-        right=box();rl=vbox(right,14,8);toolbar=QHBoxLayout();toolbar.addWidget(label('COMPROBAR ANTES DE EMITIR','section'));toolbar.addStretch()
+        self.emission_panel.setMinimumHeight(320);left.setMinimumWidth(330);left_scroll=QScrollArea();left_scroll.setWidgetResizable(True);left_scroll.setWidget(left);left_scroll.setFrameShape(QScrollArea.Shape.NoFrame);split.addWidget(left_scroll);self.emission_left=left_scroll
+        right=box();rl=vbox(right,14,8);toolbar=QHBoxLayout();self.emission_check_heading=label('COMPROBAR ANTES DE EMITIR','section');toolbar.addWidget(self.emission_check_heading);toolbar.addStretch()
         self.preview_work_button=button('Actualizar vista previa',self.preview_emission_work);toolbar.addWidget(self.preview_work_button);rl.addLayout(toolbar)
-        self.emission_pdf=PdfPane(self.api);rl.addWidget(self.emission_pdf,1);split.addWidget(right);split.setSizes([490,960]);split.setStretchFactor(1,1);layout.addWidget(split,1)
+        self.emission_pdf=PdfPane(self.api);self.emission_pdf.header_layout.insertWidget(1,self.preview_work_button);rl.addWidget(self.emission_pdf,1);split.addWidget(right);self.emission_right=right;split.setSizes([490,960]);split.setStretchFactor(1,1);layout.addWidget(split,1)
         footer=box();footer.setObjectName('emissionFooter');fl=vbox(footer,12,5)
         self.emission_summary=label('Sin trabajo seleccionado.','emissionSummary');self.emission_summary.setObjectName('emissionSummary');self.emission_summary.setWordWrap(True);fl.addWidget(self.emission_summary)
         self.emission_feedback=label('Guardar borrador no registra una emisión.','subtle');self.emission_feedback.setWordWrap(True);fl.addWidget(self.emission_feedback)
@@ -80,7 +81,7 @@ class EmissionCentreMixin:
         for panel in self.work_panels:
             if panel is not self.emission_panel:panel.show_errors(review['errors'])
         messages=[e['message'] for e in review['errors']]+review['warnings']
-        self.emission_feedback.setText('\n'.join(dict.fromkeys(messages)) if messages else 'Datos preparados. Compruebe la vista previa antes de emitir. La impresión física no se confirma aquí.')
+        self.emission_feedback.setText('\n'.join(list(dict.fromkeys(messages))[:2])+('\nRevise los demás avisos junto a los campos.' if len(messages)>2 else '') if messages else 'Datos preparados. Compruebe la vista previa antes de emitir. La impresión física no se confirma aquí.')
         self.native_proof.setEnabled(review['proof_allowed'] and not self.native_busy);self.preview_work_button.setEnabled(review['proof_allowed'] and not self.native_busy)
         valid=self.preview_matches(review)
         self.native_issue.setEnabled(review['production_allowed'] and valid and not self.work_preview['result']['warnings'] and not self.native_busy and not self.legacy_process)
@@ -125,7 +126,7 @@ class EmissionCentreMixin:
             if current.get('token')!=review.get('token'):raise ValueError('El trabajo o los documentos cambiaron durante la vista previa. Actualícela.')
             self.work_preview={'uid':w['uid'],'stamp':current['token'],'path':out,'sha256':sha256(out),'result':result}
             self.emission_pdf.validator=lambda:self.verify_work_preview_pdf()
-            self.emission_pdf.load(out,'Vista previa · PDF de prueba','PRUEBA · No apto para uso productivo · Los datos y la geometría proceden del motor PDF.')
+            self.emission_compact.setCurrentIndex(1);self.emission_pdf.load(out,'Vista previa · PDF de prueba','PRUEBA · No apto para uso productivo · Los datos y la geometría proceden del motor PDF.')
             self.refresh_emission_review()
             if result['warnings']:
                 self.native_issue.setEnabled(False);self.emission_feedback.setText('Revise antes de emitir: '+' · '.join(result['warnings'][:5]))
@@ -153,7 +154,7 @@ class EmissionCentreMixin:
             if not latest['production_allowed'] or latest.get('token')!=self.work_preview['stamp']:raise ValueError('El trabajo o la documentación cambió después de la vista previa. Vuelva a comprobarlo.')
             if sha256(self.work_preview['path'])!=self.work_preview['sha256']:raise ValueError('La vista previa ha sido modificada. Genérela de nuevo.')
             with self.emission_busy():issued,path,result=self.api.work.issue(w['uid'],w['generation'],self.api.setting('operator'))
-            self.emission_work=issued;self.refresh_work_panels();self.emission_pdf.validator=lambda:self.api.history.inspect(issued['issue_id']);self.emission_pdf.load(path,'PDF definitivo generado','Emisión registrada · Impresión física no confirmada. Imprima al 100 %, sin ajustar a página.')
+            self.emission_work=issued;self.refresh_work_panels();self.emission_pdf.validator=lambda:self.api.history.inspect(issued['issue_id']);self.emission_compact.setCurrentIndex(1);self.emission_pdf.load(path,'PDF definitivo generado','Emisión registrada · Impresión física no confirmada. Imprima al 100 %, sin ajustar a página.')
             self.emission_feedback.setText(f"Emisión #{issued['issue_id']} registrada · {result['physical']} etiquetas · {result['pages']} hojas. El trabajo queda cerrado; copie para preparar otro lote.")
             if hasattr(self,'refresh_native_history'):self.refresh_native_history()
             return True
@@ -225,8 +226,17 @@ class EmissionCentreMixin:
             out=self.api.output_path('cache','qt-calibration-'+uuid.uuid4().hex+'.pdf');self.api.calibration(profile_numbers(self.emission_work['profile']),out)
             self.invalidate_work_preview();self.emission_pdf.load(out,'Hoja de calibración A4','Imprima al 100 %, sin ajustar a página. Compruebe las reglas físicas antes de emitir.');self.refresh_emission_review()
         except Exception as ex:self.emission_error(ex)
+    def adapt_emission_layout(self,*_):
+        if not hasattr(self,'emission_right'):return
+        compact=self.height()<650
+        self.emission_compact.setVisible(compact);self.emission_subtitle.setVisible(not compact)
+        self.emission_heading.setStyleSheet('font-size:21px;' if compact else '')
+        self.emission_page.layout().setContentsMargins(*([10]*4 if compact else [20]*4));self.emission_page.layout().setSpacing(6 if compact else 10)
+        self.emission_panel.note.setVisible(not compact);self.emission_panel.identity.setVisible(not compact)
+        self.emission_check_heading.setVisible(not compact);self.emission_pdf.compact(compact)
+        self.emission_left.setVisible(not compact or self.emission_compact.currentIndex()==0)
+        self.emission_right.setVisible(not compact or self.emission_compact.currentIndex()==1)
     def resizeEvent(self,event):
         super().resizeEvent(event)
-        if hasattr(self,'emission_split'):
-            self.emission_split.setOrientation(Qt.Orientation.Horizontal)
+        if hasattr(self,'emission_split'):self.adapt_emission_layout()
         if hasattr(self,'nav'):self.nav['emission'].setToolTip('Emisión · Centro nativo Qt')

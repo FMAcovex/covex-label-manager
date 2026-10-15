@@ -28,7 +28,7 @@ def run(report,captures=None):
     def capture(name):
         app.processEvents();QTest.qWait(30);assert w.grab().save(str(captures/(name+'.png')))
     def pdf_words(path):
-        with fitz.open(path) as doc:return [[(word[4],*[round(v,2) for v in word[:4]]) for word in page.get_text('words') if word[4].startswith('R3C-')] for page in doc]
+        with fitz.open(path) as doc:return [[(word[4].replace('\xad','-'),*[round(v,2) for v in word[:4]]) for word in page.get_text('words') if word[4].replace('\xad','-').startswith('R3C-')] for page in doc]
     try:
         vid=next(r['version_id'] for r in api.library.entries() if r['state']=='APPROVED');before=dict(api.version(vid));source_hash=sha256(api.asset_path(before['master_pdf']))
         schema=[tuple(r) for r in api._repository.db.execute('SELECT type,name,sql FROM sqlite_master ORDER BY type,name')]
@@ -85,12 +85,16 @@ def run(report,captures=None):
         check(len(api.issues())==2 and api.issues()[0]['source_issue_id']==first,'native_controlled_reprint');capture('08-reimpresion-controlada')
         check(json.loads(api.issues()[0]['selected_indices'])==[2,3],'original_reprint_numbers')
         check(api.issue(first)['design_snapshot_json']==issue['design_snapshot_json'],'historical_snapshot_preserved')
-        w.navigate('emission');w.load_emission_work(uid)
+        w.navigate('emission');w.load_emission_work(uid);check(w.preview_emission_work(),'issued_work_proof_for_geometry_review')
         resolution=[]
         for width,height in [(1920,1080),(1366,768)]:
             scale=w.screen().devicePixelRatio();target=(int(width/scale)-16,int(height/scale)-44);w.resize(*target);app.processEvents()
             check(w.width()<=target[0] and w.height()<=target[1],f'emission_fits_{width}x{height}')
-            capture(f'09-centro-{width}x{height}');resolution.append({'target':[width,height],'logical':[w.width(),w.height()],'scale':scale})
+            capture(f'09-centro-{width}x{height}')
+            if w.height()<650:
+                check(w.emission_compact.isVisible() and w.emission_pdf.view.height()>70,'compact_preview_not_collapsed')
+                w.emission_compact.setCurrentIndex(0);app.processEvents();capture(f'10-datos-compactos-{width}x{height}');check(w.emission_left.isVisible() and not w.emission_right.isVisible(),'compact_data_accessible');w.emission_compact.setCurrentIndex(1)
+            resolution.append({'target':[width,height],'logical':[w.width(),w.height()],'scale':scale})
         check(dict(api.version(vid))==before and sha256(api.asset_path(before['master_pdf']))==source_hash,'original_master_untouched')
         check([tuple(r) for r in api._repository.db.execute('SELECT type,name,sql FROM sqlite_master ORDER BY type,name')]==schema,'sqlite_v4_schema_unchanged')
         check('tkinter' not in sys.modules,'native_flow_does_not_import_tkinter');check(not unexpected,'no_unexpected_dialogs')

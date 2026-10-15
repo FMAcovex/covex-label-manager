@@ -67,17 +67,25 @@ ZIP sigue siendo un procedimiento con aplicaciones cerradas/CLI, no una nueva UI
   barrera storage_v4 y EXE anteriores comprobados por el gate Windows conservado.
 - `main_qt.py --self-check informe.json`: 80 controles anteriores adaptados únicamente
   a navegación ahora nativa. `--emission-check informe.json --capture carpeta`:
-  31 controles adicionales, geometría del texto de trabajo entre prueba/definitivo,
+  32 controles de base y controles compactos adicionales, geometría del texto de trabajo entre prueba/definitivo,
   snapshots, reinicio, conflictos, historial, reimpresión y ausencia de importación Tk.
 - Workflow Qt conserva pruebas de variantes y puente R3B3; compila Qt y acompañante
   una vez, comprueba el portable y entrega ZIP, JSON, XML y capturas. Resultado CI
   y enlace al artefacto se registran en la PR; no se atribuye éxito a un job pendiente.
 
-Pruebas locales completas: 201 pasan, 4 omitidas por dependencias/plataforma; 80
-controles de interacción y 31 nativos pasan en Linux offscreen. Se añade además reconciliación de reimpresión tras fallo posterior al commit. Windows se valida
+Pruebas locales completas previas al ajuste compacto: 201 pasan, 4 omitidas por dependencias/plataforma; 80
+controles de interacción y 32–34 nativos pasan en Linux offscreen. Se añade además reconciliación de reimpresión tras fallo posterior al commit. Windows se valida
 por CI en el commit entregado y sus resultados prevalecen para el portable.
 
 Pendientes externos: Word/Office real, impresión física y reglas/calibración en
 impresora, Windows 10/11 y equipos COVEX, aceptación operativa y validación GMP.
 No se afirma impresión realizada, firma electrónica ni auditoría inviolable.
 Sin R4/R5 ni Business Central/SharePoint.
+
+Ajuste de aceptación visual: en ventanas de poca altura se alternan datos/PDF, con
+resumen y acciones siempre visibles, scroll de los formularios y PDF ampliable.
+Se verifica una altura útil de vista previa, además de los límites de ventana.
+Las comparaciones de texto extraído normalizan el guion discrecional de las fuentes
+Windows y los espacios inseparables; los textos y el motor PDF no cambian.
+La CI comparte cobertura: núcleo/Tk en su job, Qt/consentimiento en el suyo, sin
+ejecutar por duplicado toda la regresión del núcleo con PySide6 instalado.

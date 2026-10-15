@@ -228,6 +228,7 @@ class EmissionWorkMixin:
             self.work_dirty_panel=None
             for other in self.work_panels:
                 if other is not panel:other.display(self.emission_work)
+            self.statusBar().showMessage('Borrador guardado localmente.',3000)
             panel.note.setText('Borrador guardado localmente · generación '+str(self.emission_work['generation']))
             panel.identity.setToolTip('Trabajo '+self.emission_work['uid']+' · generación '+str(self.emission_work['generation']))
             # Count changes resize the table on explicit reload/tab switch, keeping
@@ -259,7 +260,7 @@ class EmissionWorkMixin:
         self.work_action(create)
     def load_emission_work(self,uid):
         if not self.flush_emission_work():return False
-        def load():self.emission_work=self.api.work.get(uid);self.refresh_work_panels();return True
+        def load():self.emission_work=self.api.work.get(uid);self.refresh_work_panels();self.statusBar().showMessage('Trabajo abierto · Datos guardados localmente.',5000);return True
         return self.work_action(load)
     def reload_emission_work(self):
         if not self.emission_work:return

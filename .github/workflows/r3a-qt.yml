@@ -50,9 +50,12 @@ jobs:
           python -m pip install --require-hashes --only-binary=:all:
           -r requirements-windows.lock -r requirements-qt-windows.lock
       - run: python -m pip check
-      - name: Regression with hang diagnostics
+      - name: Qt and migration-consent regression (core/Tk covered in Windows job)
         timeout-minutes: 6
-        run: python -m pytest -q -o faulthandler_timeout=60 --junitxml=test-results/core.xml
+        run: >-
+          python -m pytest -q -o faulthandler_timeout=60 --junitxml=test-results/qt.xml
+          tests/test_r3a_qt.py tests/test_r3b1_qt.py tests/test_emission_work_qt.py
+          tests/test_r3c_emission_qt.py tests/test_r3c_history_qt.py tests/test_migration_consent.py
       - name: Interact with real Qt widgets and capture fictional windows
         shell: pwsh
         run: |

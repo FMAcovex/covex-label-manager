@@ -1,5 +1,5 @@
 """Real PDF pages, shared by emission and history; never a parallel compositor."""
-from PySide6.QtWidgets import QWidget,QHBoxLayout,QComboBox
+from PySide6.QtWidgets import QWidget,QHBoxLayout,QComboBox,QDialog,QDialogButtonBox,QVBoxLayout
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
 from .window import Preview,button,label,vbox
@@ -8,12 +8,12 @@ from .window import Preview,button,label,vbox
 class PdfPane(QWidget):
     def __init__(self,api,parent=None):
         super().__init__(parent);self.api=api;self.path=None;self.page_count=0;self.validator=None
-        layout=vbox(self,0,8);top=QHBoxLayout();self.title=label('Vista previa A4','panelTitle');top.addWidget(self.title,1)
+        layout=vbox(self,0,8);top=QHBoxLayout();self.header_layout=top;self.title=label('Vista previa A4','panelTitle');top.addWidget(self.title,1)
         self.pages=QComboBox();self.pages.setMinimumWidth(105);self.pages.currentIndexChanged.connect(self.page_changed);top.addWidget(self.pages)
-        layout.addLayout(top);tools=QHBoxLayout()
+        layout.addLayout(top);self.tools=QWidget();tools=QHBoxLayout(self.tools);tools.setContentsMargins(0,0,0,0)
         self.view=Preview();self.zoom=label('Vista 100 %','subtle');self.view.zoom_label=self.zoom
-        tools.addWidget(button('Ajustar',self.view.fit));tools.addWidget(button('−',lambda:self.view.zoom(1/1.2)));tools.addWidget(button('+',lambda:self.view.zoom(1.2)));tools.addWidget(self.zoom);tools.addStretch()
-        self.open_button=button('Abrir PDF',self.open_pdf);self.open_button.setEnabled(False);tools.addWidget(self.open_button);layout.addLayout(tools)
+        tools.addWidget(button('Ajustar',self.view.fit));tools.addWidget(button('−',lambda:self.view.zoom(1/1.2)));tools.addWidget(button('+',lambda:self.view.zoom(1.2)));tools.addWidget(self.zoom);tools.addStretch();self.expand_button=button('Ampliar',self.expand_pdf);top.addWidget(self.expand_button)
+        self.open_button=button('Abrir PDF',self.open_pdf);self.open_button.setEnabled(False);tools.addWidget(self.open_button);layout.addWidget(self.tools)
         layout.addWidget(self.view,1);self.note=label('Actualice la vista previa con los datos del trabajo.','subtle');layout.addWidget(self.note)
     def clear(self,message='Los datos han cambiado. Actualice la vista previa.'):
         self.path=None;self.page_count=0;self.validator=None;self.view.scene().clear();self.pages.blockSignals(True);self.pages.clear();self.pages.blockSignals(False);self.open_button.setEnabled(False);self.note.setText(message)
@@ -22,6 +22,15 @@ class PdfPane(QWidget):
         self.title.setText(title);self.pages.blockSignals(True);self.pages.clear()
         for n in range(count):self.pages.addItem(f'Página {n+1} de {count}',n)
         self.pages.blockSignals(False);self.view.set_image(image);self.note.setText(note);self.note.setWordWrap(True);self.open_button.setEnabled(True)
+    def compact(self,enabled):
+        self.tools.setVisible(not enabled);self.note.setVisible(not enabled)
+        self.title.setStyleSheet('font-size:14px;' if enabled else '')
+    def expand_pdf(self):
+        if self.path is None or not self.verified():return
+        dialog=QDialog(self);dialog.setWindowTitle(self.title.text());layout=vbox(dialog,12,8);pane=PdfPane(self.api);pane.validator=self.validator;pane.expand_button.hide()
+        layout.addWidget(pane,1);pane.load(self.path,self.title.text(),self.note.text());pane.pages.setCurrentIndex(self.pages.currentIndex())
+        close=QDialogButtonBox(QDialogButtonBox.StandardButton.Close);close.button(QDialogButtonBox.StandardButton.Close).setText('Cerrar');close.rejected.connect(dialog.reject);layout.addWidget(close)
+        dialog.showMaximized();dialog.exec()
     def verified(self):
         try:
             if self.validator:self.validator()
