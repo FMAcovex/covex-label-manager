@@ -1,5 +1,5 @@
 """R6B field UAT: explicit evidence record, never software GMP approval."""
-import hashlib,json,os,uuid,zipfile
+import hashlib,json,os,re,uuid,zipfile
 from pathlib import Path
 from datetime import date
 from .canonical import canonical,parse
@@ -36,14 +36,14 @@ def create(api,pack,destination,environment):
     if p.suffix.lower()!='.json':raise ValueError('Sesión JSON obligatoria.')
     if not p.parent.is_dir():raise ValueError('Carpeta destino ausente.')
     if any(not str(environment.get(k,'')).strip() for k in ('machine','windows','tester','commit','portable_sha256')):raise ValueError('Identifique el entorno, operador, commit y hash del portable.')
-    if len(str(environment['commit']))!=40 or len(str(environment['portable_sha256']))!=64:raise ValueError('Commit/hash no válidos.')
+    if not re.fullmatch(r'[a-fA-F0-9]{40}',str(environment['commit'])) or not re.fullmatch(r'[a-fA-F0-9]{64}',str(environment['portable_sha256'])):raise ValueError('Commit/hash no válidos.')
     source=load_r6a(pack)
     report={'contract':1,'type':'R6B_FIELD_UAT','acceptance':'NOT_ACCEPTED','uid':uuid.uuid4().hex,'generation':1,'origin':source,'environment':environment,'cases':[{'id':a,'area':b,'criterion':c,'status':'NOT_EXECUTED','tester':'','date':'','notes':'','evidence':[]} for a,b,c in MANUAL]}
     _save_new(p,report)
     return report
 def read(path):
     with Path(path).open(encoding='utf8') as f:report=parse(f.read())
-    if report.get('contract')!=1 or report.get('type')!='R6B_FIELD_UAT' or report.get('acceptance')!='NOT_ACCEPTED' or [x['id'] for x in report.get('cases',[])]!=[x[0] for x in MANUAL]:raise ValueError('Sesión incompatible.')
+    if (report.get('contract')!=1 or report.get('type')!='R6B_FIELD_UAT' or report.get('acceptance')!='NOT_ACCEPTED' or type(report.get('generation')) is not int or report['generation']<1 or [x['id'] for x in report.get('cases',[])]!=[x[0] for x in MANUAL] or any(x.get('status') not in VALID for x in report['cases'])):raise ValueError('Sesión incompatible.')
     return report
 def update(api,path,generation,case,status,tester='',when='',notes='',evidence=None):
     if status not in VALID:raise ValueError('Estado UAT inválido.')
@@ -61,10 +61,22 @@ def update(api,path,generation,case,status,tester='',when='',notes='',evidence=N
         if not f.is_file() or f.is_relative_to(api._repository.root.resolve()) or not 0<f.stat().st_size<=25000000:raise ValueError('Evidencia no autorizada o demasiado grande.')
         references.append({'name':f.name,'path':str(f),'sha256':sha(f),'bytes':f.stat().st_size})
     if status=='PASS' and not references:raise ValueError('Conforme requiere evidencia.')
+    if status=='PASS' and verify_evidence({'cases':[{'id':case,'evidence':references}]}):
+        raise ValueError('La evidencia está ausente o su SHA-256 ha cambiado.')
     data={**r,'cases':[dict(c) for c in r['cases']],'generation':generation+1}
     next(c for c in data['cases'] if c['id']==case).update(status=status,tester=tester,date=when,notes=notes,evidence=references)
     target=p.with_name(p.stem+'.g'+str(generation+1)+'.json')
     _save_new(target,data)
     return str(target)
 def verify_evidence(report):
-    return [c['id'] for c in report['cases'] for e in c['evidence'] if not Path(e['path']).is_file() or sha(e['path'])!=e['sha256']]
+    issues=[]
+    for case in report['cases']:
+        for evidence in case['evidence']:
+            path=Path(evidence['path'])
+            try:
+                if (not path.is_file() or path.stat().st_size!=evidence['bytes']
+                    or sha(path)!=evidence['sha256']):
+                    issues.append(case['id'])
+            except (OSError,KeyError,TypeError,ValueError):
+                issues.append(case['id'])
+    return sorted(set(issues))

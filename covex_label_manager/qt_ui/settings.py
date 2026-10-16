@@ -107,6 +107,7 @@ class SettingsMixin:
             'pendiente de aceptación Windows/Word/impresora y validación GMP.', 'subtle',
         ))
         info.addWidget(button('Diagnóstico R6A de preaceptación…', self.open_acceptance_readiness, 'primary'))
+        info.addWidget(button('Sesiones de pruebas R6B…', self.open_uat_session))
         info.addWidget(button('Ir a Biblioteca', lambda: self.navigate('library')))
         overview.addStretch()
 
@@ -401,3 +402,10 @@ class SettingsMixin:
             ReadinessDialog(self,self.api).exec()
         except Exception as ex:
             QMessageBox.warning(self,'Diagnóstico no iniciado',str(ex))
+
+    def open_uat_session(self):
+        if self.legacy_process is not None or not self.flush_emission_work() or not self.resolve_work():return
+        try:
+            from .uat_session_dialog import UatSessionDialog
+            UatSessionDialog(self,self.api).exec()
+        except Exception as ex:QMessageBox.warning(self,'Sesiones R6B no disponibles',str(ex))

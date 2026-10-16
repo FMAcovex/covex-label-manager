@@ -65,6 +65,18 @@ class LocalServices:
     def acceptance_export(self,report,destination):
         from .acceptance_preflight import export
         return export(self,report,destination)
+    def uat_create(self,pack,path,environment):
+        from .uat_session import create
+        return create(self,pack,path,environment)
+    def uat_read(self,path):
+        from .uat_session import read
+        return read(path)
+    def uat_update(self,path,generation,case,status,**kwargs):
+        from .uat_session import update
+        return update(self,path,generation,case,status,**kwargs)
+    def uat_verify(self,report):
+        from .uat_session import verify_evidence
+        return verify_evidence(report)
     def location(self):return str(self._repository.root)
     def output_path(self,kind,name):
         if kind not in ('cache','emissions','backups'):raise ValueError('Destino no permitido.')
