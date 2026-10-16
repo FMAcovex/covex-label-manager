@@ -45,7 +45,9 @@ class EmissionCentreMixin:
         actions=QHBoxLayout();self.native_save=button('Guardar borrador',self.flush_emission_work);actions.addWidget(self.native_save)
         self.native_proof=button('PDF de prueba',self.proof_emission_work);actions.addWidget(self.native_proof)
         self.native_options=button('Opciones…',self.work_options);actions.addWidget(self.native_options);actions.addStretch()
-        self.native_issue=button('Emitir definitivamente',self.issue_emission_work,'primary');actions.addWidget(self.native_issue);fl.addLayout(actions);layout.addWidget(footer)
+        self.native_issue=button('Emitir definitivamente',self.issue_emission_work,'primary');actions.addWidget(self.native_issue)
+        self.native_print=button('Imprimir PDF registrado…',self.print_emission_pdf);self.native_print.setEnabled(False);actions.addWidget(self.native_print)
+        fl.addLayout(actions);layout.addWidget(footer)
         return page
     def refresh_work_panels(self):
         super().refresh_work_panels()
@@ -64,7 +66,9 @@ class EmissionCentreMixin:
         super().recheck_actions()
         if getattr(self,'native_ready',False) and not self.native_busy:self.refresh_emission_review()
     def refresh_emission_review(self):
-        w=self.emission_work;self.native_issue.setEnabled(False);self.native_save.setEnabled(bool(w and w['phase']=='DRAFT' and not self.native_busy))
+        w=self.emission_work;self.native_issue.setEnabled(False)
+        self.native_print.setEnabled(bool(w and w['phase']=='ISSUED' and w.get('issue_id') and not self.native_busy and not self.legacy_process))
+        self.native_save.setEnabled(bool(w and w['phase']=='DRAFT' and not self.native_busy))
         self.native_proof.setEnabled(bool(w and not self.native_busy));self.preview_work_button.setEnabled(bool(w and not self.native_busy))
         if not w:
             self._emission_document_full='Seleccione un trabajo o cree uno nuevo.'
@@ -256,7 +260,7 @@ class EmissionCentreMixin:
         footer_layout.setContentsMargins(*(10,7,10,7) if compact else (12,12,12,12))
         footer_layout.setSpacing(3 if compact else 5)
         self.emission_summary.setStyleSheet('font-size:13px;' if compact else '')
-        for action in (self.native_save,self.native_proof,self.native_options,self.native_issue):
+        for action in (self.native_save,self.native_proof,self.native_options,self.native_issue,self.native_print):
             action.setStyleSheet('padding:6px 10px;' if compact else '')
         self.refresh_emission_caption()
         self.emission_left.setVisible(not compact or self.emission_compact.currentIndex()==0)

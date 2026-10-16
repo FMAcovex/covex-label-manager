@@ -296,8 +296,9 @@ from .history import HistoryMixin
 from .settings import SettingsMixin
 from .compare import CompareMixin
 from .folder_import import FolderImportMixin
+from .print_control import PrintWorkflowMixin
 
-class FunctionalWindow(FolderImportMixin, CompareMixin, SettingsMixin, HistoryMixin, EmissionCentreMixin, EmissionWorkMixin, VariantsMixin, AdvancedEditorMixin, BaseFunctionalWindow):
+class FunctionalWindow(PrintWorkflowMixin, FolderImportMixin, CompareMixin, SettingsMixin, HistoryMixin, EmissionCentreMixin, EmissionWorkMixin, VariantsMixin, AdvancedEditorMixin, BaseFunctionalWindow):
     """R3B1 tools on the approved R3A library and legacy transition controller."""
 
 
