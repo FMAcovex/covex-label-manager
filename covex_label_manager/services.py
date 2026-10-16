@@ -44,6 +44,12 @@ class LocalServices:
     def catalog_export(self,destination):
         from .catalog_exchange import export_library
         return export_library(self,destination)
+    def catalog_migration_preview(self,folder):
+        from .catalog_migration import preview
+        return preview(self,folder)
+    def catalog_migration_apply(self,folder,row,decision):
+        from .catalog_migration import apply
+        return apply(self,folder,row,decision)
     def location(self):return str(self._repository.root)
     def output_path(self,kind,name):
         if kind not in ('cache','emissions','backups'):raise ValueError('Destino no permitido.')
