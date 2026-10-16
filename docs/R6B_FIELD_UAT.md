@@ -1,0 +1,3 @@
+# R6B — Ejecución presencial controlada
+
+Sesiones locales externas a data; identificación de Windows, equipo, operador, commit y hash de portable. Verificar primero paquete R6A por manifiesto SHA-256. Cada caso comienza como NOT_EXECUTED. PASS requiere fecha, responsable y evidencia con SHA-256. FAIL/BLOCKED/NOT_APPLICABLE exigen motivo. Cada cambio crea un JSON nuevo versionado y no sobrescribe el anterior. La aplicación no ejecuta impresoras, no confirma Word ni concede aceptación GMP. Pruebas con hardware y documentos reales, archivo de evidencias y aprobación corresponden al personal de COVEX. 00-R1 permanece pendiente.
