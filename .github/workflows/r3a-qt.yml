@@ -16,6 +16,7 @@ on:
       - 'tests/test_r5*.py'
       - 'covex_label_manager/catalog_exchange.py'
       - 'covex_label_manager/catalog_migration.py'
+      - 'covex_label_manager/master_reconciliation.py'
       - 'tests/test_r5b*.py'
       - 'covex_label_manager/print_dispatch.py'
       - 'covex_label_manager/sheet_layout.py'
@@ -73,7 +74,7 @@ jobs:
           tests/test_migration_consent.py tests/test_r3e_layout.py tests/test_r3e_qt.py tests/test_r3f_qt.py
           tests/test_r4a_layout.py tests/test_r4a_qt.py tests/test_r4b_calibration.py tests/test_r4b_qt.py
           tests/test_r4c_dispatch.py tests/test_r4c_qt.py tests/test_r5a_catalog.py
-          tests/test_r5b_migration.py
+          tests/test_r5b_migration.py tests/test_r5c_reconciliation.py tests/test_r5c_qt.py
       - name: Interact with real Qt widgets and capture fictional windows
         shell: pwsh
         run: |

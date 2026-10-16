@@ -42,3 +42,13 @@ class CatalogExchangeMixin:
                 f"Exportadas {result['revisions']} revisiones y {result['assets']} activos."
                 '\nEste ZIP NO es una copia de seguridad para restaurar la aplicación.')
         except Exception as ex:QMessageBox.warning(self,'Exportación no realizada',str(ex))
+
+    def reconcile_master(self):
+        if self.legacy_process or not self.flush_emission_work() or not self.resolve_work():return
+        path,_=QFileDialog.getOpenFileName(self,'Seleccionar libro máster local',
+            '','Libro de etiquetas (*.xlsx *.csv *.tsv)')
+        if not path:return
+        try:
+            from .master_reconcile_ui import MasterReconciliationDialog
+            MasterReconciliationDialog(self,self.api,path).exec()
+        except Exception as ex:QMessageBox.warning(self,'Conciliación no iniciada',str(ex))
