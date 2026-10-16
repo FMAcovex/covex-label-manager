@@ -33,7 +33,9 @@ class HistoryMixin:
         right=box();rl=vbox(right,12,8);self.history_pdf=PdfPane(self.api);rl.addWidget(self.history_pdf,1);split.addWidget(right);self.history_right=right
         split.setSizes([690,760]);split.setStretchFactor(0,1);split.setStretchFactor(1,1);layout.addWidget(split,1)
         self.history_feedback=label('Seleccione una emisión para verificar su PDF y consultar sus datos.','subtle');self.history_feedback.setWordWrap(True);layout.addWidget(self.history_feedback)
-        row=QHBoxLayout();row.addWidget(button('Verificar y ver PDF',self.preview_native_issue));row.addStretch();self.reprint_button=button('Reimpresión controlada…',self.native_reprint,'primary');row.addWidget(self.reprint_button);layout.addLayout(row)
+        row=QHBoxLayout();row.addWidget(button('Verificar y ver PDF',self.preview_native_issue));row.addStretch()
+        self.print_history_button=button('Imprimir PDF registrado…',self.print_historical_pdf);self.print_history_button.setEnabled(False);row.addWidget(self.print_history_button)
+        self.reprint_button=button('Reimpresión controlada…',self.native_reprint,'primary');row.addWidget(self.reprint_button);layout.addLayout(row)
         return page
     def navigate(self,key):
         if key=='history' and getattr(self,'history_ready',False):
@@ -67,7 +69,7 @@ class HistoryMixin:
         self.history_pdf.clear('Pulse Verificar y ver PDF para consultar el documento registrado.');self.history_report=None
         row=self.history_table.currentRow()
         if row<0:
-            self.history_id=None;self.reprint_button.setEnabled(False)
+            self.history_id=None;self.reprint_button.setEnabled(False);self.print_history_button.setEnabled(False)
             for t in self.history_text.values():t.clear()
             return
         self.history_id=self.history_table.item(row,0).data(Qt.ItemDataRole.UserRole)
@@ -86,8 +88,11 @@ class HistoryMixin:
             self.history_text['format'].setPlainText(f"Etiqueta: {p['width_mm']} × {p['height_mm']} mm\nA4: {'Horizontal' if p.get('orientation')=='landscape' else 'Vertical'}\nMargen: {p.get('margin_mm',0)} mm · Separación: {p.get('gap_mm',0)} mm\nCasilla inicial: {p.get('start_slot',1)}\nDesplazamiento: {p.get('offset_x_mm',0)} / {p.get('offset_y_mm',0)} mm\nImpresora de referencia: {p.get('printer_name') or '—'}\n\nEstado de material: "+{'ninguna':'Sin etiqueta de estado','sin_analizar':'Sin analizar','aprobado':'Aprobado','rechazado':'Rechazado'}.get(status.get('kind','ninguna'),status.get('kind',''))+'\n'+fields({k:v for k,v in status.items() if k not in ('kind','placement')}))
             self.history_feedback.setText('\n'.join(report['warnings']+([report['blocked']] if report['blocked'] else ['PDF disponible. Reimpresión sujeta a comprobación documental y motivo.'])))
             self.reprint_button.setEnabled(report['reprint_allowed'] and not self.legacy_process)
+            self.print_history_button.setEnabled(
+                not report['blocked'] and bool(report['snapshot']) and
+                bool(i['pdf_sha256']) and not self.legacy_process)
         except Exception as ex:
-            self.history_feedback.setText(self.operator_error(ex));self.reprint_button.setEnabled(False)
+            self.history_feedback.setText(self.operator_error(ex));self.reprint_button.setEnabled(False);self.print_history_button.setEnabled(False)
             for t in self.history_text.values():t.clear()
     def preview_native_issue(self):
         if self.history_id is None:return False

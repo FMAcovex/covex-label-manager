@@ -12,6 +12,8 @@ on:
       - 'tests/test_r3f*.py'
       - 'tests/test_r4a*.py'
       - 'tests/test_r4b*.py'
+      - 'tests/test_r4c*.py'
+      - 'covex_label_manager/print_dispatch.py'
       - 'covex_label_manager/sheet_layout.py'
       - 'covex_label_manager/layout_profiles.py'
       - 'scripts/r3e_backward_gate.py'
@@ -66,6 +68,7 @@ jobs:
           tests/test_r3c_emission_qt.py tests/test_r3c_history_qt.py tests/test_r3d_settings_qt.py
           tests/test_migration_consent.py tests/test_r3e_layout.py tests/test_r3e_qt.py tests/test_r3f_qt.py
           tests/test_r4a_layout.py tests/test_r4a_qt.py tests/test_r4b_calibration.py tests/test_r4b_qt.py
+          tests/test_r4c_dispatch.py tests/test_r4c_qt.py
       - name: Interact with real Qt widgets and capture fictional windows
         shell: pwsh
         run: |
