@@ -135,7 +135,9 @@ class BaseFunctionalWindow(StudioWindow):
             ('Crear nueva revisión documental',self.clone_revision),('Registrar aprobación externa',self.approve_revision),
             ('Importar PDF / Word',self.import_document)]:menu.addAction(title,action)
         menu.addSeparator()
+        menu.addAction('Inventariar carpeta… (R5A)',self.review_catalog_folder)
         menu.addAction('Importar carpeta…',self.import_folder_native)
+        menu.addAction('Exportar catálogo completo… (R5A)',self.export_entire_library)
         menu.addAction('Comparar revisiones…',self.compare_revisions)
         menu.exec(self.cursor().pos())
     def open_document(self,original=False):
@@ -296,9 +298,10 @@ from .history import HistoryMixin
 from .settings import SettingsMixin
 from .compare import CompareMixin
 from .folder_import import FolderImportMixin
+from .catalog_exchange_ui import CatalogExchangeMixin
 from .print_control import PrintWorkflowMixin
 
-class FunctionalWindow(PrintWorkflowMixin, FolderImportMixin, CompareMixin, SettingsMixin, HistoryMixin, EmissionCentreMixin, EmissionWorkMixin, VariantsMixin, AdvancedEditorMixin, BaseFunctionalWindow):
+class FunctionalWindow(CatalogExchangeMixin, PrintWorkflowMixin, FolderImportMixin, CompareMixin, SettingsMixin, HistoryMixin, EmissionCentreMixin, EmissionWorkMixin, VariantsMixin, AdvancedEditorMixin, BaseFunctionalWindow):
     """R3B1 tools on the approved R3A library and legacy transition controller."""
 
 
