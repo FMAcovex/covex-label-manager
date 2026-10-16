@@ -178,7 +178,7 @@ class AdvancedEditorMixin:
         page.layout().insertWidget(2,self.field_action_bar)
         self.field_snap=QCheckBox('Snap de campos a 1 mm');self.editor_tools.layout().insertWidget(1,self.field_snap)
         self.field_grid=QCheckBox('Cuadrícula de campos (10 mm)');self.field_grid.toggled.connect(lambda *_:self.draw_editor() if self.design else None);self.editor_tools.layout().insertWidget(2,self.field_grid)
-        self.variant_edit_button=button('Crear variante editable',self.editable_variant)
+        self.variant_edit_button=button('Ajustar campos de revisión vigente…',self.editable_variant)
         row.addWidget(self.variant_edit_button);row.addStretch()
         self.editor_tools.layout().insertWidget(2,label('Solo se editan campos variables superpuestos. El maestro fijo permanece protegido.','subtle'))
         self.field_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -399,7 +399,9 @@ class AdvancedEditorMixin:
         enabled=self.editable()
         self.new_field_button.setEnabled(enabled); self.draw_field_button.setEnabled(enabled)
         self.variant_edit_button.setVisible(not enabled)
-        self.variant_edit_button.setToolTip('La revisión aprobada o retirada es inmutable. Cree una variante cuando el ciclo documental lo permita.')
+        can_derive=bool(self.current_editor_id and self.editor_version['state']=='APPROVED')
+        self.variant_edit_button.setEnabled(can_derive and self.legacy_process is None)
+        self.variant_edit_button.setToolTip('Crea una copia editable de los campos sin tocar la revisión vigente. La variante requiere aprobación documental para emitir.' if can_derive else 'Solo se crean variantes de ajuste desde revisiones vigentes.')
         self.undo_button.setEnabled(enabled and bool(self.design.undo_states)); self.redo_button.setEnabled(enabled and bool(self.design.redo_states))
         for b in self.design_buttons: b.setEnabled(enabled)
         if self.design:
@@ -445,6 +447,14 @@ class AdvancedEditorMixin:
         self.recheck_actions(); self.statusBar().showMessage('Tkinter cerrado; diseño recargado.' if code==0 else f'Tkinter terminó con código {code}. Revisar antes de continuar.')
 
     def editable_variant(self):
+        if self.current_editor_id is None or self.editor_version['state']!='APPROVED':return
+        if QMessageBox.question(self,'Ajustar campos de revisión vigente',
+            'Se creará una variante en BORRADOR para recolocar, redimensionar y configurar campos. '
+            'La revisión aprobada y sus originales permanecerán intactos. '
+            'La variante NO podrá utilizarse para emisión definitiva hasta su aprobación documental. '
+            '¿Crear una variante editable?',
+            QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel)!=QMessageBox.StandardButton.Yes:return
         self.select_version(self.current_editor_id)
         self.library_variant_id=self.current_variant_id
         self.create_variant_ui(self.current_variant_id is not None)

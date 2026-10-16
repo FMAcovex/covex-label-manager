@@ -148,3 +148,23 @@ def test_mass_fields_accept_kg_in_native_work_without_altering_saved_text(studio
     w.refresh_work_panels()
     assert w.emission_panel.value_inputs['pn'].text()=='0,3558 kg'
     assert w.editor_work_panel.value_inputs['pb'].text()=='0,500 KG'
+
+def test_approved_field_adjustment_guides_to_draft_variant(studio,monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    w,s,app=studio
+    approved=next(v['id'] for v in s.services.versions(w.row['id']) if v['state']=='APPROVED')
+    w.select_version(approved);w.open_editor()
+    original=s.services.version(approved)
+    assert w.variant_edit_button.isEnabled()
+    assert not w.spins['x'].isEnabled()
+    monkeypatch.setattr(QMessageBox,'question',lambda *a,**kw:QMessageBox.StandardButton.Yes)
+    monkeypatch.setattr(w,'ask_form',lambda title,fields:{
+        'code':'AJUSTE-001','name':'Ajuste ficticio de campos','reason':'Prueba de posición'})
+    w.editable_variant()
+    assert w.current_variant_id is not None
+    variant=s.services.variant(w.current_variant_id)
+    assert variant['state']=='DRAFT'
+    assert w.spins['x'].isEnabled()
+    assert not s.services.eligibility(approved,True,w.current_variant_id)[0]
+    assert s.services.version(approved)['pdf_sha256']==original['pdf_sha256']
+    assert s.services.version(approved)['fields_json']==original['fields_json']
