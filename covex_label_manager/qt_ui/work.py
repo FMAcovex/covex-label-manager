@@ -5,7 +5,7 @@ import uuid
 import unicodedata
 from PySide6.QtCore import Qt,QTimer,QSignalBlocker
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QLineEdit,QComboBox,
-    QTabWidget,QTableWidget,QTableWidgetItem,QHeaderView,QScrollArea,QDockWidget,QMessageBox,QInputDialog,QPlainTextEdit,QLabel,QCheckBox)
+    QTabWidget,QTableWidget,QTableWidgetItem,QHeaderView,QScrollArea,QDockWidget,QMessageBox,QInputDialog,QPlainTextEdit,QLabel,QCheckBox,QSizePolicy)
 from .window import button,label,vbox
 from ..emission_work import WorkConflict
 
@@ -15,7 +15,7 @@ PHASE={'DRAFT':'Borrador','EMITTING':'Intento interrumpido','ISSUED':'Emitido','
 class VariableText(QPlainTextEdit):
     """Multiline variable input retaining the existing WorkPanel text contract."""
     def __init__(self,text=''):
-        super().__init__(text);self.setMinimumHeight(54);self.setMaximumHeight(78);self.setTabChangesFocus(True)
+        super().__init__(text);self.setFixedHeight(64);self.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed);self.setTabChangesFocus(True)
     @property
     def textEdited(self):return self.textChanged
     def text(self):return self.toPlainText()
@@ -37,6 +37,9 @@ class WorkPanel(QWidget):
         self.identity=label('','subtle');self.identity.setWordWrap(True);layout.addWidget(self.identity)
         self.tabs=QTabWidget();layout.addWidget(self.tabs,1)
         common=QWidget();common.setObjectName('workForm');self.common_form=QFormLayout(common)
+        self.common_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+        self.common_form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+        self.common_form.setVerticalSpacing(10);self.common_form.setContentsMargins(10,12,10,12)
         scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(common);self.tabs.addTab(scroll,'Datos de lote')
         self.containers=QTableWidget(0,5);self.containers.setHorizontalHeaderLabels(['Nº','Lote','PN kg','PB kg','Conservación'])
         self.containers.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
@@ -104,6 +107,7 @@ class WorkPanel(QWidget):
 
     def with_error(self,entry,key):
         holder=QWidget();layout=QVBoxLayout(holder);layout.setContentsMargins(0,0,0,0);layout.setSpacing(3);layout.addWidget(entry)
+        holder.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed)
         error=label('');error.setObjectName('fieldError');error.setWordWrap(True);error.hide();layout.addWidget(error)
         self.error_labels[key]=error;self.field_widgets[key]=entry
         return holder
