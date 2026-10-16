@@ -105,7 +105,8 @@ class FolderImportMixin:
             if not paths:
                 QMessageBox.information(self,'Sin documentos','No hay archivos compatibles en la carpeta.')
                 return
-            dialog=FolderImportDialog(self,self.api,folder,paths)
+            from .controlled_import import ControlledImportDialog
+            dialog=ControlledImportDialog(self,self.api,folder)
             dialog.exec()
             if dialog.done:
                 self.refresh_facets();self.refresh();self.recheck_actions()
