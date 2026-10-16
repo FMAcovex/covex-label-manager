@@ -29,7 +29,7 @@ def _outside(api,p):
     if p.resolve().is_relative_to(api._repository.root.resolve()):raise PermissionError('Guardar fuera de data.')
     return p
 def _save_new(p,data):
-    with p.open('xb',encoding='utf8') as f:
+    with p.open('x',encoding='utf-8') as f:
         f.write(canonical(data));f.flush();os.fsync(f.fileno())
 def create(api,pack,destination,environment):
     p=_outside(api,destination)
