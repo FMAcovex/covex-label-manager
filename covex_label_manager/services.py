@@ -59,6 +59,12 @@ class LocalServices:
     def master_reconcile_export(self,path,report,target):
         from .master_reconciliation import export_report
         return export_report(self,path,report,target)
+    def acceptance_preflight(self):
+        from .acceptance_preflight import inspect
+        return inspect(self)
+    def acceptance_export(self,report,destination):
+        from .acceptance_preflight import export
+        return export(self,report,destination)
     def location(self):return str(self._repository.root)
     def output_path(self,kind,name):
         if kind not in ('cache','emissions','backups'):raise ValueError('Destino no permitido.')

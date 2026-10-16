@@ -106,6 +106,7 @@ class SettingsMixin:
             'Los PDF generados no acreditan impresión física. Esta versión continúa '
             'pendiente de aceptación Windows/Word/impresora y validación GMP.', 'subtle',
         ))
+        info.addWidget(button('Diagnóstico R6A de preaceptación…', self.open_acceptance_readiness, 'primary'))
         info.addWidget(button('Ir a Biblioteca', lambda: self.navigate('library')))
         overview.addStretch()
 
@@ -392,3 +393,11 @@ class SettingsMixin:
         except (ValueError, OSError) as ex:
             QMessageBox.warning(self, 'Aprobación no registrada', str(ex))
             return False
+
+    def open_acceptance_readiness(self):
+        if self.legacy_process is not None or not self.flush_emission_work() or not self.resolve_work():return
+        try:
+            from .acceptance_dialog import ReadinessDialog
+            ReadinessDialog(self,self.api).exec()
+        except Exception as ex:
+            QMessageBox.warning(self,'Diagnóstico no iniciado',str(ex))

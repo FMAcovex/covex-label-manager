@@ -1,0 +1,7 @@
+# R6 — Aceptación y puesta en funcionamiento
+## R6A — Diagnóstico automático (fase de desarrollo)
+En Configuración → Resumen → Diagnóstico R6A se comprueban en solo lectura SQLite, hashes de originales y PDF, validez PDF, estados/referencias documentales, variantes y emisiones/snapshots. Permite exportar un ZIP con diagnostico.json, protocolo_aceptacion.csv e integrity-manifest.json SHA-256. El paquete NO contiene documentos PDF/Word ni copia de seguridad. No se sobrescribe un ZIP previo y el resultado global es siempre NOT_ACCEPTED. Los 14 casos manuales están NOT_EXECUTED; el ZIP puede contener referencias internas y debe permanecer fuera del repositorio público.
+## R6B — Pruebas presenciales pendientes
+Windows 10/11, antivirus, firma si procede, portable sin Python, Word real y fuentes/formatos, carpeta de pruebas separada, backup/restauración, perfiles de impresión, salidas físicas al 100%, calibración, hojas parciales, numeración, reimpresión e historial, bloqueo de revisiones pendientes/retiradas y conciliación R5 del libro máster autorizado. Registrar equipo, versión, hash, resultado, responsable, fecha, incidencia y evidencia.
+## R6C — Cierre interno pendiente
+Resolver incidencias, archivar evidencias, aprobar conforme al sistema documental/GMP aplicable, entregar a IT y documentar rollback/soporte. Ninguna CI sustituye una prueba física; 00-R1 permanece PENDING. No migrar datos reales ni declararlos validados automáticamente.
