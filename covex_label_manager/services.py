@@ -38,6 +38,12 @@ class LocalServices:
     def importable_files(self,path):
         from .importer import list_importable_files
         return list_importable_files(path)
+    def catalog_inventory(self,folder):
+        from .catalog_exchange import inventory_folder
+        return inventory_folder(self,folder)
+    def catalog_export(self,destination):
+        from .catalog_exchange import export_library
+        return export_library(self,destination)
     def location(self):return str(self._repository.root)
     def output_path(self,kind,name):
         if kind not in ('cache','emissions','backups'):raise ValueError('Destino no permitido.')
