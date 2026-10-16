@@ -78,6 +78,7 @@ jobs:
           tests/test_r4c_dispatch.py tests/test_r4c_qt.py tests/test_r5a_catalog.py
           tests/test_r5b_migration.py tests/test_r5c_reconciliation.py tests/test_r5c_qt.py
           tests/test_r6a_acceptance.py tests/test_r6a_qt.py
+          tests/test_r6b_session.py tests/test_r6b_qt.py
       - name: Interact with real Qt widgets and capture fictional windows
         shell: pwsh
         run: |
