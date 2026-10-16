@@ -50,6 +50,15 @@ class LocalServices:
     def catalog_migration_apply(self,folder,row,decision):
         from .catalog_migration import apply
         return apply(self,folder,row,decision)
+    def master_reconcile_sheets(self,path):
+        from .master_reconciliation import source_sheets
+        return source_sheets(path)
+    def master_reconcile(self,path,sheet,mapping):
+        from .master_reconciliation import reconcile
+        return reconcile(self,path,sheet,mapping)
+    def master_reconcile_export(self,path,report,target):
+        from .master_reconciliation import export_report
+        return export_report(self,path,report,target)
     def location(self):return str(self._repository.root)
     def output_path(self,kind,name):
         if kind not in ('cache','emissions','backups'):raise ValueError('Destino no permitido.')

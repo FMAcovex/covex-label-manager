@@ -138,6 +138,7 @@ class BaseFunctionalWindow(StudioWindow):
         menu.addAction('Inventariar carpeta… (R5A)',self.review_catalog_folder)
         menu.addAction('Importar carpeta…',self.import_folder_native)
         menu.addAction('Exportar catálogo completo… (R5A)',self.export_entire_library)
+        menu.addAction('Conciliar libro máster… (R5C)',self.reconcile_master)
         menu.addAction('Comparar revisiones…',self.compare_revisions)
         menu.exec(self.cursor().pos())
     def open_document(self,original=False):
