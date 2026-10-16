@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
 )
 from .window import vbox,label,button
 from ..importer import proposed_identity
+from ..catalog_migration import inventory,guarded_import,export_inventory_csv
 
 class FolderImportDialog(QDialog):
     def __init__(self,parent,api,folder,paths=None):
@@ -14,7 +15,8 @@ class FolderImportDialog(QDialog):
         self.api=api;self.folder=Path(folder)
         self.paths=list(paths) if paths is not None else list(api.importable_files(folder))
         self.done=0;self.ok=0;self.failures=[];self.running=False;self.cancelled=False
-        self.setWindowTitle('Importar carpeta · Documentos pendientes')
+        self.inventory=inventory(api,self.paths)
+        self.setWindowTitle('R5A · Inventario y migración controlada')
         self.resize(930,610)
         lay=vbox(self,14,9)
         lay.addWidget(label('Archivos encontrados: '+str(len(self.paths)), 'panelTitle'))
@@ -22,34 +24,50 @@ class FolderImportDialog(QDialog):
                    'Cancelar detiene los siguientes archivos: no revierte los ya importados. '
                    'Revise individualmente los recortes y campos antes de aprobar.', 'subtle')
         note.setWordWrap(True);lay.addWidget(note)
-        self.table=QTableWidget(len(self.paths),5)
-        self.table.setHorizontalHeaderLabels(['Archivo','Nombre propuesto','Revisión','Categoría','Resultado'])
+        self.table=QTableWidget(len(self.paths),6)
+        self.table.setHorizontalHeaderLabels(['Archivo','Nombre propuesto','Revisión','Categoría','Resultado','Importar'])
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.verticalHeader().hide()
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.data=[]
+        self.data=[];self.include=[]
         for i,p in enumerate(self.paths):
-            identity=proposed_identity(p)
+            candidate=self.inventory[i]
+            identity={'name':candidate['name'],'version':candidate['version'],
+                      'category':candidate['category']}
             row=dict(name=identity['name'],version=identity['version'],category=identity['category'],
                      code='',annex='',origin='COVEX',customer='',ref_customer='')
             self.data.append(row)
-            for j,t in enumerate((p.name,row['name'],row['version'],row['category'],'Pendiente')):
-                cell=QTableWidgetItem(str(t));cell.setToolTip(str(p));self.table.setItem(i,j,cell)
+            for j,t in enumerate((p.name,row['name'],row['version'],row['category'],
+                                   candidate['status']+' · '+candidate['reason'])):
+                cell=QTableWidgetItem(str(t));cell.setToolTip(str(p)+' / '+candidate['reason']);self.table.setItem(i,j,cell)
+            checked=QTableWidgetItem()
+            safe=candidate['status']=='NEW'
+            checked.setFlags(Qt.ItemFlag.ItemIsEnabled|Qt.ItemFlag.ItemIsUserCheckable
+                             if safe else Qt.ItemFlag.NoItemFlags)
+            checked.setCheckState(Qt.CheckState.Checked if safe else Qt.CheckState.Unchecked)
+            checked.setToolTip('NUEVO: importar como PENDING' if safe else 'Requiere conciliación: '+candidate['reason'])
+            self.table.setItem(i,5,checked);self.include.append(checked)
         lay.addWidget(self.table,1)
         self.progress=QProgressBar();self.progress.setRange(0,len(self.paths));lay.addWidget(self.progress)
         self.status=label('Revise la lista antes de empezar.','subtle');self.status.setWordWrap(True);lay.addWidget(self.status)
         row=QHBoxLayout();self.start_button=button('Comenzar importación',self.start,'primary')
         self.stop_button=button('Detener tras archivo actual',self.stop);self.stop_button.setEnabled(False)
         row.addWidget(self.start_button);row.addWidget(self.stop_button);row.addStretch()
+        row.addWidget(button('Exportar inventario CSV…',self.export_report))
         row.addWidget(button('Cerrar',self.close_requested));lay.addLayout(row)
         self.timer=QTimer(self);self.timer.setSingleShot(True);self.timer.timeout.connect(self.step)
 
     def start(self):
         if self.running or self.done or not self.paths:return
-        if QMessageBox.question(self,'Confirmar importación',
-                f'Se importarán hasta {len(self.paths)} documentos como pendientes. '
-                'Los ya importados permanecerán si detiene el proceso. ¿Continuar?',
+        selected=sum(c.checkState()==Qt.CheckState.Checked for c in self.include)
+        if not selected:
+            self.status.setText('No hay archivos NUEVOS seleccionados. Exporte el inventario.')
+            return
+        if QMessageBox.question(self,'Confirmar R5A',
+                f'Importar hasta {selected} nuevos documentos como PENDING. '
+                'Duplicados y coincidencias no se importarán. '
+                'Lo incorporado no se revierte al detener. ¿Continuar?',
                 QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.Cancel,
                 QMessageBox.StandardButton.Cancel)!=QMessageBox.StandardButton.Yes:return
         self.running=True;self.start_button.setEnabled(False);self.stop_button.setEnabled(True)
@@ -60,15 +78,19 @@ class FolderImportDialog(QDialog):
         if not self.running:return
         if self.cancelled or self.done>=len(self.paths):
             self.finish();return
-        index=self.done;path=self.paths[index]
-        try:
-            if not self.data[index]['name'] or not self.data[index]['version']:
-                raise ValueError('Nombre/revisión no válido')
-            self.api.import_label(str(path),self.data[index])
-            self.ok+=1;status='Importado · PENDIENTE'
-        except Exception as ex:
-            msg=f'{path.name}: {str(ex)}'
-            self.failures.append(msg);status='Incidencia: '+str(ex)
+        index=self.done;path=self.paths[index];candidate=self.inventory[index]
+        if self.include[index].checkState()!=Qt.CheckState.Checked and candidate['status']!='ERROR':
+            status=candidate['status']+' · omitido para conciliación'
+        else:
+            try:
+                if candidate['status']=='ERROR':
+                    raise ValueError(candidate['reason'])
+                guarded_import(self.api,candidate,self.data[index])
+                self.ok+=1;status='Importado · PENDING, revisar documento'
+            except Exception as ex:
+                msg=f'{path.name}: {str(ex)}'
+                self.failures.append(msg);status='Incidencia: '+str(ex)
+        candidate['outcome']=status
         self.table.item(index,4).setText(status)
         self.table.item(index,4).setToolTip(status)
         self.done+=1;self.progress.setValue(self.done)
@@ -87,6 +109,18 @@ class FolderImportDialog(QDialog):
                             f'{len(self.paths)-self.done} sin procesar. '
                             'Todos los incorporados están pendientes de revisión.')
         if self.failures:self.status.setToolTip('\n'.join(self.failures))
+    def export_report(self):
+        if self.running:
+            self.status.setText('Detenga primero la importación para exportar resultados.')
+            return
+        target,_=QFileDialog.getSaveFileName(self,'Guardar inventario R5A','Inventario_R5A.csv','CSV (*.csv)')
+        if not target:return
+        try:
+            export_inventory_csv(self.inventory,target,self.api.location())
+            self.status.setText('Inventario guardado; no constituye aprobación documental.')
+        except (OSError,ValueError,PermissionError) as ex:
+            self.status.setText('No se pudo guardar CSV: '+str(ex))
+
     def close_requested(self):
         if self.running:self.stop();return
         self.accept()
