@@ -168,3 +168,33 @@ def test_approved_field_adjustment_guides_to_draft_variant(studio,monkeypatch):
     assert not s.services.eligibility(approved,True,w.current_variant_id)[0]
     assert s.services.version(approved)['pdf_sha256']==original['pdf_sha256']
     assert s.services.version(approved)['fields_json']==original['fields_json']
+
+def test_guided_field_adjustment_prefills_identity_and_requires_reason(studio,monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    w,s,app=studio
+    approved=next(v['id'] for v in s.services.versions(w.row['id']) if v['state']=='APPROVED')
+    w.select_version(approved);w.open_editor()
+    original=s.services.version(approved)
+    monkeypatch.setattr(QMessageBox,'question',lambda *a,**kw:QMessageBox.StandardButton.Yes)
+    forms=[]
+    def empty_reason(title,fields):
+        forms.append((title,fields))
+        return {key:value for key,text,value in fields}
+    monkeypatch.setattr(w,'ask_form',empty_reason)
+    warnings=[]
+    monkeypatch.setattr(QMessageBox,'warning',lambda *a: warnings.append(str(a[-1])))
+    count=len(s.services.variants(approved))
+    w.editable_variant()
+    assert forms and forms[0][1][0][2]=='CAMPOS-001'
+    assert forms[0][1][1][2]=='Ajuste de campos variables 001'
+    assert warnings and 'Motivo obligatorio' in warnings[-1]
+    assert len(s.services.variants(approved))==count
+    def justified(title,fields):
+        return {**{key:value for key,text,value in fields},'reason':'Reubicación operativa ficticia'}
+    monkeypatch.setattr(w,'ask_form',justified)
+    w.editable_variant()
+    variant=s.services.variant(w.current_variant_id)
+    assert variant['code']=='CAMPOS-001' and variant['state']=='DRAFT'
+    assert s.services.version(approved)['fields_json']==original['fields_json']
+    assert s.services.version(approved)['pdf_sha256']==original['pdf_sha256']
+    assert not s.services.eligibility(approved,True,w.current_variant_id)[0]

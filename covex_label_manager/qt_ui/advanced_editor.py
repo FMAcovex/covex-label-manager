@@ -457,7 +457,7 @@ class AdvancedEditorMixin:
             QMessageBox.StandardButton.Cancel)!=QMessageBox.StandardButton.Yes:return
         self.select_version(self.current_editor_id)
         self.library_variant_id=self.current_variant_id
-        self.create_variant_ui(self.current_variant_id is not None)
+        self.create_variant_ui(self.current_variant_id is not None,field_adjustment=True)
 
     def draw_new_field(self):
         if not self.editable(): return
