@@ -89,7 +89,7 @@ def test_duplicate_invalid_and_mapping_guard(demo,tmp_path):
     report=reconcile(demo.services,path,None,colmap())
     assert report['summary']['counts']['DUPLICATE_MASTER_ROW']==1
     assert report['summary']['counts']['INVALID_MASTER_ROW']==1
-    with pytest.raises(ValueError,match='columnas'):
+    with pytest.raises(ValueError,match='Columnas duplicadas o inexistentes'):
         reconcile(demo.services,path,None,{'name':'Denominación','version':'Denominación'})
 
 
