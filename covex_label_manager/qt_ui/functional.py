@@ -135,7 +135,7 @@ class BaseFunctionalWindow(StudioWindow):
             ('Crear nueva revisión documental',self.clone_revision),('Registrar aprobación externa',self.approve_revision),
             ('Importar PDF / Word',self.import_document)]:menu.addAction(title,action)
         menu.addSeparator()
-        menu.addAction('Importar carpeta…',self.import_folder_native)
+        menu.addAction('R5A · Inventariar/importar carpeta…',self.import_folder_native)
         menu.addAction('Comparar revisiones…',self.compare_revisions)
         menu.exec(self.cursor().pos())
     def open_document(self,original=False):
