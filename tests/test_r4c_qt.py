@@ -3,7 +3,7 @@ import pytest
 pytest.importorskip('PySide6')
 
 from PySide6.QtWidgets import QMessageBox
-from test_r3a_qt import studio
+from test_emission_work_qt import studio
 from test_r3c_emission_qt import prepared
 
 
