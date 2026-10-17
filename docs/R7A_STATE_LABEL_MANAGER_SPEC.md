@@ -81,18 +81,25 @@ Flujo recomendado: **BORRADOR → PENDIENTE DE APROBACIÓN EXTERNA → VIGENTE**
 
 El registro de aprobación no equivale a firma electrónica: requerir evidencia/referencia externa, fecha, responsable, confirmación de que el documento coincide con la fuente y verificación de integridad. La sustitución de una versión vigente debe ser explícita y transaccional; el histórico anterior queda inmutable y consultable. No permitir dos vigentes para una misma clase, ni borrar aprobados o usados en emisiones.
 
-## 7. Orden de implementación
+## 7. Implementación R7A unificada — una ejecución y una entrega
 
-**R7A1 — Persistencia e importación**  
-Modelo de revisiones, migración v4→nuevo esquema, servicios, integridad/backup, importador Word/PDF individual/multietiqueta, selección página/recorte, duplicados. Tests sin UI.
+**Decisión de alcance:** R7A se desarrolla como un **único hito funcional**. Las antiguas denominaciones R7A1/R7A2/R7A3 son solo bloques técnicos internos y **no constituyen fases de entrega, PR separadas, hitos de aprobación del usuario ni ejecutables independientes**.
 
-**R7A2 — Interfaz y editor Qt**  
-Pantalla de estados, asistente visual, miniaturas, historial/comparador, editor de campos/medidas, borradores, avisos claros, responsividad a 1366×768 y distintos DPI. Sin Tk y sin duplicar motores.
+La implementación debe recorrer consecutivamente en una misma ejecución:
 
-**R7A3 — Control documental, emisión y regresiones**  
-Aprobación externa, retiro/reemplazo, render dirigido por revisión, vista previa, bloqueo de fuentes no vigentes, identidad/snapshot en emisión y reimpresión, migración/CI/portable Windows. Pruebas con fuentes sintéticas y manuales reales pendientes.
+1. **Persistencia e importación:** modelo de revisiones, migración v4→nuevo esquema con copia previa y recuperación segura, servicios, integridad/backup, importador Word/PDF individual y multietiqueta, selección página/recorte, detección de duplicados y tests sin UI.
+2. **Interfaz y editor Qt:** pantalla de estados, asistente visual, miniaturas, historial/comparador, editor de campos/medidas, borradores, avisos claros, responsividad a 1366×768 y distintos DPI. Sin depender de Tk ni duplicar motores.
+3. **Control documental, emisión y regresiones:** aprobación externa, retiro/reemplazo, render dirigido por revisión, vista previa, bloqueo de fuentes no vigentes, identidad/snapshot en emisión y reimpresión, migración/CI/portable Windows.
 
-Puede implementarse en **una PR de código** con commits por bloque, si la validación de esquema y los límites de alcance lo permiten. No hacer squash ni merge sin inspección final y autorización del propietario.
+**Contrato de entrega única:**
+- Una sola **PR de implementación**, en borrador hasta aceptación.
+- Un solo **portable Windows Qt** que incorpore todos los componentes anteriores.
+- Una verificación integral del conjunto: tests de núcleo/migración/Qt, CI Windows, regresiones, integridad del ZIP, preservación de las 87 capacidades y compatibilidad histórica.
+- Un único informe final con cambios, pruebas, riesgos y limitaciones; sin solicitudes de aceptación intermedia por bloque.
+- Se pueden realizar commits técnicos por bloque, reparar errores y repetir CI antes de presentar el resultado consolidado.
+- **No hacer squash ni merge sin aceptación final del usuario**. Las pruebas con Word corporativo real, impresión física, cierre R6C y validación GMP se mantienen independientes y pendientes.
+
+Si surge una incompatibilidad técnica no resoluble dentro del alcance, comunicarla en el informe final sin simular una implementación completa ni sacrificar integridad documental.
 
 ## 8. Pruebas de aceptación obligatorias
 
