@@ -8,6 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QApplication,QWidget,QScrollArea,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
     QDialog,QDialogButtonBox,QComboBox,QLineEdit,QMessageBox,QFileDialog,QInputDialog,QPushButton,QMenu)
 from .window import label,button,vbox,box
+from .responsive import AdaptiveDialog as QDialog
 from .work import WorkPanel
 from .pdf_view import PdfPane
 from ..canonical import digest
@@ -32,9 +33,14 @@ class EmissionCentreMixin:
         split=QSplitter(Qt.Orientation.Horizontal);self.emission_split=split
         left=box();ll=vbox(left,10,6);self.emission_panel=WorkPanel(self);self.work_panels.append(self.emission_panel);ll.addWidget(self.emission_panel,1)
         # The editor retains its shared panel. Emission has one persistent footer.
-        for child in self.emission_panel.findChildren(QPushButton):
-            if child.text() in ('Guardar borrador','PDF de prueba','Emitir…','Recuperar','Actualizar vínculo documental…'):child.hide()
-        tools=QHBoxLayout();tools.addWidget(button('Pegar Excel…',self.paste_work_containers));tools.addWidget(button('Guardar perfil…',self.save_emission_profile));tools.addWidget(button('Calibrar hoja',self.calibrate_emission));ll.addLayout(tools)
+        for child in (self.emission_panel.save,self.emission_panel.proof,self.emission_panel.issue,
+                      self.emission_panel.recover,self.emission_panel.binding_button):child.hide()
+        tools=QHBoxLayout();tools.setSpacing(4)
+        tools.addWidget(button('Pegar Excel…',self.paste_work_containers))
+        tools.addWidget(button('Guardar perfil…',self.save_emission_profile))
+        pattern=button('Hoja patrón…',self.calibrate_emission)
+        pattern.setToolTip('Generar un PDF de referencia no productivo. Imprimir y medir en papel antes de aplicar una calibración.')
+        tools.addWidget(pattern);ll.insertLayout(0,tools)
         self.emission_panel.setMinimumHeight(320);left.setMinimumWidth(330);left_scroll=QScrollArea();left_scroll.setWidgetResizable(True);left_scroll.setWidget(left);left_scroll.setFrameShape(QScrollArea.Shape.NoFrame);split.addWidget(left_scroll);self.emission_left=left_scroll
         right=box();rl=vbox(right,14,8);toolbar=QHBoxLayout();self.emission_check_heading=label('COMPROBAR ANTES DE EMITIR','section');toolbar.addWidget(self.emission_check_heading);toolbar.addStretch()
         self.preview_work_button=button('Actualizar vista previa',self.preview_emission_work);toolbar.addWidget(self.preview_work_button);rl.addLayout(toolbar)
@@ -42,7 +48,7 @@ class EmissionCentreMixin:
         footer=box();self.emission_footer=footer;footer.setObjectName('emissionFooter');fl=vbox(footer,12,5)
         self.emission_summary=label('Sin trabajo seleccionado.','emissionSummary');self.emission_summary.setObjectName('emissionSummary');self.emission_summary.setWordWrap(True);fl.addWidget(self.emission_summary)
         self.emission_feedback=label('Guardar borrador no registra una emisión.','subtle');self.emission_feedback.setWordWrap(True);fl.addWidget(self.emission_feedback)
-        actions=QHBoxLayout();self.native_save=button('Guardar borrador',self.flush_emission_work);actions.addWidget(self.native_save)
+        actions=QHBoxLayout();self.native_save=button('Guardar trabajo',self.flush_emission_work);actions.addWidget(self.native_save)
         self.native_proof=button('PDF de prueba',self.proof_emission_work);actions.addWidget(self.native_proof)
         self.native_options=button('Opciones…',self.work_options);actions.addWidget(self.native_options);actions.addStretch()
         self.native_issue=button('Emitir definitivamente',self.issue_emission_work,'primary');actions.addWidget(self.native_issue)

@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QFileDialog, QMessageBox, QDialog, QDialogButtonBox, QFormLayout, QCheckBox,
 )
 from .window import label, button, vbox, box
+from .responsive import AdaptiveDialog as QDialog
 
 
 def _scroll_tab(tabs, name):
@@ -106,8 +107,8 @@ class SettingsMixin:
             'Los PDF generados no acreditan impresión física. Esta versión continúa '
             'pendiente de aceptación Windows/Word/impresora y validación GMP.', 'subtle',
         ))
-        info.addWidget(button('Diagnóstico R6A de preaceptación…', self.open_acceptance_readiness, 'primary'))
-        info.addWidget(button('Sesiones de pruebas R6B…', self.open_uat_session))
+        info.addWidget(button('Diagnóstico de preaceptación…', self.open_acceptance_readiness))
+        info.addWidget(button('Sesiones de pruebas presenciales…', self.open_uat_session))
         info.addWidget(button('Ir a Biblioteca', lambda: self.navigate('library')))
         overview.addStretch()
 

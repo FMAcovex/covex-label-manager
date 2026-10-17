@@ -3,6 +3,7 @@ import json
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog,QHBoxLayout,QVBoxLayout,QComboBox,QSlider,QTabWidget,QWidget,QMessageBox
 from .window import Preview,button,label,vbox,pixmap
+from .responsive import AdaptiveDialog as QDialog
 
 
 class CompareDialog(QDialog):

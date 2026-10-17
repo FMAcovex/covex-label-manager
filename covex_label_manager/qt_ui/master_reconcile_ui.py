@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (QDialog,QFileDialog,QMessageBox,QComboBox,QFormLa
     QHBoxLayout,QTableWidget,QTableWidgetItem,QHeaderView,QAbstractItemView,QWidget,
     QDialogButtonBox)
 from .window import vbox,label,button
+from .responsive import AdaptiveDialog as QDialog
 from ..master_reconciliation import source_sheets,read_master,FIELDS,norm
 
 
@@ -44,12 +45,11 @@ class MasterReconciliationDialog(QDialog):
         layout.addLayout(form)
         controls=QHBoxLayout()
         self.compare=button('Comparar con catálogo',self.run_compare,'primary')
-        controls.addWidget(self.compare)
         self.filter=QComboBox();self.filter.addItem('Todos los resultados','')
         self.filter.currentIndexChanged.connect(self.display_results)
         controls.addWidget(self.filter);controls.addStretch()
         self.export=button('Exportar informe ZIP…',self.export_result)
-        self.export.setEnabled(False);controls.addWidget(self.export)
+        self.export.setEnabled(False)
         layout.addLayout(controls)
         self.summary=label('Sin comparación; revisar correspondencia de columnas.','subtle')
         self.summary.setWordWrap(True);layout.addWidget(self.summary)
@@ -60,6 +60,8 @@ class MasterReconciliationDialog(QDialog):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setStretchLastSection(True)
         layout.addWidget(self.table,1)
+        actions=QHBoxLayout();actions.addWidget(self.compare);actions.addStretch();actions.addWidget(self.export)
+        layout.addLayout(actions)
         close=QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         close.rejected.connect(self.reject);layout.addWidget(close)
         self.refresh_columns()

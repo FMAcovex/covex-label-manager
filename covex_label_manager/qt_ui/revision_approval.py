@@ -2,6 +2,7 @@
 from PySide6.QtWidgets import (QDialog,QFormLayout,QLineEdit,QCheckBox,QDialogButtonBox,
     QMessageBox,QPushButton)
 from .window import vbox,label
+from .responsive import AdaptiveDialog as QDialog
 
 class RevisionApprovalDialog(QDialog):
     def __init__(self,parent,api,version):

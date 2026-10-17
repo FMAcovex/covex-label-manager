@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,QHeaderView,QDialogButtonBox,QHBoxLayout,QCheckBox,
 )
 from .window import vbox,label,button
+from .responsive import AdaptiveDialog as QDialog
 from ..importer import proposed_identity
 
 class FolderImportDialog(QDialog):

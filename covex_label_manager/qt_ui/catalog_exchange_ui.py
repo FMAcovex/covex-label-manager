@@ -4,6 +4,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QFileDialog,QMessageBox,QDialog,QPlainTextEdit,QDialogButtonBox
 
 from .window import vbox,label
+from .responsive import AdaptiveDialog as QDialog
 
 
 class CatalogExchangeMixin:
