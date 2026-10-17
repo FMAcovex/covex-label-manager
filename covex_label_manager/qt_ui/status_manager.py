@@ -127,7 +127,7 @@ class StatusManagerMixin:
         try:
             rec = self.selected_status()
             if self.api.status_catalog.verify(rec["uid"]):
-                self.status_preview.show_pdf(self.api.status_catalog.root / rec["pdf_path"])
+                self.status_preview.load(self.api.status_catalog.root / rec["pdf_path"])
         except (ValueError, OSError, RuntimeError) as err:
             self.status_preview.clear("Origen no disponible: " + str(err))
 
@@ -336,7 +336,7 @@ class StatusManagerMixin:
                 if confirmation != QMessageBox.StandardButton.Yes:
                     return
                 _, dest = self.api.status_catalog.emit(rec["uid"], values, operator.text(), **options)
-            self.status_preview.show_pdf(dest)
+            self.status_preview.load(dest)
             QMessageBox.information(self, "PDF generado", str(dest))
         except (ValueError, PermissionError, OSError, RuntimeError) as err:
             QMessageBox.warning(self, "No emitido", str(err))
