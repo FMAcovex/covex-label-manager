@@ -123,3 +123,29 @@ Sincronización directa SharePoint/ERP, aprobación o cambio real del estado QA 
 ## 10. Criterio de entrega
 
 Entregar PR de código **en borrador** y portable Windows verificable, con informe por bloques, lista de archivos modificados, migración y reversibilidad, evidencia de las CI, pruebas Qt/sintéticas, guía de uso con documentos reales solo en estación autorizada y matriz de conservación funcional. Solicitar aceptación visual/pruebas reales antes de fusión. El estado de desarrollo no debe confundirse con autorización documental o validación de uso productivo.
+
+
+## 11. Caso real de referencia: un Word con tres diseños independientes (18/10/2026)
+
+Se ha revisado **localmente**, fuera de GitHub, un documento DOCX facilitado por el propietario: una única página A4 que contiene **tres tablas/etiquetas gráficamente separadas** (cada tabla con dos columnas), precedidas por títulos descriptivos externos. **El DOCX y su PDF de revisión NO se adjuntan ni se distribuyen en el repositorio, PR, tests, capturas o portable.**
+
+**Interpretación obligatoria:** un único **archivo fuente físico** puede contener **tres plantillas lógicas distintas**. Importar una vez el archivo permite escoger tres recortes independientes, obtener tres registros/identidades/estados documentales separados y conservar la **huella común de la fuente** y el recorte/identidad de cada diseño. No crear un único maestro compuesto ni exigir tres Word individuales. También deben seguir admitiéndose los Word/PDF individuales.
+
+| Tipo lógico | Apariencia documental observada | Datos y textos que deben interpretarse sin inventar campos |
+| --- | --- | --- |
+| `sin_analizar` | Banda amarilla, encabezado «Sin analizar» | «LOTE», «Fecha:» y «Pendiente análisis:»; distinguir rótulos impresos, espacios cumplimentables y datos variables solo tras configuración explícita. |
+| `aprobado` | Banda verde, encabezado «Aprobado» | «LOTE», «Fecha:», «Aprobado por:» y «FECHA DE CADUCIDAD/REANALISIS:». |
+| `rechazado` | Banda roja, encabezado «Rechazado» | «Fecha:» y «Rechazado por:»; **no inventar un campo LOTE visible** en esta etiqueta al importarla. |
+
+Las tres comparten **referencia impresa de diseño de origen**, pero esto **no constituye demostración de vigencia ni de aprobación externa**. Mantenerla como texto fijo/fuente original; registrar independientemente la revisión documental de cada plantilla en la aplicación, sin asumir por el nombre del archivo que esté vigente.
+
+**Comportamiento del asistente para este caso:**
+1. Al abrir el DOCX, mostrar página completa y proponer tres regiones editables y reconocibles; cualquier detección automática es **sugerencia**, nunca selección aprobada automáticamente.
+2. Permitir asignar **exactamente un tipo lógico a cada región**, confirmar y guardar el recorte y la página de forma individual. Excluir los títulos exteriores a la etiqueta del diseño emitible cuando queden fuera del recorte.
+3. La conversión PDF es referencia visual de la importación; verificar posiciones efectivas tras convertir con Microsoft Word en el entorno autorizado. No confiar ciegamente en la paginación/geométrica de LibreOffice. Dejar corregir a mano todos los recortes y campos.
+4. Preservar el relleno amarillo/verde/rojo, tipografías, bordes, blanco sobre rojo y demás elementos fijos al copiar el PDF vectorial, sin reconstruirlos mediante plantillas sintéticas o colores aproximados.
+5. Permitir registrar **revisiones diferentes por estado** aunque los diseños iniciales procedan del mismo DOCX; sustituir una sola no altera las otras dos. Cada revisión conserva vínculo con la fuente física (hash) y recorte propio.
+6. Los campos variables se configuran **por diseño** en el editor. No inferir que «Pendiente análisis:» contiene necesariamente un valor variable ni que «LOTE» es siempre un texto a eliminar.
+7. Los tres casos deben cubrirse en tests con **un PDF sintético de una sola página y tres regiones de colores**, además de importaciones unitarias. Verificar que cada vista previa y emisión utiliza **exclusivamente el recorte asignado** y que las identidades/revisiones no se mezclan.
+
+**Criterio de aceptación real pendiente:** el usuario podrá incorporar localmente su Word con una sola selección de archivo, validar visualmente los tres recortes y confirmar cada plantilla/revisión por separado. La fecha/referencia externa de aprobación se debe contrastar contra la documentación vigente de COVEX, no deducir de una inscripción en la etiqueta.
