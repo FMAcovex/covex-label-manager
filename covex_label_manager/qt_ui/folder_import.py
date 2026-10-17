@@ -114,6 +114,21 @@ class FolderImportMixin:
                 self.statusBar().showMessage(f'Importación: {dialog.ok} pendientes incorporadas; '
                                             f'{len(dialog.failures)} incidencias.')
             if dialog.editor_version_id:
-                self.select_version(dialog.editor_version_id);self.open_editor()
+                self.open_imported_revision(dialog.editor_version_id)
         except (ValueError,OSError) as ex:
             QMessageBox.warning(self,'Importación no iniciada',str(ex))
+
+    def open_imported_revision(self,version_id):
+        # Never fall through to the previously selected document if the new
+        # revision is outside a search/category/favorites filter. Opening the
+        # imported document is an explicit selection change; ordinary closing
+        # of the wizard does not change filters or selection.
+        cleared=False
+        if not self.select_version(version_id):
+            self.reset_filters();cleared=True
+        if not self.select_version(version_id):
+            QMessageBox.warning(self,'Revisión no disponible','No se ha podido seleccionar la revisión importada. No se ha abierto otro documento.')
+            return False
+        self.library_variant_id=None;self.open_editor()
+        if cleared:self.statusBar().showMessage('Revisión importada abierta en Editor. Se han limpiado los filtros para mostrar su expediente.',12000)
+        return self.current_editor_id==version_id

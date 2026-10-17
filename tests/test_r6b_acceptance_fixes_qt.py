@@ -97,6 +97,28 @@ def test_wizard_bulk_edits_only_checked_fields(studio,tmp_path,monkeypatch):
     assert not d.confirm_identity.isChecked()
 
 
+@pytest.mark.parametrize('open_editor',[True,False])
+def test_post_import_selection_with_excluding_library_filters(studio,tmp_path,monkeypatch,open_editor):
+    w,s,app=studio;source(tmp_path,'SYNTHETIC outside filter 00.pdf')
+    w.search.setText('Solución Alfa');w.refresh();previous=w.row['version_id'];created=[]
+    def execute(dialog):
+        dialog.set_folder(tmp_path)
+        decision={**dialog.metadata[0],'action':'NEW_LABEL'}
+        result=s.services.catalog_migration_apply(tmp_path,dialog.rows[0],decision)
+        created.append(result['version_id']);dialog.processed=1;dialog.ok=1
+        if open_editor:dialog.editor_version_id=result['version_id']
+        return QDialog.DialogCode.Accepted
+    monkeypatch.setattr(ControlledImportDialog,'exec',execute)
+    w.import_folder_native()
+    if open_editor:
+        assert w.current_editor_id==created[0] and w.stack.currentWidget() is w.editor
+        assert w.row['version_id']==created[0] and not w.search.text()
+    else:
+        assert w.search.text()=='Solución Alfa' and w.row['version_id']==previous
+        assert w.current_editor_id!=created[0]
+    assert s.services.version(created[0])['state']=='PENDING' and not s.services.issues()
+
+
 def prepared(studio):
     w,s,app=studio;api=s.services
     vid=next(r['version_id'] for r in api.library.entries() if r['state']=='APPROVED')

@@ -19,6 +19,8 @@ La entrega anterior (`46d3eab`) fue **NO CONFORME** en aceptación presencial. S
 3. Nueva revisión exige destino existente y conserva la identidad de ese expediente; no renombra ni reclasifica su maestro. Revisar el documento mediante Vista previa (Word necesita Word/LibreOffice o PDF asociado). Confirmar las identidades y después la importación.
 4. Consultar cada resultado, detener si procede y abrir una revisión importada en Editor para configurar campos/recorte. **PENDIENTE no significa aprobado ni listo para emisión productiva**.
 
+El acceso al Editor comprueba que se ha seleccionado exactamente la revisión importada. Si la búsqueda/categoría/favoritas la excluye, limpia los filtros e informa en la barra de estado; nunca abre la etiqueta anterior por defecto. Cerrar el asistente sin pedir Editor conserva filtros y selección. Hay regresión para ambos casos.
+
 La conversión Word sigue siendo secuencial y puede ocupar la interfaz durante el archivo actual, con los límites existentes del convertidor. No se mata Word ni se interrumpe una transacción: Detener se aplica entre archivos. Esta limitación residual (UX-15) no se disfraza de concurrencia Word resuelta. Los originales y hashes siguen protegidos por R5B.
 
 ### Contrato de unidades

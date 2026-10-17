@@ -290,6 +290,9 @@ jobs:
           Copy-Item scripts/PROBAR_DEMO_QT.bat dist/COVEXLabelManager_Qt/
           Copy-Item docs/FUNCTIONAL_PRESERVATION_MATRIX.md dist/COVEXLabelManager_Qt/
           Copy-Item docs/R6B_UX_INTEGRATED/PRUEBAS_Y_PORTABLE.md dist/COVEXLabelManager_Qt/GUIA_R6B_UX.md
+          Copy-Item docs/R6B_UX_INTEGRATED/CORRECCIONES_ACEPTACION.md dist/COVEXLabelManager_Qt/
+          Copy-Item docs/R6B_UX_INTEGRATED/CONSERVACION_87.md dist/COVEXLabelManager_Qt/
+          Copy-Item docs/R6B_UX_INTEGRATED/CI_QT_FIX.md dist/COVEXLabelManager_Qt/
           python scripts/build_manifest.py dist/COVEXLabelManager_Qt
           if ($LASTEXITCODE -ne 0) { throw 'Qt build manifest failed' }
           Compress-Archive -Path dist/COVEXLabelManager_Qt -DestinationPath COVEXLabelManager_Qt.zip
