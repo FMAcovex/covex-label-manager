@@ -265,3 +265,20 @@ def test_modal_watchdog_distinguishes_expected_reprint_from_unknown_child(studio
             assert other.exec()==QDialog.DialogCode.Rejected
         assert unexpected==['SYNTHETIC unknown modal SYNTHETIC failure']
     finally:guard.close()
+
+
+def test_emission_check_cannot_mask_failed_automatic_worker_with_manual_refresh(studio,tmp_path,monkeypatch):
+    from covex_label_manager.qt_ui.preview_task import PreviewTask
+    from covex_label_manager.qt_ui.emission_centre import EmissionCentreMixin
+    from covex_label_manager.qt_ui.emission_checks import run
+    manual=[]
+    def fail(task):
+        root,uid,generation,token,path,serial=task.request
+        task.completed.emit(dict(uid=uid,generation=generation,stamp=token,path=path,serial=serial,error='SYNTHETIC worker failure'))
+    monkeypatch.setattr(PreviewTask,'run',fail)
+    monkeypatch.setattr(EmissionCentreMixin,'preview_emission_work',lambda self:manual.append(True) or True)
+    report=tmp_path/'synthetic-report.json'
+    assert run(report,tmp_path/'captures')==1
+    result=json.loads(report.read_text(encoding='utf-8'))
+    assert not result['ok'] and 'automatic_preview_ready_before_manual_refresh' in result['error']
+    assert not manual

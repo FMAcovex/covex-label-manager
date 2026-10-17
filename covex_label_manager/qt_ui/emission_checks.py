@@ -56,7 +56,8 @@ def run(report,captures=None):
     guard=ModalGuard(unexpected)
     timer=QTimer();timer.timeout.connect(guard.inspect);timer.start(10000)
     def check(condition,name):
-        assert condition,{'check':name,'unexpected_dialogs':unexpected};checks.append(name)
+        assert condition,{'check':name,'unexpected_dialogs':unexpected,
+            'preview_status':w.emission_pdf.note.text(),'feedback':w.emission_feedback.text()};checks.append(name)
     def capture(name):
         app.processEvents();QTest.qWait(30);assert w.grab().save(str(captures/(name+'.png')))
     def pdf_words(path):
@@ -68,6 +69,12 @@ def run(report,captures=None):
             if w.preview_task is None and not w.preview_timer.isActive():break
             QTest.qWait(25)
         assert w.preview_task is None and not w.preview_timer.isActive(),'Preview did not settle'
+        review=w.refresh_emission_review()
+        if (w.emission_work['phase']=='DRAFT' and review['proof_allowed']
+            and not any(e['target']!='document' for e in review['errors'])):
+            # Mandatory on both source and frozen EXE: a successful manual
+            # refresh must never conceal a broken automatic worker launch.
+            check(w.preview_matches(review),'automatic_preview_ready_before_manual_refresh')
         return w.preview_emission_work()
     try:
         vid=next(r['version_id'] for r in api.library.entries() if r['state']=='APPROVED');before=dict(api.version(vid));source_hash=sha256(api.asset_path(before['master_pdf']))

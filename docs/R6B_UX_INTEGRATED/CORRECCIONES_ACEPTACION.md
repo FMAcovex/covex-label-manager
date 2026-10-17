@@ -67,6 +67,8 @@ La primera regresión Windows (`891b52e`, ejecución `39072306034`) detectó un 
 
 En `d9afc92` las 27 regresiones de aceptación, las 295 restantes, los cierres a tres escalas y las 420 capturas Windows pasaron. El check R3C al 125 % detectó `no_unexpected_dialogs`; el informe anterior no incluía el título y no permite identificar con certeza aquel modal. Se reproduce un defecto de su vigía: consideraba inesperado incluso el diálogo de reimpresión que el propio check estaba operando, según coincidiera el tick de 10 s con la ejecución. El diagnóstico registra ahora cada modal desde Show y permite **solo la identidad exacta del diálogo esperado**, durante esa acción; cualquier otro modal, incluidos hijos de ese diálogo, sigue fallando. Hay regresión con tick forzado sobre el diálogo esperado y otro modal desconocido; se conserva la aserción original y se añade la del diálogo esperado único. El workflow imprime el JSON/traceback completo al fallar, sin depender de la descarga del artefacto, y adelanta ese check para confirmar el resultado en Windows y revelar cualquier otra incidencia.
 
+El check nativo exige además una prueba automática vigente **antes** de ejercitar el botón manual, tanto desde fuente como desde el EXE. Una regresión fuerza el fallo del trabajador y verifica que el check falla sin recurrir al refresco manual. Así un empaquetado defectuoso del proceso hijo no puede quedar enmascarado por una prueba manual satisfactoria.
+
 ## Comprobación y aceptación del nuevo portable
 
 Consultar [la guía](PRUEBAS_Y_PORTABLE.md) y el resultado CI del commit entregado. Tras descargar y extraer completamente el nuevo ZIP:
