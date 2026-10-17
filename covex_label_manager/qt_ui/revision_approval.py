@@ -30,7 +30,7 @@ class RevisionApprovalDialog(QDialog):
         layout.addLayout(form)
         self.confirm=QCheckBox('Confirmo que la aprobación documental externa existe, '
                                'corresponde a esta revisión y he revisado su diseño.')
-        self.confirm.setWordWrap(True);layout.addWidget(self.confirm)
+        layout.addWidget(self.confirm)
         buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
         self.accept_button=QPushButton('Registrar aprobación');buttons.addButton(self.accept_button,QDialogButtonBox.ButtonRole.AcceptRole)
         self.accept_button.clicked.connect(self.commit);buttons.rejected.connect(self.reject)
