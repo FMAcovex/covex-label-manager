@@ -196,3 +196,25 @@ def test_inventory_human_summary_preserves_full_technical_report(studio):
     assert dialog.details.isVisible() and dialog.details.isReadOnly()
     assert json.loads(dialog.details.toPlainText())==original==report
     dialog.reject()
+
+
+def test_preview_fit_is_non_reentrant_and_zoom_retains_scrolling(studio,monkeypatch):
+    from PySide6.QtCore import Qt
+    w,s,app=studio;view=w.preview
+    original=view.fitInView;calls=[]
+    def reentrant(*args):
+        calls.append(1)
+        view.fit()  # Simulate a synchronous native resize during fitInView.
+        return original(*args)
+    monkeypatch.setattr(view,'fitInView',reentrant)
+    view.fit()
+    assert len(calls)==1 and not view._fitting and view.auto_fit
+    assert view.horizontalScrollBarPolicy()==Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    assert view.verticalScrollBarPolicy()==Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    view.zoom(2)
+    assert not view.auto_fit
+    assert view.horizontalScrollBarPolicy()==Qt.ScrollBarPolicy.ScrollBarAsNeeded
+    assert view.verticalScrollBarPolicy()==Qt.ScrollBarPolicy.ScrollBarAsNeeded
+    view.fit();app.processEvents()
+    assert view.auto_fit and abs(view.transform().m11()-view.transform().m22())<1e-9
+    assert view.mapToScene(view.viewport().rect()).boundingRect().contains(view.sceneRect())

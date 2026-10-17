@@ -25,6 +25,8 @@ on:
       - 'covex_label_manager/layout_profiles.py'
       - 'scripts/r3e_backward_gate.py'
       - 'scripts/ux_visual_gate.py'
+      - 'scripts/verify_portable_archive.py'
+      - 'tests/test_portable_archive_integrity.py'
       - 'covex_label_manager/work_tk.py'
       - 'tests/test_emission_work*.py'
       - 'covex_label_manager/qt_ui/**'
@@ -234,7 +236,12 @@ jobs:
           Copy-Item docs/R3B2_IMPLEMENTATION.md dist/COVEXLabelManager_Qt/R3B2_VARIANTS.md
           Copy-Item scripts/PROBAR_DEMO_QT.bat dist/COVEXLabelManager_Qt/
           Copy-Item docs/FUNCTIONAL_PRESERVATION_MATRIX.md dist/COVEXLabelManager_Qt/
+          Copy-Item docs/R6B_UX_INTEGRATED/PRUEBAS_Y_PORTABLE.md dist/COVEXLabelManager_Qt/GUIA_R6B_UX.md
+          python scripts/build_manifest.py dist/COVEXLabelManager_Qt
+          if ($LASTEXITCODE -ne 0) { throw 'Qt build manifest failed' }
           Compress-Archive -Path dist/COVEXLabelManager_Qt -DestinationPath COVEXLabelManager_Qt.zip
+          python scripts/verify_portable_archive.py COVEXLabelManager_Qt.zip --report test-results/qt-archive-integrity.json
+          if ($LASTEXITCODE -ne 0) { throw 'Qt archive integrity failed' }
           Get-FileHash COVEXLabelManager_Qt.zip -Algorithm SHA256 | Format-List | Out-File test-results/qt-ZIP_SHA256.txt
           Get-ChildItem dist/COVEXLabelManager_Qt -Recurse -File | Measure-Object -Property Length -Sum | Format-List | Out-File test-results/qt-package-size.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

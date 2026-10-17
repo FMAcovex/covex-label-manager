@@ -45,14 +45,29 @@ class Preview(QGraphicsView):
         super().__init__();self.setScene(QGraphicsScene(self))
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter);self.auto_fit=True;self.fit_scale=1;self.zoom_label=None
+        self._fitting=False
     def set_image(self,im):
         self.scene().clear();self.scene().addPixmap(pixmap(im))
         self.scene().setSceneRect(self.scene().itemsBoundingRect().adjusted(-30,-30,30,30));self.fit()
     def fit(self):
-        self.auto_fit=True;self.fitInView(self.sceneRect(),Qt.AspectRatioMode.KeepAspectRatio);self.fit_scale=self.transform().m11();self.update_zoom_label()
+        if self._fitting:return
+        self._fitting=True
+        try:
+            self.auto_fit=True
+            # fitInView inside resizeEvent must not toggle automatic scrollbars:
+            # that can re-enter resize/layout on native Windows viewports.
+            self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            self.fitInView(self.sceneRect(),Qt.AspectRatioMode.KeepAspectRatio)
+            self.fit_scale=self.transform().m11();self.update_zoom_label()
+        finally:self._fitting=False
     def zoom(self,factor):
         scale=self.transform().m11()
-        if .02<scale*factor<8:self.auto_fit=False;self.scale(factor,factor);self.update_zoom_label()
+        if .02<scale*factor<8:
+            self.auto_fit=False
+            self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+            self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+            self.scale(factor,factor);self.update_zoom_label()
     def update_zoom_label(self):
         if self.zoom_label:
             self.zoom_label.setToolTip('Zoom de visualización relativo a Ajustar (100 %). No indica tamaño físico ni escala de impresión; no cambia el PDF.')
