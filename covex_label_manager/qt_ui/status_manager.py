@@ -28,6 +28,12 @@ class StatusManagerMixin:
         self.status_manager = self.build_status_manager()
         self.stack.addWidget(self.status_manager)
         self.status_manager_ready = True
+        self.nav["status-manager"] = button(
+            "Estados", lambda: self.navigate("status-manager"), "nav")
+        self.nav["status-manager"].setCheckable(True)
+        # Insert before header stretch: prominent independent library access.
+        self.header.layout().insertWidget(self.header.layout().count() - 2,
+                                          self.nav["status-manager"])
         self.refresh_status_manager()
 
     def build_status_manager(self):
