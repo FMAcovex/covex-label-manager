@@ -96,6 +96,16 @@ def test_wizard_large_font_body_scrolls_but_footer_stays_fixed(studio,tmp_path,s
     d.reject()
 
 
+def test_imported_long_name_never_expands_dialog_beyond_viewport(studio):
+    w,s,app=studio;d=ControlledImportDialog(w,s.services)
+    name='SYNTHETIC '+('long label name '*30)
+    d.editor_choice.addItem(name,1);d.pages.setCurrentIndex(2);d.show();d.fit_available(QSize(886,424));app.processEvents()
+    assert d.width()<=886 and d.height()<=424
+    assert d.editor_choice.currentText()==name and d.editor_choice.toolTip()==name
+    assert d.editor_button.mapTo(d,d.editor_button.rect().bottomRight()).x()<d.width()
+    d.reject()
+
+
 def test_wizard_revision_target_and_safe_hash_rejection(studio,tmp_path,monkeypatch):
     w,s,app=studio;path=source(tmp_path)
     d=ControlledImportDialog(w,s.services,tmp_path);d.next_page();d.actions[0].setCurrentIndex(2)

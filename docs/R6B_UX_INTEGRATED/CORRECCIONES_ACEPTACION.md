@@ -21,6 +21,8 @@ La entrega anterior (`46d3eab`) fue **NO CONFORME** en aceptación presencial. S
 
 El acceso al Editor comprueba que se ha seleccionado exactamente la revisión importada. Si la búsqueda/categoría/favoritas la excluye, limpia los filtros e informa en la barra de estado; nunca abre la etiqueta anterior por defecto. Cerrar el asistente sin pedir Editor conserva filtros y selección. Hay regresión para ambos casos.
 
+La selección de una denominación muy larga en el resumen tampoco puede imponer su ancho al diálogo: se limita el tamaño preferido del desplegable, conservando el nombre íntegro en su modelo y tooltip. La regresión reproduce el crecimiento previo a 3632 px y exige mantener 886×424 con el mismo texto, sin truncar datos.
+
 La conversión Word sigue siendo secuencial y puede ocupar la interfaz durante el archivo actual, con los límites existentes del convertidor. No se mata Word ni se interrumpe una transacción: Detener se aplica entre archivos. Esta limitación residual (UX-15) no se disfraza de concurrencia Word resuelta. Los originales y hashes siguen protegidos por R5B.
 
 ### Contrato de unidades
