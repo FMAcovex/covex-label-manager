@@ -25,7 +25,7 @@ Implementación de composición: `qt_ui/workspace.py`; adaptación/accesibilidad
 |---|---|---|
 | UX-01 | Corregido | Prueba de callbacks de fuentes y único registro dentro del Inspector; capturas 03 y 24. |
 | UX-02 | Corregido | Selector Qt nativo; cancelar/seleccionar no muta documentos; estados 35 y dynamic-14. Compatibilidad Tk conservada. |
-| UX-03 | Corregido en área Qt ensayada | 52 estados × 6; pies y límites verificados. Diálogos nativos de Windows requieren comprobación presencial. |
+| UX-03 | Corregido en área Qt ensayada | 53 estados × 6; pies y límites verificados. Diálogos nativos de Windows requieren comprobación presencial. |
 | UX-04 | Corregido | Lienzo ≥45 % del alto cliente en seis tamaños; paneles recuperables explícitamente; estado 07. |
 | UX-05 | Corregido en acciones principales | Inspector fijo, pegado/perfil/hoja visibles; controles secundarios desplazables/contextuales; estados 03, 10 y 14. |
 | UX-06 | Corregido | Navegar a cuatro destinos retiene lote y no muestra dock; volver al Editor recupera la pestaña y sus datos; estado 34. |
@@ -34,7 +34,7 @@ Implementación de composición: `qt_ui/workspace.py`; adaptación/accesibilidad
 | UX-09 | Corregido en terminología | Hoja patrón frente a medidas de impresora; no se declara calibración física por generar un PDF. |
 | UX-10 | Corregido | Texto único «Restablecer diseño guardado» comprobado en seis tamaños; controlador original. |
 | UX-11 | Corregido | Menú según transición DRAFT/PENDING/APPROVED/retirada, con motivo de deshabilitación; guardas del motor intactas. |
-| UX-12 | Corregido en botones; parcial en informes | Botones estándar españoles, captions específicos conservados. JSON técnico original permanece: no se transforma en un informe humano nuevo. |
+| UX-12 | Corregido | Botones estándar españoles, captions específicos conservados. Inventario con resumen y tabla legibles; detalle JSON íntegro desplegable, sin cambios al informe del motor. Test de equivalencia y captura 37. |
 | UX-13 | Parcial verificado | Nombres accesibles de símbolos/campos y foco Ctrl+K; contraste medido. UIA, Narrador, tabulación completa y alto contraste Windows pendientes. |
 | UX-14 | Corregido para tokens ensayados | Texto secundario real ≥4,5:1 sobre superficies principales; no certifica todas las combinaciones WCAG. |
 | UX-15 | Diferido, sin cambio de concurrencia | Conversión síncrona sigue existiendo. Intervención independiente con diseño de worker/transacciones y prueba Word real. |

@@ -6,13 +6,13 @@ Entorno sintético aislado: Linux, Python 3.12.14, Qt 6.8.3, Fusion; Xorg dummy 
 
 | Comprobación | Resultado |
 |---|---|
-| `python -m pytest -q` | 397 aprobadas, 2 omitidas; suite completa existente más 24 casos UX parametrizados. |
+| `python -m pytest -q` | 398 aprobadas, 2 omitidas; suite completa existente más 25 casos UX parametrizados. |
 | Self-check de widgets Qt a factores 1 / 1.25 / 1.5 | 86 comprobaciones por factor, `ok=true`, puente Qt/Tk verificado. |
 | Variant, work, emission y R3E checks | `ok=true`; puente Qt/Tk en variantes/trabajo; recuperación, emisión e historial sintéticos. |
-| Gate visual | 52 estados × 6 = 312 PNG, sin errores de límites/pies; 126 SVG seleccionados versionados. |
+| Gate visual | 53 estados × 6 = 318 PNG, sin errores de límites/pies; 129 SVG seleccionados versionados. |
 | Precisión | Valores físicos no editados conservan representación original, perfil y firma; test de round-trip calibrado. |
 
-Los PNG y manifiestos locales están en `test-results/ux-integrated/`; los SVG y el resumen de hashes están en esta carpeta. Los artefactos de CI conservan PNG y JSON sin introducir binarios en Git. La matriz documenta cobertura por familias, no 87 aceptaciones manuales independientes. Los 2 skips se mantienen como limitaciones de plataforma/dependencias, no se cuentan como aprobados.
+Los PNG y manifiestos locales están en `test-results/ux-integrated/`; los SVG y el resumen de hashes están en esta carpeta. Los artefactos de CI conservan PNG y JSON sin introducir binarios en Git. La matriz documenta cobertura por familias, no 87 aceptaciones manuales independientes. Los 2 skips locales corresponden a Word real y semántica de compartición de archivos Windows; no se cuentan como aprobados.
 
 Reproducción con dependencias del repositorio instaladas:
 

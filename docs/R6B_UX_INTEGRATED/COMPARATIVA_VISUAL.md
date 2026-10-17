@@ -1,6 +1,6 @@
 # Comparativa visual antes / después
 
-Baseline obligatoria: auditoría `02f7ba7`, aplicación `afd0b06`; el main de partida `6b4f507` solo añade su documentación y conserva la misma aplicación. Se utilizan sus seis series sintéticas; no se altera la rama ni la evidencia histórica. La nueva serie contiene 52 estados por combinación (312 PNG) y 126 SVG seleccionados de widgets reales.
+Baseline obligatoria: auditoría `02f7ba7`, aplicación `afd0b06`; el main de partida `6b4f507` solo añade su documentación y conserva la misma aplicación. Se utilizan sus seis series sintéticas; no se altera la rama ni la evidencia histórica. La nueva serie contiene 53 estados por combinación (318 PNG) y 129 SVG seleccionados de widgets reales.
 
 Entorno: Qt 6.8.3, Fusion, Linux/Xorg dummy 1920×1080. Tamaño objetivo emulado por ventana y `QT_SCALE_FACTOR`; área cliente = floor(píxeles/factor) menos 40 DIP de alto. No es una prueba física de seis monitores ni aceptación Windows. La CI Qt repite la serie en Windows Server 2022 y conserva los PNG/manifiestos.
 
@@ -99,6 +99,7 @@ El lienzo normal supera el 45 % del área cliente en las seis comprobaciones; «
 | 1366x768_1 / dynamic-14 / Revisiones documentales y variantes de diseño | [SVG](evidencia/1366x768_1_dynamic-14.svg) |
 | 1366x768_1 / 35-seleccion-nativa / COVEX Label Manager · Datos ficticios | [SVG](evidencia/1366x768_1_35-seleccion-nativa.svg) |
 | 1366x768_1 / 36-emision-errores / COVEX Label Manager · Datos ficticios | [SVG](evidencia/1366x768_1_36-emision-errores.svg) |
+| 1366x768_1 / 37-inventario-legible / Inventario previo · Solo lectura | [SVG](evidencia/1366x768_1_37-inventario-legible.svg) |
 | 1366x768_1.5 / 01-biblioteca-pendiente / COVEX Label Manager · Datos ficticios | [SVG](evidencia/1366x768_1.5_01-biblioteca-pendiente.svg) |
 | 1366x768_1.5 / 03-biblioteca-documentos / COVEX Label Manager · Datos ficticios | [SVG](evidencia/1366x768_1.5_03-biblioteca-documentos.svg) |
 | 1366x768_1.5 / 04-biblioteca-filtros / COVEX Label Manager · Datos ficticios | [SVG](evidencia/1366x768_1.5_04-biblioteca-filtros.svg) |
@@ -141,6 +142,7 @@ El lienzo normal supera el 45 % del área cliente en las seis comprobaciones; «
 | 1366x768_1.5 / dynamic-14 / Revisiones documentales y variantes de diseño | [SVG](evidencia/1366x768_1.5_dynamic-14.svg) |
 | 1366x768_1.5 / 35-seleccion-nativa / COVEX Label Manager · Datos ficticios | [SVG](evidencia/1366x768_1.5_35-seleccion-nativa.svg) |
 | 1366x768_1.5 / 36-emision-errores / COVEX Label Manager · Datos ficticios | [SVG](evidencia/1366x768_1.5_36-emision-errores.svg) |
+| 1366x768_1.5 / 37-inventario-legible / Inventario previo · Solo lectura | [SVG](evidencia/1366x768_1.5_37-inventario-legible.svg) |
 | 1920x1080_1 / 01-biblioteca-pendiente / COVEX Label Manager · Datos ficticios | [SVG](evidencia/1920x1080_1_01-biblioteca-pendiente.svg) |
 | 1920x1080_1 / 03-biblioteca-documentos / COVEX Label Manager · Datos ficticios | [SVG](evidencia/1920x1080_1_03-biblioteca-documentos.svg) |
 | 1920x1080_1 / 04-biblioteca-filtros / COVEX Label Manager · Datos ficticios | [SVG](evidencia/1920x1080_1_04-biblioteca-filtros.svg) |
@@ -183,6 +185,7 @@ El lienzo normal supera el 45 % del área cliente en las seis comprobaciones; «
 | 1920x1080_1 / dynamic-14 / Revisiones documentales y variantes de diseño | [SVG](evidencia/1920x1080_1_dynamic-14.svg) |
 | 1920x1080_1 / 35-seleccion-nativa / COVEX Label Manager · Datos ficticios | [SVG](evidencia/1920x1080_1_35-seleccion-nativa.svg) |
 | 1920x1080_1 / 36-emision-errores / COVEX Label Manager · Datos ficticios | [SVG](evidencia/1920x1080_1_36-emision-errores.svg) |
+| 1920x1080_1 / 37-inventario-legible / Inventario previo · Solo lectura | [SVG](evidencia/1920x1080_1_37-inventario-legible.svg) |
 
 Los PNG completos y controles expandidos están en `test-results/ux-integrated/<configuración>/manifest.json`, con SHA-256 de cada imagen; el resumen versionado registra los tamaños, DPR, hash del código Qt, pies y archivos. Las capturas de Auditoría local/UAT contienen únicamente referencias temporales ficticias. Ninguna aprobación documental se acepta en el recorrido. Un registro de emisión generado en demo permite consultar Historial; no se envía a una impresora.
 

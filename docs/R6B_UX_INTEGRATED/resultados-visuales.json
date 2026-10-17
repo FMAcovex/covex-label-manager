@@ -1,7 +1,7 @@
 [
   {
     "configuration": "1366x768_1",
-    "qt_ui_sha256": "bef73a8c7cac3127613b96617e1121879af5b23f252d00542af67b1a7367cea8",
+    "qt_ui_sha256": "a54ef0247f6af980496b4bcfa7738c0bbbf4c6dc2350900ff2af1af05b214bc1",
     "before_canvas_dip": 260,
     "after_canvas_dip": 528,
     "before_dock_in_settings": true,
@@ -663,7 +663,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1366x768_1/17-historial-detalle.png",
-        "sha256": "a2297e06d8b265a4234f582db815c88b4723c05a875222da215af0b2970ed31b",
+        "sha256": "3f119e0869de9e97e3725d37f436a5bbc3ab654dacc35ae9f37945ee99ea67da",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1_17-historial-detalle.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -685,7 +685,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1366x768_1/18-historial-pdf.png",
-        "sha256": "7c029092d4f4c397e538543623909fbcdf857f1220f141d8e16ebfc022cf4dd6",
+        "sha256": "5e880e4ced855b0ff9d72acaf884ff1e18b193ec890a95dc1c107fc0b000970f",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1_18-historial-pdf.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -729,7 +729,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1366x768_1/19-config-resumen.png",
-        "sha256": "da314fecc3582d4f48ede97e5b192dc282c4715a61a53b5be231fd26be76f8c3",
+        "sha256": "f616b84fb8b7eaf44f8a3c67b1fb49787e0908eec441faa21421ddf58a90dd59",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1_19-config-resumen.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -751,7 +751,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1366x768_1/20-config-datos.png",
-        "sha256": "1e67968203cf611716e68b36fb27d649bf231c3841219824bccd938fb4acef9c",
+        "sha256": "68da3c3474b76298c8e62d15f80acac1a59e4a2603327ba4b89d81c48e9a5275",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1_20-config-datos.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -773,7 +773,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1366x768_1/21-config-cm.png",
-        "sha256": "a954da3a772bdf93a21d249545649c6e1e4adc6099b0e48ef5ce8dbb985d23a5",
+        "sha256": "93e90ba812f872848024bd74ea175be155fbf2b5d051b47ab674a5442f00489a",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -795,7 +795,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1366x768_1/22-config-estados.png",
-        "sha256": "61cfa71c0902f1949d5ffe7bddabe483d131253055e0abee562dba901b4e8318",
+        "sha256": "2fa5c8019bc4de9788ce545a032fe363b6239e667842787b445e4bd3b846381d",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -817,7 +817,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1366x768_1/23-config-auditoria.png",
-        "sha256": "b412c78331fd8b86cbb3ddcc8d941fc4a86218152399b3e267ffbf1f6202a156",
+        "sha256": "2458893af461e379a466952213d1f0922cc84fc39ff4473506aed514c3f7c390",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -883,7 +883,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1366x768_1/26-importar-carpeta.png",
-        "sha256": "48a5e257ea6ec7db1c76b8add82d5b7eb1a98c1e8ceeacd7d2f6c9c67c1dfe6b",
+        "sha256": "76b89c021f908334f812455e3ea6f00d698fed288c1a0c824422eca296a63b51",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1_26-importar-carpeta.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -1037,7 +1037,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1366x768_1/32b-sesion-uat-casos.png",
-        "sha256": "ac704fd9c3d5dd221750c0b35e5e31ec763d8ec470173d271ae0c596e3feef43",
+        "sha256": "f2d4af7abcaa3bc7d3bd469b528c066106dc66a538a0df32f7671f056c058cd1",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1_32b-sesion-uat-casos.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -1081,7 +1081,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1366x768_1/34-config-sin-dock.png",
-        "sha256": "b412c78331fd8b86cbb3ddcc8d941fc4a86218152399b3e267ffbf1f6202a156",
+        "sha256": "bead0ec055dde2c56fc647efe1f242b89b3f6cae7590d22f53c09fb694bcb04a",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1_34-config-sin-dock.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -1151,12 +1151,34 @@
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1_36-emision-errores.svg",
         "canvas_height": null,
         "footer_reachable": true
+      },
+      {
+        "id": "37-inventario-legible",
+        "title": "Inventario previo · Solo lectura",
+        "viewport_physical": [
+          1366,
+          768
+        ],
+        "requested_logical": [
+          1366,
+          728
+        ],
+        "actual_logical": [
+          910,
+          650
+        ],
+        "dpr": 1.0,
+        "png": "test-results/ux-integrated/1366x768_1/37-inventario-legible.png",
+        "sha256": "097bba3156bb31823b9080cdf8d7f0f7f42031984c1f77203ca696ced60d8916",
+        "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1_37-inventario-legible.svg",
+        "canvas_height": null,
+        "footer_reachable": true
       }
     ]
   },
   {
     "configuration": "1366x768_1.25",
-    "qt_ui_sha256": "bef73a8c7cac3127613b96617e1121879af5b23f252d00542af67b1a7367cea8",
+    "qt_ui_sha256": "a54ef0247f6af980496b4bcfa7738c0bbbf4c6dc2350900ff2af1af05b214bc1",
     "before_canvas_dip": 206,
     "after_canvas_dip": 384,
     "before_dock_in_settings": true,
@@ -1818,7 +1840,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1366x768_1.25/17-historial-detalle.png",
-        "sha256": "41273f949bc617c329995d35849af75e23c351e5246e2e0d3680b916ffec7a28",
+        "sha256": "b3c026c01de1cc0b3ea961197bbd632786c4a7fe265740a812b752cfd497c7af",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -1884,7 +1906,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1366x768_1.25/19-config-resumen.png",
-        "sha256": "918e3c0e70dae4c43c57e8f56216426f65b6382e417e43ec5c8b1854c86d1a78",
+        "sha256": "652af1e293cfb5ec7ad828c310f0c855d5f9289b4e4fba2eff854f0e6092fb31",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -1906,7 +1928,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1366x768_1.25/20-config-datos.png",
-        "sha256": "b66d79c3710a3087725ee0573ac45720812e51d87481c502d542b8054af255ae",
+        "sha256": "9a4363357cab6f2231c37b43527819f3c057e5b0a548382d3dbf60baa589dc3a",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -1928,7 +1950,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1366x768_1.25/21-config-cm.png",
-        "sha256": "5b4cc24a4bc39db6a17e734538344c0ccf55245be31cd4946df1f8f423c996cd",
+        "sha256": "5f5a85d78aef7a1c358ae7ba455cb7518c2615ba66b90e8d2d511aca5d26cec2",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -1950,7 +1972,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1366x768_1.25/22-config-estados.png",
-        "sha256": "c54fd3d608131553b2fb6832e96a13ab04c0156ec93e1eb2c0bc23b409470ffd",
+        "sha256": "fc4ce81d3cde42a8d3a0e1c66d723b26104cd807bfd1d640dc70bfde5cdbdcd5",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -1972,7 +1994,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1366x768_1.25/23-config-auditoria.png",
-        "sha256": "e79abc44ebfbe4d6212acc0698a15b71d44a998e49f2e57ed168360b4ea1de84",
+        "sha256": "e16ff8d5d2297336040c06879cb0c79bcfd751217affbeddd5ba0555802b884f",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -2038,7 +2060,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1366x768_1.25/26-importar-carpeta.png",
-        "sha256": "474220d4747a3f8701ee15cf8016f849ff4e152d3210d289325d045edfd78f2a",
+        "sha256": "5f0f8a3391fc25ee381d4e07a9225c85b2ddc0a6dcd9b2d2f9d6aee7b29c4d7c",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -2192,7 +2214,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1366x768_1.25/32b-sesion-uat-casos.png",
-        "sha256": "131fb55015259ec64e994c9c3006ee9feb1cfc09874ca6a3897b3b64572393d4",
+        "sha256": "082ae8acaa2d4e853d433871272645196aae81c33d9dfe476c0e588cc47440ea",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -2236,7 +2258,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1366x768_1.25/34-config-sin-dock.png",
-        "sha256": "e79abc44ebfbe4d6212acc0698a15b71d44a998e49f2e57ed168360b4ea1de84",
+        "sha256": "3fd82f18d6b8b3fe093090d162b24c2760e373f55ffe4b18e236c5b3585f78ba",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -2306,12 +2328,34 @@
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
+      },
+      {
+        "id": "37-inventario-legible",
+        "title": "Inventario previo · Solo lectura",
+        "viewport_physical": [
+          1366,
+          768
+        ],
+        "requested_logical": [
+          1092,
+          574
+        ],
+        "actual_logical": [
+          910,
+          574
+        ],
+        "dpr": 1.25,
+        "png": "test-results/ux-integrated/1366x768_1.25/37-inventario-legible.png",
+        "sha256": "9905bfe6453f2cb427195aad3cc4aeea85814a817c8524f89c8663f6931b9e24",
+        "svg": null,
+        "canvas_height": null,
+        "footer_reachable": true
       }
     ]
   },
   {
     "configuration": "1366x768_1.5",
-    "qt_ui_sha256": "bef73a8c7cac3127613b96617e1121879af5b23f252d00542af67b1a7367cea8",
+    "qt_ui_sha256": "a54ef0247f6af980496b4bcfa7738c0bbbf4c6dc2350900ff2af1af05b214bc1",
     "before_canvas_dip": 104,
     "after_canvas_dip": 282,
     "before_dock_in_settings": true,
@@ -2973,7 +3017,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1366x768_1.5/17-historial-detalle.png",
-        "sha256": "bdd482b341321a52fde4871fae23463d95c37c302a91f77e209f70df1b504fb7",
+        "sha256": "812ced06b4b9a0a4426898e7ced9a5dfe5440212274a71d0057e3e417ea8b8b6",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1.5_17-historial-detalle.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -2995,7 +3039,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1366x768_1.5/18-historial-pdf.png",
-        "sha256": "f0dbbf33b98032ce241668d6cb0a07f848d3aac3c0d3a1582aa241eab3300dcb",
+        "sha256": "83dcffce5ec0d1f8fc1ace203dffae96c17e03874118cc3f5c44958f59913ae5",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1.5_18-historial-pdf.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -3127,7 +3171,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1366x768_1.5/23-config-auditoria.png",
-        "sha256": "965c56372ca157183c818d4ecd34aeb46394245f6c4a762fb5cb39a595dd56b1",
+        "sha256": "4191a897a575a030bd83d33977f5e92514a41809c92358044af1b4cb1469fafa",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -3193,7 +3237,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1366x768_1.5/26-importar-carpeta.png",
-        "sha256": "d8bf6bf0e3286c0588c77d4ae9a8bfcf6ca4f6f3684ddf624307f717de705c64",
+        "sha256": "206e5971700660cb45317628eaaa7ccb6523754e849d302600a2573e97675823",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1.5_26-importar-carpeta.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -3347,7 +3391,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1366x768_1.5/32b-sesion-uat-casos.png",
-        "sha256": "79a74fd4f2f69cb61c562e3d8285f1f66f14e6ad8f2b09e7bade964c6dd3a0db",
+        "sha256": "3e796ef26aaacb0cc507cd7c7320aed36c4b1581f920babe114b84cf2bed9c03",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1.5_32b-sesion-uat-casos.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -3391,7 +3435,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1366x768_1.5/34-config-sin-dock.png",
-        "sha256": "965c56372ca157183c818d4ecd34aeb46394245f6c4a762fb5cb39a595dd56b1",
+        "sha256": "4191a897a575a030bd83d33977f5e92514a41809c92358044af1b4cb1469fafa",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1.5_34-config-sin-dock.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -3461,12 +3505,34 @@
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1.5_36-emision-errores.svg",
         "canvas_height": null,
         "footer_reachable": true
+      },
+      {
+        "id": "37-inventario-legible",
+        "title": "Inventario previo · Solo lectura",
+        "viewport_physical": [
+          1366,
+          768
+        ],
+        "requested_logical": [
+          910,
+          472
+        ],
+        "actual_logical": [
+          910,
+          472
+        ],
+        "dpr": 1.5,
+        "png": "test-results/ux-integrated/1366x768_1.5/37-inventario-legible.png",
+        "sha256": "6da4f5359ba05c0ac6de7d4d61072da5b83330156757299628a2a861658ab7f7",
+        "svg": "docs/R6B_UX_INTEGRATED/evidencia/1366x768_1.5_37-inventario-legible.svg",
+        "canvas_height": null,
+        "footer_reachable": true
       }
     ]
   },
   {
     "configuration": "1920x1080_1",
-    "qt_ui_sha256": "bef73a8c7cac3127613b96617e1121879af5b23f252d00542af67b1a7367cea8",
+    "qt_ui_sha256": "a54ef0247f6af980496b4bcfa7738c0bbbf4c6dc2350900ff2af1af05b214bc1",
     "before_canvas_dip": 572,
     "after_canvas_dip": 840,
     "before_dock_in_settings": true,
@@ -4128,7 +4194,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1920x1080_1/17-historial-detalle.png",
-        "sha256": "9637e183bc4a2108c1c2864c63916fb5152ae856d3107655b24976f200d66a68",
+        "sha256": "0b07a18f549b7d19b4343c6019e7d4f3ecf077069758af69ed15dabae766faa0",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1920x1080_1_17-historial-detalle.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -4150,7 +4216,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1920x1080_1/18-historial-pdf.png",
-        "sha256": "8013c370e29080ed688b8a69ae3a5d932af919e147a5c8ebc30eb73897a256ae",
+        "sha256": "93b3677f160ff3d3a05ce5dd0a397572cc8692c4686d48021c224ca04f691b55",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1920x1080_1_18-historial-pdf.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -4194,7 +4260,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1920x1080_1/19-config-resumen.png",
-        "sha256": "724ff40e3427c55183f09c99265e92e57899182e0510b57633d34bb210d96a94",
+        "sha256": "5b17153dec2828b5d76e17dd00d0cc5f84a50c5e03304687bef7b7a47a74c19c",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1920x1080_1_19-config-resumen.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -4216,7 +4282,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1920x1080_1/20-config-datos.png",
-        "sha256": "59800ec26d49dd8ab99dba90260cb469af09cbb9d76e3782308c92a901f91b51",
+        "sha256": "4d87aa531007680d724c70e8e37253f12db01b29ea4375db518b797d843027b2",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1920x1080_1_20-config-datos.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -4238,7 +4304,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1920x1080_1/21-config-cm.png",
-        "sha256": "73d4cf03f98123e54a9ddcefe33e49fd8be3353cb984b8faef93165042a540db",
+        "sha256": "ab6451db2446d348efd28cee79e9d18a1148d45dc7505275be6f69d5ed2d4e84",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -4260,7 +4326,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1920x1080_1/22-config-estados.png",
-        "sha256": "eeca716009891c9883b5b9f4442b47a06caf30bf2f73fceb5f4fa2306c8efdc8",
+        "sha256": "5c0aa1f3c92491b618b2b00d187ddad55fd69597545da89d275ae9b9670d9594",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -4282,7 +4348,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1920x1080_1/23-config-auditoria.png",
-        "sha256": "56f24d58b0763430844fcb7bf2f915ff1eb49cd369cec78263de695514e46ad7",
+        "sha256": "90e9c3468840b585df173ab0cb00bd5a247e521966ce7107d4bbcfc94ea8a58c",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -4348,7 +4414,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1920x1080_1/26-importar-carpeta.png",
-        "sha256": "ee175c0a8c7b982d9af464c64d522c2452a2b5e4b10250c560436d827ed88e56",
+        "sha256": "48e7f16dad14e6c3435e78be02d1a50b49738434f3bb6f857cb32385231a0e9b",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1920x1080_1_26-importar-carpeta.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -4502,7 +4568,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1920x1080_1/32b-sesion-uat-casos.png",
-        "sha256": "b2890f96836128749231c3674278b51691b3ea3864c6b67847c572c978bb64c7",
+        "sha256": "f26b0ab50be5c20bf45a0b33913eb123ea959dd7aca0f0eb113cdcae5269d761",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1920x1080_1_32b-sesion-uat-casos.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -4546,7 +4612,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1920x1080_1/34-config-sin-dock.png",
-        "sha256": "56f24d58b0763430844fcb7bf2f915ff1eb49cd369cec78263de695514e46ad7",
+        "sha256": "90e9c3468840b585df173ab0cb00bd5a247e521966ce7107d4bbcfc94ea8a58c",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1920x1080_1_34-config-sin-dock.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -4590,7 +4656,7 @@
         ],
         "dpr": 1.0,
         "png": "test-results/ux-integrated/1920x1080_1/35-seleccion-nativa.png",
-        "sha256": "4c6295b095cbfdd6fe83f60a88dd0331ead2d9f2734405f58de54626f514772a",
+        "sha256": "ba1202b69da25a1b68dbca3a093afcf111b957c1cd0212ad6e8816d0786df524",
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1920x1080_1_35-seleccion-nativa.svg",
         "canvas_height": null,
         "footer_reachable": true
@@ -4616,12 +4682,34 @@
         "svg": "docs/R6B_UX_INTEGRATED/evidencia/1920x1080_1_36-emision-errores.svg",
         "canvas_height": null,
         "footer_reachable": true
+      },
+      {
+        "id": "37-inventario-legible",
+        "title": "Inventario previo · Solo lectura",
+        "viewport_physical": [
+          1920,
+          1080
+        ],
+        "requested_logical": [
+          1920,
+          1040
+        ],
+        "actual_logical": [
+          910,
+          650
+        ],
+        "dpr": 1.0,
+        "png": "test-results/ux-integrated/1920x1080_1/37-inventario-legible.png",
+        "sha256": "097bba3156bb31823b9080cdf8d7f0f7f42031984c1f77203ca696ced60d8916",
+        "svg": "docs/R6B_UX_INTEGRATED/evidencia/1920x1080_1_37-inventario-legible.svg",
+        "canvas_height": null,
+        "footer_reachable": true
       }
     ]
   },
   {
     "configuration": "1920x1080_1.25",
-    "qt_ui_sha256": "bef73a8c7cac3127613b96617e1121879af5b23f252d00542af67b1a7367cea8",
+    "qt_ui_sha256": "a54ef0247f6af980496b4bcfa7738c0bbbf4c6dc2350900ff2af1af05b214bc1",
     "before_canvas_dip": 356,
     "after_canvas_dip": 624,
     "before_dock_in_settings": true,
@@ -5283,7 +5371,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1920x1080_1.25/17-historial-detalle.png",
-        "sha256": "29ab72567290552aadf64aa05a04f7c985723b3c6a552c669c240b9bbad80dea",
+        "sha256": "101df43cddcdec9722eeebb0cd6dd02a80be66a78f1060f704d35c91dff23859",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -5305,7 +5393,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1920x1080_1.25/18-historial-pdf.png",
-        "sha256": "d6ae2b74012831f4847cb119478b81fd354b5ac2e593dc569fb1f014229f187f",
+        "sha256": "d1f03471bfc0c710f049b162545604eca5b43a49aa1861261df81ce569da35cc",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -5349,7 +5437,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1920x1080_1.25/19-config-resumen.png",
-        "sha256": "ed0516cc35d9d174f01d9ec5a37c5b9932fa8575bbb37cc12f5481b9b6b95236",
+        "sha256": "93c9c9ba902946461b3fd804887fd96ccc1f3873037afdceb7bc0c80475b7087",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -5371,7 +5459,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1920x1080_1.25/20-config-datos.png",
-        "sha256": "fc5e408b704f5cce903ab7888baef00e9c3bf9b6d66ccc9e11fed2fe235fcf8b",
+        "sha256": "708f27ed8a1429489befcbf1e6f904474ade7f032a8be5b7520bc5b42922f20c",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -5393,7 +5481,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1920x1080_1.25/21-config-cm.png",
-        "sha256": "fc5b981aa2888306066b4cfb7cb0aa03321c49308c23e965f74a85506605aecb",
+        "sha256": "e87edaf856849d69c6f423cf81a595d4b24b5edc45a08553b920cbe29a54c20d",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -5415,7 +5503,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1920x1080_1.25/22-config-estados.png",
-        "sha256": "61279c2db61ee65ba40e965d0a1dd092502d73f8842fb26a68d9092ee2870765",
+        "sha256": "f299865170fc604a31427f1c50bd0ce662a75bd281078959d1109c8020a3379b",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -5437,7 +5525,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1920x1080_1.25/23-config-auditoria.png",
-        "sha256": "5d2e3c303cad88edf0b08e3ec31b307ed3eb076ce7591d543cba003e0c7fe986",
+        "sha256": "27bb4eb3ef2497b1657c4ea3d61a71aa0fabff16c975e1d1ea14cd9cbbe6dea7",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -5503,7 +5591,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1920x1080_1.25/26-importar-carpeta.png",
-        "sha256": "5ff8ed3722bf8aaa49a1b89b91ba3466c43a463aa9fc7dd77491f8d8c368ad43",
+        "sha256": "35a4b37d43f62055f4d515a44e771f2689080bce19edb99addf68a75c33d7807",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -5657,7 +5745,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1920x1080_1.25/32b-sesion-uat-casos.png",
-        "sha256": "340438e7bb72458da4665f40f7ae62dec800faefbf65c87de3ba099cd3308e3a",
+        "sha256": "4cd903ccf296734ce11b9e8ad6022b48e94ee8e4230b1230eafff7b0b96092a2",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -5701,7 +5789,7 @@
         ],
         "dpr": 1.25,
         "png": "test-results/ux-integrated/1920x1080_1.25/34-config-sin-dock.png",
-        "sha256": "5d2e3c303cad88edf0b08e3ec31b307ed3eb076ce7591d543cba003e0c7fe986",
+        "sha256": "6c72bc2f595a09a563f83cd32c30aebe12b42bca165b61e1a3c2fc6260b044b7",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -5771,12 +5859,34 @@
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
+      },
+      {
+        "id": "37-inventario-legible",
+        "title": "Inventario previo · Solo lectura",
+        "viewport_physical": [
+          1920,
+          1080
+        ],
+        "requested_logical": [
+          1536,
+          824
+        ],
+        "actual_logical": [
+          910,
+          650
+        ],
+        "dpr": 1.25,
+        "png": "test-results/ux-integrated/1920x1080_1.25/37-inventario-legible.png",
+        "sha256": "d033db0f4075dad40aa47839efad72b58140146abf1c7261efe1477d2706a092",
+        "svg": null,
+        "canvas_height": null,
+        "footer_reachable": true
       }
     ]
   },
   {
     "configuration": "1920x1080_1.5",
-    "qt_ui_sha256": "bef73a8c7cac3127613b96617e1121879af5b23f252d00542af67b1a7367cea8",
+    "qt_ui_sha256": "a54ef0247f6af980496b4bcfa7738c0bbbf4c6dc2350900ff2af1af05b214bc1",
     "before_canvas_dip": 212,
     "after_canvas_dip": 480,
     "before_dock_in_settings": true,
@@ -6438,7 +6548,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1920x1080_1.5/17-historial-detalle.png",
-        "sha256": "cc109a3a3902083421e545e4fa6748cbf14019a27829041a58779136a8fa44ce",
+        "sha256": "458fd43ff3c4a4dfb606dad721646d1985110ddb752c5b87966a0725a660e30c",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -6460,7 +6570,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1920x1080_1.5/18-historial-pdf.png",
-        "sha256": "f31355a3820a41fb0dfdbd52b3f0c3af7dd25ee10b08ec5f459e85e17ec0eee4",
+        "sha256": "3fedf2c49f7f9d3ee389c4427faedc300037dccc0df8e2f5a4d5d10de2f197a5",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -6504,7 +6614,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1920x1080_1.5/19-config-resumen.png",
-        "sha256": "96ed7e42bdc6fcf692a7f05750124c83dc9fc5b928a6ce99747774cbe75c0964",
+        "sha256": "e15eac69300693d28677258807ef7732d8f2cc42b1bd3a2bf8de22f7ca39c859",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -6526,7 +6636,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1920x1080_1.5/20-config-datos.png",
-        "sha256": "62488327ffaba60d61d564b26e8423e3187693cef611ba561d6648ffd4888fa2",
+        "sha256": "8084c6c1ce34fb94692e82ea4c6e3e3c3ce363bbbaf1435aef15b0178c120f36",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -6548,7 +6658,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1920x1080_1.5/21-config-cm.png",
-        "sha256": "f4c178a44bb6776fb0023f01106bebb7572240e3f17c9ec6d25b89bf4c96aa05",
+        "sha256": "247bc0aae6f1e7d49a631a32bb2c5fed1d965054c2a82950a24f9f41a3bfb7f0",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -6570,7 +6680,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1920x1080_1.5/22-config-estados.png",
-        "sha256": "c1b0547c3be1434a64d5876c5d4a18629b0717f867a00f7ba906d6842b284379",
+        "sha256": "6802a5a888c56e85cd2423d101de07ea6175e8b3d46fd51f54a00f9354b23581",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -6592,7 +6702,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1920x1080_1.5/23-config-auditoria.png",
-        "sha256": "27b2a02ca6a9b624e21fb68e8bea38ef1e22c1db440a186568d3d3d4644818cf",
+        "sha256": "42d48ba2ee6beb50c5bb8b7f48b132562a2d33cb2fc10f9a8ea42893a67ef9a3",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -6658,7 +6768,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1920x1080_1.5/26-importar-carpeta.png",
-        "sha256": "b43261e5290c5eab4b30290ca543718e2aa0a9798b36ed795f57ec87dc477c9d",
+        "sha256": "f5996a3b2e2d0514731f5bb90641498e6da36d88029cfd1a3de6b3711a34006c",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -6812,7 +6922,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1920x1080_1.5/32b-sesion-uat-casos.png",
-        "sha256": "edddb38efb2aea17dfa1e3ae1701f52c5d42df2b8a2c1fd6a8dff66870747af0",
+        "sha256": "061803e80f6b2624d003c5b230af47a58c1388ae7562376e22b1bcd2fc106952",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -6856,7 +6966,7 @@
         ],
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1920x1080_1.5/34-config-sin-dock.png",
-        "sha256": "27b2a02ca6a9b624e21fb68e8bea38ef1e22c1db440a186568d3d3d4644818cf",
+        "sha256": "42d48ba2ee6beb50c5bb8b7f48b132562a2d33cb2fc10f9a8ea42893a67ef9a3",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true
@@ -6923,6 +7033,28 @@
         "dpr": 1.5,
         "png": "test-results/ux-integrated/1920x1080_1.5/36-emision-errores.png",
         "sha256": "718bb2c517723e10e0a4d67294d0d6e3495d7eee6cf36d974ff126e19f656c75",
+        "svg": null,
+        "canvas_height": null,
+        "footer_reachable": true
+      },
+      {
+        "id": "37-inventario-legible",
+        "title": "Inventario previo · Solo lectura",
+        "viewport_physical": [
+          1920,
+          1080
+        ],
+        "requested_logical": [
+          1280,
+          680
+        ],
+        "actual_logical": [
+          910,
+          650
+        ],
+        "dpr": 1.5,
+        "png": "test-results/ux-integrated/1920x1080_1.5/37-inventario-legible.png",
+        "sha256": "af0665111f6f1183ce611eb06a697125f2b9a56d980e95264e21fd02c9a62f10",
         "svg": null,
         "canvas_height": null,
         "footer_reachable": true

@@ -240,6 +240,11 @@ try:
     w.load_emission_work(invalid['uid']);w.navigate('emission')
     w.emission_panel.inputs['count'].setText('0');w.emission_panel.changed();w.flush_emission_work()
     snapshot('36-emision-errores',vector=True)
+    from covex_label_manager.qt_ui.catalog_exchange_ui import InventoryReportDialog
+    inventory=InventoryReportDialog(w,{'counts':{'REVIEW_REQUIRED':1},'files':[
+        {'path':'SYNTHETIC_demo.pdf','name':'Demo','version':'00','status':'REVIEW_REQUIRED'}]})
+    inventory.show();app.processEvents();inventory.fit_available(QSize(*logical))
+    snapshot('37-inventario-legible',inventory,vector=True);inventory.reject()
     observations['sql_version']=api._repository.db.execute('PRAGMA user_version').fetchone()[0]
     assert observations['preview_ok'] and observations['issue_enabled_after_preview']
     assert not observations['dock_visible_in_settings']

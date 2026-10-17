@@ -177,3 +177,22 @@ def test_normal_secondary_text_has_readable_contrast(studio):
     for background in (QColor('#FFFFFF'),QColor('#F3F6F7')):
         light,dark=sorted([luminance(text),luminance(background)],reverse=True)
         assert (light+.05)/(dark+.05)>=4.5
+
+
+def test_inventory_human_summary_preserves_full_technical_report(studio):
+    import json
+    from PySide6.QtWidgets import QPushButton
+    from covex_label_manager.qt_ui.catalog_exchange_ui import InventoryReportDialog
+    w,s,app=studio
+    report={'mode':'READ_ONLY','counts':{'BLOCKED_SYMLINK':1,'REVIEW_REQUIRED':1},'files':[
+        {'path':'synthetic-link','status':'BLOCKED_SYMLINK'},
+        {'path':'synthetic.pdf','name':'Demo','version':'00','status':'REVIEW_REQUIRED'}]}
+    original=copy.deepcopy(report)
+    dialog=InventoryReportDialog(w,report);dialog.show();app.processEvents()
+    assert not dialog.details.isVisible()
+    assert 'Requiere revisión: 1' in dialog.summary.text()
+    assert dialog.table.item(0,3).text()=='Enlace bloqueado'
+    next(b for b in dialog.findChildren(QPushButton) if b.text()=='Mostrar detalle técnico JSON').click()
+    assert dialog.details.isVisible() and dialog.details.isReadOnly()
+    assert json.loads(dialog.details.toPlainText())==original==report
+    dialog.reject()
