@@ -52,7 +52,7 @@ class WorkPanel(QWidget):
         self.common_form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
         self.common_form.setVerticalSpacing(10);self.common_form.setContentsMargins(10,12,10,12)
         scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(common);self.tabs.addTab(scroll,'Datos de lote')
-        self.containers=QTableWidget(0,5);self.containers.setHorizontalHeaderLabels(['Nº','Lote','PN kg','PB kg','Conservación'])
+        self.containers=QTableWidget(0,5);self.containers.setHorizontalHeaderLabels(['Nº','Lote','PN (kg/g/mg)','PB (kg/g/mg)','Conservación'])
         self.containers.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.container_keys=['lote','pn','pb','conservacion']
         self.containers.setAlternatingRowColors(True);self.containers.verticalHeader().hide()
@@ -61,7 +61,7 @@ class WorkPanel(QWidget):
         from PySide6.QtGui import QAction
         clear=QAction('Limpiar datos de este recipiente (heredar lote)',self.containers);clear.triggered.connect(self.clear_container_row);self.containers.addAction(clear)
         self.tabs.currentChanged.connect(self.tab_changed)
-        self.containers.setToolTip('Un valor vacío hereda el dato común. Pesos PN/PB: puede escribir 0,3558 o 0,3558 kg. También puede pegar datos desde Excel.')
+        self.containers.setToolTip('Vacío hereda el dato común. PN/PB: kg, g o mg; sin unidad significa kg. Se convierte a la unidad documental del campo. Admite Excel.')
         cfg=QWidget();cfg.setObjectName('workForm');form=QFormLayout(cfg)
         self.design_sheet_button=button('Diseñar hoja…',self.design_sheet,'primary');form.addRow(self.design_sheet_button)
         self.calibrate_button=button('Aplicar medidas de impresora…',self.calibrate_printer)
@@ -213,9 +213,10 @@ class WorkPanel(QWidget):
             for key,title in labels.items():
                 if key in ('pn','pb'):
                     e=QLineEdit(w['values'].get(key,''))
-                    e.setPlaceholderText('Ej.: 0,3558 kg')
-                    e.setToolTip('Admite 0,3558 o 0,3558 kg. El valor se conserva como lo escribió; el maestro controla cómo aparece KG en la etiqueta.')
-                    if 'kg' not in title.lower():title+=' (kg)'
+                    e.setPlaceholderText('Ej.: 350 g · 0,35 kg · 350000 mg')
+                    suffix=next((f.get('suffix','').strip() for f in fields if f['key']==key),'')
+                    e.setToolTip('Entrada: kg, g o mg; sin unidad significa kg. Se conserva el texto introducido. '+('Salida documental: '+suffix+' (conversión automática).' if suffix else 'Sin sufijo documental: se imprime la unidad introducida.'))
+                    title+=' · entrada kg/g/mg'
                 else:
                     e=VariableText(w['values'].get(key,''))
                 e.textEdited.connect(self.changed);self.value_inputs[key]=e;self.common_form.addRow(title,self.with_error(e,'value:'+key))

@@ -2,7 +2,7 @@
 
 Implementación de la alternativa A (evolución Industrial Moderno), sobre `main` `6b4f5076b644fc445bb8a143d116091c9f4c9c64`, en `feature/r6b-ux-integrated`. Referencia obligatoria: auditoría `02f7ba7`, integrada por PR #28. La auditoría y sus evidencias no se modifican.
 
-Los tres bloques se han aplicado consecutivamente: estructura adaptable, reorganización de operaciones y consolidación visual. No cambian servicios, esquema SQLite v4, motor PDF, cálculos físicos, reglas de aprobación, numeración, snapshots ni reimpresión. Las reubicaciones usan los controles/controladores existentes; no hay aprobaciones automáticas ni simulaciones de funciones productivas.
+Los tres bloques iniciales se aplicaron consecutivamente: estructura adaptable, reorganización de operaciones y consolidación visual. La aceptación presencial posterior fue **NO CONFORME**. La ampliación funcional solicitada se describe en [Correcciones de aceptación](CORRECCIONES_ACEPTACION.md): asistente de importación, unidades de masa, render de prueba automático y menú de variantes. Modifica presentación y conversión de masas del motor, no el esquema SQLite v4, cálculos físicos, aprobaciones, numeración ni snapshots. No hay aprobaciones automáticas.
 
 ## Documentación y evidencia
 
@@ -12,6 +12,7 @@ Los tres bloques se han aplicado consecutivamente: estructura adaptable, reorgan
 - [Resultados geométricos, hashes y procedencia](resultados-visuales.json).
 - [Pruebas reproducibles, CI y guía del portable](PRUEBAS_Y_PORTABLE.md).
 - [Causa raíz y corrección de la caída nativa Qt](CI_QT_FIX.md).
+- [Correcciones tras aceptación NO CONFORME y nueva comparativa](CORRECCIONES_ACEPTACION.md).
 
 Resultado local tras corregir CI: 412 pruebas aprobadas, 2 omitidas; 33 casos de regresión UX y 6 de integridad del portable. El lienzo del Editor a 1366×768/150 % de la serie visual integrada pasa de 104 a 282 DIP de alto, sin esconder automáticamente paneles. No queda dock de lote en Configuración. Los diálogos críticos tienen cuerpo desplazable y pie de acciones accesible.
 

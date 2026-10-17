@@ -99,4 +99,6 @@ El paquete experimental contiene Qt y compañero Tk; ninguno incluye data o docu
 El WorkPanel conserva su controlador y persistencia, pero ya no es un dock global.
 SQLite v4, contratos PDF, snapshots y guardas documentales no cambian.
 Ver [rutas y equivalencia funcional](docs/R6B_UX_INTEGRATED/CAMBIOS_Y_ESTADO.md).
+
+La [ampliación tras NO CONFORME](docs/R6B_UX_INTEGRATED/CORRECCIONES_ACEPTACION.md) incorpora un asistente sobre R5B, unidades kg/g/mg y `PreviewTask`: un solo render no productivo con conexión SQLite propia, snapshot de entrada y comprobación de generación/token antes de adoptar el PDF. No mantiene el bloqueo exclusivo de trabajo durante el render ni registra emisiones. El sufijo documental determina la conversión de masa, sin modificar maestros ni SQLite v4. Los contadores de importación no pueden ocultar `QDialog.done(int)`.
 Las secciones anteriores documentan la evolución previa.

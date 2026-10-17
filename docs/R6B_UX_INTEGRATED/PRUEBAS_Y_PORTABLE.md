@@ -1,5 +1,7 @@
 # Regresión, CI y portable
 
+La entrega `46d3eab` fue **NO CONFORME** en Windows pese a sus CI verdes. Los resultados de la tabla siguiente son el hito histórico previo; no constituyen aceptación de la nueva entrega. Ver [correcciones, nuevas pruebas y comparativa](CORRECCIONES_ACEPTACION.md). El nuevo portable debe proceder del commit posterior que cierre esas incidencias, no del artefacto anterior.
+
 ## Evidencia local
 
 Entorno sintético aislado: Linux, Python 3.12.14, Qt 6.8.3, Fusion; Xorg dummy para capturas y offscreen para suites. No se abre una instalación productiva, no se usan documentos reales, no se despacha a impresora.
@@ -21,6 +23,9 @@ Reproducción con dependencias del repositorio instaladas:
 ```bash
 python -m pytest -q
 python -m pytest -q tests/test_r6b_ux_qt.py
+python -m pytest -q tests/test_r6b_acceptance_fixes_qt.py tests/test_mass_units.py
+python main_qt.py --import-check test-results/import-process.json
+python scripts/ux_acceptance_visual.py --width 1366 --height 768
 QT_SCALE_FACTOR=1.5 python scripts/ux_visual_gate.py --width 1366 --height 768
 python main_qt.py --self-check test-results/ux-self.json --verify-bridge
 python main_qt.py --variant-check test-results/ux-variants.json --verify-bridge
@@ -64,3 +69,5 @@ El resultado debe tener `ok=true`, `count=86` y puente correcto. Esta modalidad 
 7. Abrir UAT, conciliación, preaceptación, configuración y diálogos; verificar scroll, botones al pie, teclado, foco, textos y traducción estándar. Probar Narrador/UIA/alto contraste y navegación solo teclado: su aceptación permanece pendiente aunque el gate geométrico sea verde.
 
 La validación GMP, Word/Office real, calibración física, papel, driver, impresora y aprobación humana son actividades separadas. Documentar sus evidencias sin atribuirles éxito por una CI o un PDF.
+
+Para esta entrega, añadir obligatoriamente los seis pasos de aceptación de [Correcciones de aceptación](CORRECCIONES_ACEPTACION.md). El EXE admite `--import-check <ruta.json>`: debe finalizar con código 0, `ok=true` y 18 escenarios. Es una ejecución sintética aislada y no sustituye probar el asistente manualmente. Las CI lo repiten desde fuente y EXE congelado a tres escalas, y capturan antes/después en Windows.

@@ -94,7 +94,7 @@ def snapshot(name,widget=None,vector=False):
         'svg':str(svg.relative_to(repo)) if svg else None,
         'canvas_height':w.canvas.height() if widget is w and w.stack.currentWidget() is w.editor else None,
         'footer_reachable':all(0<=f.mapTo(widget,f.rect().bottomRight()).y()<widget.height()
-            for f in getattr(widget,'footer_widgets',[])),
+            for f in getattr(widget,'footer_widgets',[]) if f.isVisibleTo(widget)),
         'controls':controls}
     records.append(rec);print('CAPTURE',key,name,rec['actual_logical'],flush=True)
 
@@ -165,7 +165,13 @@ try:
     for i,name in [(1,'13-emision-recipientes'),(2,'14-emision-formato'),(3,'15-emision-estado')]:
         w.emission_panel.tabs.setCurrentIndex(i);snapshot(name,vector=(i==2))
     w.emission_panel.tabs.setCurrentIndex(0)
-    observations['preview_ok']=bool(w.preview_emission_work());snapshot('16-emision-preview',vector=True)
+    if getattr(w,'preview_task',None):
+        from PySide6.QtTest import QTest
+        for _ in range(800):
+            QTest.qWait(25)
+            if w.preview_task is None:break
+        assert w.preview_task is None,'Automatic preview did not finish'
+    observations['preview_ok']=bool(w.preview_matches() or w.preview_emission_work());snapshot('16-emision-preview',vector=True)
     observations['issue_enabled_after_preview']=w.native_issue.isEnabled()
     # No confirmation is accepted: capture modal + cancel every operation.
     QDialog.exec=dialog_capture
@@ -257,6 +263,8 @@ try:
 finally:
     QDialog.exec=original_exec
     (out/'manifest.json').write_text(json.dumps({'key':key,'commit':commit,'qt_ui_sha256':code_hash,'logical_request':logical,'observations':observations,'errors':errors,'captures':records},ensure_ascii=False,indent=2),encoding='utf-8')
+    w.preview_timer.stop();w.preview_pending=False
+    if w.preview_task:w.preview_task.wait(30000);app.processEvents()
     w.work_timer.stop();w.dirty=False;w.work_dirty_panel=None;w.hide()
     w.deleteLater();QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
     session.close()

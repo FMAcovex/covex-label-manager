@@ -140,6 +140,12 @@ class VariantsMixin:
         revision=self.api.version(self.row['version_id']) if self.row else None
         variant=self.api.variant(self.library_variant_id) if self.library_variant_id is not None else None
         state=variant['state'] if variant else None
+        base_state={'APPROVED':'Vigente','PENDING':'Pendiente','RETIRED':'Retirada'}
+        header=menu.addAction('Revisión documental · '+(base_state[revision['state']] if revision else 'Sin selección'));header.setEnabled(False)
+        context=menu.addAction('Original y aprobación documental: menú Documento');context.setEnabled(False)
+        menu.addSeparator()
+        header=menu.addAction('Variante de diseño · '+(STATES[state] if state else 'Diseño heredado, sin variante'));header.setEnabled(False)
+        explanation=menu.addAction('La variante no sustituye la revisión documental');explanation.setEnabled(False)
         available=bool(revision and revision['state']!='RETIRED' and not self.legacy_process)
         commands=[
             ('Crear variante desde esta revisión',self.create_variant_ui,available,'Seleccione una revisión no retirada.'),
@@ -152,10 +158,20 @@ class VariantsMixin:
             ('Comparar revisión y variante',self.compare_variant,variant is not None,'Seleccione una variante.'),
             ('Consultar evidencia',self.open_variant_evidence,bool(variant and variant['evidence_path']),'La variante no tiene evidencia de aprobación registrada.'),
         ]
+        unavailable=[]
         for text,callback,enabled,reason in commands:
-            action=menu.addAction(text,callback);action.setEnabled(bool(enabled))
+            if not enabled:
+                unavailable.append((text,reason));continue
+            action=menu.addAction(text,callback)
             action.setToolTip(text if enabled else ('Cierre primero la compatibilidad Tkinter.' if self.legacy_process else reason))
             action.setStatusTip(action.toolTip())
+        if unavailable:
+            blocked=menu.addMenu('Otras acciones · requisitos');blocked.setToolTipsVisible(True)
+            for text,reason in unavailable:
+                action=blocked.addAction(text);action.setEnabled(False)
+                reason='Cierre primero la compatibilidad Tkinter.' if self.legacy_process else reason
+                action.setToolTip(reason);action.setStatusTip(reason)
+                explanation=blocked.addAction('↳ '+reason);explanation.setEnabled(False)
         return menu
     def create_variant_ui(self,derive=False,field_adjustment=False):
         if not self.row or not self.resolve_work():return

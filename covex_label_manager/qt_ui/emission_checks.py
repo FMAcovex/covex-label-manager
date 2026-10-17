@@ -29,6 +29,14 @@ def run(report,captures=None):
         app.processEvents();QTest.qWait(30);assert w.grab().save(str(captures/(name+'.png')))
     def pdf_words(path):
         with fitz.open(path) as doc:return [[(word[4].replace('\xad','-'),*[round(v,2) for v in word[:4]]) for word in page.get_text('words') if word[4].replace('\xad','-').startswith('R3C-')] for page in doc]
+    def preview():
+        # Automatic rendering is now asynchronous. Await it, then exercise the
+        # retained manual action and every original PDF/production assertion.
+        for _ in range(1200):
+            if w.preview_task is None and not w.preview_timer.isActive():break
+            QTest.qWait(25)
+        assert w.preview_task is None and not w.preview_timer.isActive(),'Preview did not settle'
+        return w.preview_emission_work()
     try:
         vid=next(r['version_id'] for r in api.library.entries() if r['state']=='APPROVED');before=dict(api.version(vid));source_hash=sha256(api.asset_path(before['master_pdf']))
         schema=[tuple(r) for r in api._repository.db.execute('SELECT type,name,sql FROM sqlite_master ORDER BY type,name')]
@@ -50,7 +58,7 @@ def run(report,captures=None):
         panel.tabs.setCurrentIndex(1);capture('02-tabla-recipientes');check(panel.containers.rowCount()==6,'recipient_table')
         panel.tabs.setCurrentIndex(2);capture('03-formato-perfil');check(panel.capture()['profile']['start_slot']=='2','format_kept_separate')
         panel.tabs.setCurrentIndex(0)
-        check(w.preview_emission_work(),'native_actual_pdf_preview');capture('04-vista-previa-A4')
+        check(preview(),'native_actual_pdf_preview');capture('04-vista-previa-A4')
         proof=w.work_preview['path'];words=pdf_words(proof);check(bool(words),'preview_contains_actual_work_data')
         check(w.work_preview['result']['physical']==10 and w.work_preview['result']['pages']==2,'A4_selection_copies_start_slot')
         with fitz.open(proof) as pdf:check('PRUEBA' in pdf[0].get_text(),'unambiguous_proof_watermark')
@@ -59,7 +67,7 @@ def run(report,captures=None):
         QMessageBox.question=lambda *a,**k:QMessageBox.StandardButton.Cancel
         check(not w.issue_emission_work() and not api.issues(),'definitive_cancel_no_effect')
         saved=api.work.get(uid);w.close();w=FunctionalWindow(session);w.resize(1560,960);w.show();app.processEvents();w.load_emission_work(uid);w.navigate('emission')
-        check(api.work.get(uid)==saved,'restart_draft_recovery');check(w.preview_emission_work(),'preview_after_restart')
+        check(api.work.get(uid)==saved,'restart_draft_recovery');check(preview(),'preview_after_restart')
         QMessageBox.question=lambda *a,**k:QMessageBox.StandardButton.Yes
         check(w.issue_emission_work(),'native_definitive_issue');capture('05-PDF-definitivo-registrado')
         first=w.emission_work['issue_id'];issue=api.issue(first);snapshot=json.loads(issue['design_snapshot_json'])
@@ -71,7 +79,7 @@ def run(report,captures=None):
         p=w.emission_panel;p.value_inputs['lote'].setText('R3C-LOCAL-CONFLICT');p.changed();check(not w.flush_emission_work() and p.value_inputs['lote'].text()=='R3C-LOCAL-CONFLICT','stale_generation_keeps_input')
         w.work_timer.stop();w.work_dirty_panel=None;w.reload_emission_work()
         pending=next(r['version_id'] for r in api.library.entries() if r['state']=='PENDING');draft=api.work.create(pending,name='Pendiente sintético',template=saved)
-        w.load_emission_work(draft['uid']);check(w.preview_emission_work() and not w.native_issue.isEnabled(),'pending_proof_without_definitive');capture('06-pendiente-bloqueada')
+        w.load_emission_work(draft['uid']);check(preview() and not w.native_issue.isEnabled(),'pending_proof_without_definitive');capture('06-pendiente-bloqueada')
         w.load_emission_work(uid);w.navigate('history');w.history_table.selectRow(0)
         check(w.stack.currentWidget() is w.history_page and w.preview_native_issue(),'native_history_verified_pdf');capture('07-historial-y-PDF')
         check('R3C-RECIPIENTE-2' in w.history_text['containers'].toPlainText(),'historical_recipient_data')
@@ -88,7 +96,7 @@ def run(report,captures=None):
         check(len(api.issues())==2 and api.issues()[0]['source_issue_id']==first,'native_controlled_reprint');capture('08-reimpresion-controlada')
         check(json.loads(api.issues()[0]['selected_indices'])==[2,3],'original_reprint_numbers')
         check(api.issue(first)['design_snapshot_json']==issue['design_snapshot_json'],'historical_snapshot_preserved')
-        w.navigate('emission');w.load_emission_work(uid);check(w.preview_emission_work(),'issued_work_proof_for_geometry_review')
+        w.navigate('emission');w.load_emission_work(uid);check(preview(),'issued_work_proof_for_geometry_review')
         resolution=[]
         for width,height in [(1920,1080),(1366,768)]:
             scale=w.screen().devicePixelRatio();target=(int(width/scale)-16,int(height/scale)-44);w.resize(*target);app.processEvents()
@@ -111,6 +119,8 @@ def run(report,captures=None):
     finally:
         timer.stop();QMessageBox.question=real_question;QMessageBox.warning=real_warning;QFileDialog.getSaveFileName=real_save
         w.work_dirty_panel=None;w.dirty=False
+        w.preview_timer.stop();w.preview_pending=False
+        if w.preview_task:w.preview_task.wait(30000);app.processEvents()
         if w.design:w.design.mark_clean()
         w.close();app.processEvents();session.close()
     report.parent.mkdir(parents=True,exist_ok=True);report.write_text(json.dumps(result,indent=2,ensure_ascii=False),encoding='utf-8')

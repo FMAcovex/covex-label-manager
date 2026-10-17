@@ -25,6 +25,10 @@ on:
       - 'covex_label_manager/layout_profiles.py'
       - 'scripts/r3e_backward_gate.py'
       - 'scripts/ux_visual_gate.py'
+      - 'scripts/ux_acceptance_visual.py'
+      - 'covex_label_manager/vessels.py'
+      - 'covex_label_manager/engine.py'
+      - 'tests/test_mass_units.py'
       - 'scripts/verify_portable_archive.py'
       - 'tests/test_portable_archive_integrity.py'
       - 'covex_label_manager/work_tk.py'
@@ -89,7 +93,7 @@ jobs:
           }
           Remove-Item Env:QT_SCALE_FACTOR
       - name: Qt and migration-consent regression (core/Tk covered in Windows job)
-        timeout-minutes: 6
+        timeout-minutes: 8
         run: >-
           python -m pytest -q -o faulthandler_timeout=60 --junitxml=test-results/qt.xml
           tests/test_r3a_qt.py tests/test_r3b1_qt.py tests/test_emission_work_qt.py
@@ -100,6 +104,42 @@ jobs:
           tests/test_r5b_migration.py tests/test_r5c_reconciliation.py tests/test_r5c_qt.py
           tests/test_r6a_acceptance.py tests/test_r6a_qt.py
           tests/test_r6b_session.py tests/test_r6b_qt.py tests/test_r6b_ux_qt.py
+          tests/test_r6b_acceptance_fixes_qt.py tests/test_mass_units.py
+      - name: Importer close process regression at three native Windows scales
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            $report = "test-results/import-source-$scale.json"
+            python -u -X faulthandler main_qt.py --import-check $report
+            if ($LASTEXITCODE -ne 0 -or !(Test-Path $report)) { throw "Importer process failed at $scale" }
+            $check = Get-Content $report -Raw | ConvertFrom-Json
+            if (!$check.ok -or $check.cases.Count -ne 18) { throw "Importer close coverage incomplete at $scale" }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 46d3eab93381a81bae47f04ffe367334c8f16709
+          path: .ux-before-source
+          persist-credentials: false
+      - name: Synthetic acceptance before and after at six Windows viewport/scales
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            foreach ($viewport in @(@(1366, 768), @(1920, 1080))) {
+              python scripts/ux_acceptance_visual.py --baseline --source-root .ux-before-source --width $viewport[0] --height $viewport[1]
+              if ($LASTEXITCODE -ne 0) { throw "Baseline capture failed at $scale / $viewport" }
+              python scripts/ux_acceptance_visual.py --width $viewport[0] --height $viewport[1]
+              if ($LASTEXITCODE -ne 0) { throw "Acceptance capture failed at $scale / $viewport" }
+            }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
+          Remove-Item .ux-before-source -Recurse -Force
       - name: R6B integrated UX at both viewports and three Qt scales
         shell: pwsh
         run: |
@@ -172,6 +212,19 @@ jobs:
           if (!$check.ok -or $check.count -lt 80) { throw 'Qt editor interaction check incomplete' }
           if (!$check.legacy_bridge.ok) { throw 'Legacy bridge not verified' }
           Copy-Item $result "test-results/qt-packaged-$scale.json"
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
+      - name: Frozen importer closes without quitting the application
+        shell: pwsh
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            $result = Join-Path $env:RUNNER_TEMP "import-frozen-$scale.json"
+            $process = Start-Process -FilePath dist/COVEXLabelManager_Qt/COVEXLabelManager_Qt.exe -ArgumentList @('--import-check', $result) -Wait -PassThru
+            if (Test-Path $result) { Copy-Item $result "test-results/import-frozen-$scale.json" }
+            if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { throw "Frozen importer failed at $scale" }
+            $check = Get-Content $result -Raw | ConvertFrom-Json
+            if (!$check.ok -or $check.cases.Count -ne 18) { throw "Frozen importer coverage incomplete at $scale" }
           }
           Remove-Item Env:QT_SCALE_FACTOR
       - name: Check frozen variant selector and both bridge modes

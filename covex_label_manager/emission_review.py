@@ -4,7 +4,7 @@ import math
 import unicodedata
 from .emission_work import parameters
 from .engine import validate_fields,_status_settings
-from .vessels import validate_vessel_masses
+from .vessels import validate_vessel_masses,parse_mass
 
 
 def review(api,uid,generation):
@@ -63,8 +63,15 @@ def review(api,uid,generation):
             field=next((f for f in fields if f.get('label',f['key']) in message),None)
             key=field['key'] if field else 'format'
             error('container:'+key if key in overrides else 'value:'+key,message,number if key in overrides else None)
-        try:validate_vessel_masses(values,number)
-        except ValueError as ex:error('container:pb' if overrides else 'value:pb',ex,number if overrides else None)
+        valid_masses=True
+        for key in ('pn','pb'):
+            try:parse_mass(values.get(key))
+            except ValueError as ex:
+                valid_masses=False
+                error('container:'+key if key in overrides else 'value:'+key,ex,number if key in overrides else None)
+        if valid_masses:
+            try:validate_vessel_masses(values,number)
+            except ValueError as ex:error('container:pb' if 'pb' in overrides else 'value:pb',ex,number if 'pb' in overrides else None)
     state=w['status'];kind=state.get('kind','ninguna')
     if kind!='ninguna':
         try:

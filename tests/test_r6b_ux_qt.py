@@ -115,7 +115,10 @@ def test_variant_menu_explains_available_transitions(studio,state):
     variant=api.create_variant(s.initial_id,'UX-MENU','Variante sintética','Prueba de menú','Synthetic tester')
     if state!='DRAFT':variant=api.transition_variant(variant['id'],variant['generation'],state,'Synthetic tester','Motivo ficticio')
     w.library_variant_id=variant['id']
-    actions={a.text():a for a in w.build_variant_menu().actions()}
+    menu=w.build_variant_menu()
+    actions={a.text():a for a in menu.actions()}
+    for action in menu.actions():
+        if action.menu():actions.update({a.text():a for a in action.menu().actions()})
     assert actions['Enviar a revisión'].isEnabled()==(state=='DRAFT')
     assert actions['Devolver a borrador'].isEnabled()==(state=='PENDING')
     assert actions['Tamaño nominal reutilizable'].isEnabled()==(state=='DRAFT')

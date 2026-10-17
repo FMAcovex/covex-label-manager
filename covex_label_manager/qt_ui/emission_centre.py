@@ -4,7 +4,7 @@ import sqlite3
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt,QTimer
 from PySide6.QtWidgets import (QApplication,QWidget,QScrollArea,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
     QDialog,QDialogButtonBox,QComboBox,QLineEdit,QMessageBox,QFileDialog,QInputDialog,QPushButton,QMenu)
 from .window import label,button,vbox,box
@@ -20,6 +20,9 @@ class EmissionCentreMixin:
     def __init__(self,session):
         self.native_ready=False;self.native_busy=False;self.work_preview=None;self.work_review=None
         super().__init__(session)
+        self.preview_serial=0;self.preview_task=None;self.preview_pending=False
+        self.preview_timer=QTimer(self);self.preview_timer.setSingleShot(True)
+        self.preview_timer.timeout.connect(self.automatic_preview)
         self.native_ready=True;self.refresh_emission_review()
         self.setWindowTitle('COVEX Label Manager · Centro de emisión')
         self.statusBar().showMessage('Emisión e historial nativos · Fuentes originales protegidas')
@@ -57,17 +60,72 @@ class EmissionCentreMixin:
         return page
     def refresh_work_panels(self):
         super().refresh_work_panels()
-        if getattr(self,'native_ready',False):self.invalidate_work_preview();self.refresh_emission_review()
+        if getattr(self,'native_ready',False):
+            self.invalidate_work_preview();self.refresh_emission_review();self.schedule_preview()
     def work_changed(self,panel):
         super().work_changed(panel)
-        if getattr(self,'native_ready',False):self.invalidate_work_preview();self.native_issue.setEnabled(False)
+        if getattr(self,'native_ready',False):
+            self.invalidate_work_preview();self.native_issue.setEnabled(False);self.schedule_preview()
     def flush_emission_work(self):
         result=super().flush_emission_work()
+        if not result and getattr(self,'preview_task',None) is not None:
+            self.work_timer.start(100)
         if getattr(self,'native_ready',False) and not self.native_busy:self.refresh_emission_review()
         return result
     def invalidate_work_preview(self):
+        if hasattr(self,'preview_serial'):self.preview_serial+=1
         self.work_preview=None
-        if hasattr(self,'emission_pdf'):self.emission_pdf.clear()
+        if hasattr(self,'emission_pdf'):self.emission_pdf.clear('Vista previa desactualizada · Se actualizará al terminar de editar.')
+    def schedule_preview(self):
+        self.preview_pending=True
+        self.preview_timer.start(450)
+    def automatic_preview(self):
+        if self.preview_task is not None:return # finished starts the latest request
+        self.preview_pending=False
+        w=self.emission_work
+        if not w or w['phase']!='DRAFT' or self.native_busy or self.legacy_process:return
+        if not self.flush_emission_work():
+            self.emission_pdf.clear('Revise errores · '+self.work_dirty_panel.note.text());return
+        review=self.refresh_emission_review()
+        if not review or not review['proof_allowed'] or any(e['target']!='document' for e in review['errors']):
+            self.emission_pdf.clear('Revise errores · '+self.emission_feedback.text());return
+        if self.preview_matches(review):return
+        from .preview_task import PreviewTask
+        w=self.emission_work;out=self.api.output_path('cache','qt-auto-proof-'+uuid.uuid4().hex+'.pdf')
+        task=PreviewTask(self,self.api.location(),w['uid'],w['generation'],review['token'],out,self.preview_serial)
+        self.preview_task=task;self.native_issue.setEnabled(False)
+        self.emission_pdf.clear('Actualizando vista previa… Puede seguir editando.')
+        task.completed.connect(self.automatic_preview_completed)
+        task.finished.connect(self.automatic_preview_finished)
+        task.start()
+    def automatic_preview_completed(self,payload):
+        w=self.emission_work
+        current=(w and w['uid']==payload['uid'] and w['generation']==payload['generation']
+                 and payload['serial']==self.preview_serial and not self.work_dirty_panel)
+        review=self.refresh_emission_review() if current else None
+        if not current or not review or review.get('token')!=payload['stamp']:
+            Path(payload['path']).unlink(missing_ok=True)
+            if current:self.emission_pdf.clear('Vista previa desactualizada · La documentación cambió. Revise el vínculo documental.')
+            return
+        if payload.get('error'):
+            Path(payload['path']).unlink(missing_ok=True)
+            self.emission_pdf.clear('Revise errores · '+self.operator_error(ValueError(payload['error'])))
+            self.native_issue.setEnabled(False);return
+        self.work_preview={k:payload[k] for k in ('uid','stamp','path','sha256','result')}
+        self.emission_pdf.validator=lambda:self.verify_work_preview_pdf()
+        try:
+            self.emission_pdf.load(payload['path'],'Vista previa actualizada · PDF de prueba',
+                'PRUEBA · No apto para uso productivo · Actualización automática sin registrar emisión.')
+        except (ValueError,OSError,RuntimeError) as ex:
+            self.work_preview=None;self.emission_pdf.clear('Revise errores · '+self.operator_error(ex));return
+        self.refresh_emission_review()
+        if payload['result']['warnings']:
+            self.native_issue.setEnabled(False);self.emission_feedback.setText('Revise antes de emitir: '+' · '.join(payload['result']['warnings'][:5]))
+    def automatic_preview_finished(self):
+        task=self.preview_task;self.preview_task=None
+        if task:task.deleteLater()
+        self.refresh_emission_review()
+        if self.preview_pending:self.preview_timer.start(450)
     def recheck_actions(self):
         super().recheck_actions()
         if getattr(self,'native_ready',False) and not self.native_busy:self.refresh_emission_review()
@@ -97,8 +155,8 @@ class EmissionCentreMixin:
         self.emission_feedback.setText('\n'.join(list(dict.fromkeys(messages))[:2])+('\nRevise los demás avisos junto a los campos.' if len(messages)>2 else '') if messages else 'Datos preparados. Compruebe la vista previa antes de emitir. La impresión física no se confirma aquí.')
         self.native_proof.setEnabled(review['proof_allowed'] and not self.native_busy);self.preview_work_button.setEnabled(review['proof_allowed'] and not self.native_busy)
         valid=self.preview_matches(review)
-        self.native_issue.setEnabled(review['production_allowed'] and valid and not self.work_preview['result']['warnings'] and not self.native_busy and not self.legacy_process)
-        self.native_issue.setToolTip('Confirmar y registrar la emisión definitiva.' if valid else 'Actualice la vista previa después de modificar el trabajo.')
+        self.native_issue.setEnabled(review['production_allowed'] and valid and not self.work_preview['result']['warnings'] and not self.native_busy and not self.legacy_process and self.preview_task is None)
+        self.native_issue.setToolTip('Confirmar y registrar la emisión definitiva.' if valid else 'Espere la vista previa automática o revise los errores del trabajo.')
         return review
     def refresh_emission_caption(self):
         """Elide the identifier only in compact view; the full identity stays in its tooltip."""
@@ -141,6 +199,9 @@ class EmissionCentreMixin:
         self.refresh_emission_review();message=self.operator_error(ex);self.emission_feedback.setText(message)
         QMessageBox.warning(self,'Operación no completada',message)
     def preview_emission_work(self):
+        if self.preview_task is not None:
+            self.emission_feedback.setText('Actualizando vista previa. Espere a que termine el cálculo.');return False
+        self.preview_timer.stop();self.preview_pending=False
         if self.native_busy or self.legacy_process or not self.emission_work or not self.flush_emission_work():return False
         review=self.refresh_emission_review()
         if not review or not review['proof_allowed']:return False
@@ -166,6 +227,7 @@ class EmissionCentreMixin:
             self.emission_feedback.setText('PDF de prueba guardado con marca visible. No se ha registrado una emisión.');return True
         except Exception as ex:self.emission_error(ex);return False
     def issue_emission_work(self):
+        if self.preview_task is not None:return False
         if self.native_busy or self.legacy_process or not self.emission_work or not self.flush_emission_work():return False
         review=self.refresh_emission_review()
         if not self.preview_matches(review):
@@ -224,7 +286,7 @@ class EmissionCentreMixin:
     def paste_work_containers(self):
         if not self.emission_work or not self.flush_emission_work():return
         from ..vessels import parse_tabular_vessels
-        text,ok=QInputDialog.getMultiLineText(self,'Pegar datos por recipiente','Nº | Lote | PN | PB | Conservación. Pesos: 0,3558 o 0,3558 kg. Pegue columnas de Excel:',QApplication.clipboard().text())
+        text,ok=QInputDialog.getMultiLineText(self,'Pegar datos por recipiente','Nº | Lote | PN | PB | Conservación. Pesos: kg, g o mg; sin unidad = kg. Pegue columnas de Excel:',QApplication.clipboard().text())
         if not ok:return
         try:
             w=self.emission_work;per=parse_tabular_vessels(text,int(w['count']),w['per_container'])
@@ -275,3 +337,9 @@ class EmissionCentreMixin:
         super().resizeEvent(event)
         if hasattr(self,'emission_split'):self.adapt_emission_layout()
         if hasattr(self,'nav'):self.nav['emission'].setToolTip('Emisión · Centro nativo Qt')
+    def closeEvent(self,event):
+        if self.preview_task is not None and self.preview_task.isRunning():
+            self.statusBar().showMessage('Espere a que termine la vista previa antes de cerrar. No se ha registrado ninguna emisión.')
+            event.ignore();return
+        self.preview_timer.stop();self.preview_pending=False
+        super().closeEvent(event)

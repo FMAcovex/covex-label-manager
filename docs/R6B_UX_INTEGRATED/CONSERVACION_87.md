@@ -4,6 +4,8 @@ Referencia obligatoria: `02f7ba7`, docs/UX_AUDIT_R6B/CONSERVACION_87.md. Impleme
 
 Se conservan los controladores de servicios; las consolidaciones reubican entradas o comparten menús. Las pruebas nuevas verifican equivalencia de fuentes, intercambios, selección de revisión/variante, estado de menús, cancelación/pies, navegación con trabajo retenido y precisión del perfil/calibración. Las familias históricas siguen en la suite completa.
 
+Ampliación tras aceptación NO CONFORME: [correcciones y correspondencias](CORRECCIONES_ACEPTACION.md). I02 incorpora asistente, resumen y acceso al Editor; M03/M06–M08 admiten kg/g/mg; M14/M15 tienen actualización automática de PRUEBA con las mismas barreras M13/M16. D08/D11 conservan todas las acciones de variantes con requisitos visibles. Ningún ID se elimina ni se renumera; los controles GMP y las limitaciones de aceptación humana permanecen.
+
 | ID | Capacidad | Disponibilidad | Ruta efectiva / equivalencia | Regresión de referencia |
 |---|---|---|---|---|
 | B01 | Inicio Biblioteca y navegación horizontal | Ruta Qt | Biblioteca; StudioWindow/BaseFunctionalWindow | tests/test_r3a_qt.py |
@@ -60,7 +62,7 @@ Se conservan los controladores de servicios; las consolidaciones reubican entrad
 | M05 | Numeración n/total y rangos, advertencia sin campo número | Ruta Qt | Emisión → WorkPanel/EmissionCentreMixin; motor de trabajo | tests/test_r3c_emission_qt.py; tests/test_emission_work.py |
 | M06 | Lote/PN/PB/conservación por envase | Ruta Qt | Emisión → WorkPanel/EmissionCentreMixin; motor de trabajo | tests/test_r3c_emission_qt.py; tests/test_emission_work.py |
 | M07 | Aplicar/limpiar fila, validar pesos y completar | Ruta Qt | Recipientes → edición celda y menú contextual Limpiar datos; WorkPanel.clear_container_row | tests/test_r3c_emission_qt.py; tests/test_emission_work.py |
-| M08 | Pegar tabla desde Excel | Ruta Qt | Centro de emisión → Pegar Excel…; servicio parse_tabular_vessels intacto. | tests/test_r3c_emission_qt.py; tests/test_mass_units.py |
+| M08 | Pegar tabla desde Excel | Ruta Qt | Centro de emisión → Pegar Excel…; parse_tabular_vessels conserva TSV/CSV y admite kg/g/mg por celda o cabecera. | tests/test_r3c_emission_qt.py; tests/test_mass_units.py |
 | M09 | Ninguna/sin analizar/aprobado/rechazado | Ruta Qt | Emisión → WorkPanel/EmissionCentreMixin; motor de trabajo | tests/test_r3c_emission_qt.py; tests/test_emission_work.py |
 | M10 | Fecha/nombre/condiciones, estado integrado o separado | Ruta Qt | Emisión → WorkPanel/EmissionCentreMixin; motor de trabajo | tests/test_r3c_emission_qt.py; tests/test_emission_work.py |
 | M11 | Maestros de estado aprobados e íntegros | Ruta Qt | Configuración → Maestros de estado → Registrar aprobación documental con cotejo. | tests/test_r3d_settings_qt.py::test_pending_status_never_autoapproves |

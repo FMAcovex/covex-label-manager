@@ -14,7 +14,8 @@ class FolderImportDialog(QDialog):
         super().__init__(parent)
         self.api=api;self.folder=Path(folder)
         self.paths=list(paths) if paths is not None else list(api.importable_files(folder))
-        self.done=0;self.ok=0;self.failures=[];self.running=False;self.cancelled=False
+        self.processed=0;self.ok=0;self.failures=[];self.running=False;self.cancelled=False
+        self.close_when_stopped=False
         self.setWindowTitle('Importar carpeta · Documentos pendientes')
         self.resize(930,610)
         lay=vbox(self,14,9)
@@ -47,7 +48,7 @@ class FolderImportDialog(QDialog):
         self.timer=QTimer(self);self.timer.setSingleShot(True);self.timer.timeout.connect(self.step)
 
     def start(self):
-        if self.running or self.done or not self.paths:return
+        if self.running or self.processed or not self.paths:return
         if QMessageBox.question(self,'Confirmar importación',
                 f'Se importarán hasta {len(self.paths)} documentos como pendientes. '
                 'Los ya importados permanecerán si detiene el proceso. ¿Continuar?',
@@ -59,9 +60,9 @@ class FolderImportDialog(QDialog):
 
     def step(self):
         if not self.running:return
-        if self.cancelled or self.done>=len(self.paths):
+        if self.cancelled or self.processed>=len(self.paths):
             self.finish();return
-        index=self.done;path=self.paths[index]
+        index=self.processed;path=self.paths[index]
         try:
             if not self.data[index]['name'] or not self.data[index]['version']:
                 raise ValueError('Nombre/revisión no válido')
@@ -72,8 +73,8 @@ class FolderImportDialog(QDialog):
             self.failures.append(msg);status='Incidencia: '+str(ex)
         self.table.item(index,4).setText(status)
         self.table.item(index,4).setToolTip(status)
-        self.done+=1;self.progress.setValue(self.done)
-        self.status.setText(f'{self.done}/{len(self.paths)} revisados · {self.ok} importados · {len(self.failures)} incidencias')
+        self.processed+=1;self.progress.setValue(self.processed)
+        self.status.setText(f'{self.processed}/{len(self.paths)} revisados · {self.ok} importados · {len(self.failures)} incidencias')
         self.timer.start(0)
 
     def stop(self):
@@ -85,33 +86,34 @@ class FolderImportDialog(QDialog):
         self.timer.stop();self.running=False;self.stop_button.setEnabled(False)
         result='Detenido por el usuario' if self.cancelled else 'Finalizado'
         self.status.setText(f'{result}: {self.ok} importados, {len(self.failures)} con incidencias, '
-                            f'{len(self.paths)-self.done} sin procesar. '
+                            f'{len(self.paths)-self.processed} sin procesar. '
                             'Todos los incorporados están pendientes de revisión.')
         if self.failures:self.status.setToolTip('\n'.join(self.failures))
+        if self.close_when_stopped:super().reject()
     def close_requested(self):
-        if self.running:self.stop();return
+        if self.running:self.close_when_stopped=True;self.stop();return
         self.accept()
     def reject(self):
-        if self.running:self.stop();return
+        if self.running:self.close_when_stopped=True;self.stop();return
         super().reject()
+
+    def closeEvent(self,event):
+        if self.running:self.close_when_stopped=True;self.stop();event.ignore();return
+        super().closeEvent(event)
 
 
 class FolderImportMixin:
     def import_folder_native(self):
         if self.legacy_process is not None or not self.flush_emission_work() or not self.resolve_work():return
-        folder=QFileDialog.getExistingDirectory(self,'Seleccionar carpeta de etiquetas')
-        if not folder:return
         try:
-            paths=list(self.api.importable_files(folder))
-            if not paths:
-                QMessageBox.information(self,'Sin documentos','No hay archivos compatibles en la carpeta.')
-                return
             from .controlled_import import ControlledImportDialog
-            dialog=ControlledImportDialog(self,self.api,folder)
+            dialog=ControlledImportDialog(self,self.api)
             dialog.exec()
-            if dialog.done:
+            if dialog.processed:
                 self.refresh_facets();self.refresh();self.recheck_actions()
                 self.statusBar().showMessage(f'Importación: {dialog.ok} pendientes incorporadas; '
                                             f'{len(dialog.failures)} incidencias.')
+            if dialog.editor_version_id:
+                self.select_version(dialog.editor_version_id);self.open_editor()
         except (ValueError,OSError) as ex:
             QMessageBox.warning(self,'Importación no iniciada',str(ex))
