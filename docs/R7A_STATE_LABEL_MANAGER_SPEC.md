@@ -149,3 +149,34 @@ Las tres comparten **referencia impresa de diseño de origen**, pero esto **no c
 7. Los tres casos deben cubrirse en tests con **un PDF sintético de una sola página y tres regiones de colores**, además de importaciones unitarias. Verificar que cada vista previa y emisión utiliza **exclusivamente el recorte asignado** y que las identidades/revisiones no se mezclan.
 
 **Criterio de aceptación real pendiente:** el usuario podrá incorporar localmente su Word con una sola selección de archivo, validar visualmente los tres recortes y confirmar cada plantilla/revisión por separado. La fecha/referencia externa de aprobación se debe contrastar contra la documentación vigente de COVEX, no deducir de una inscripción en la etiqueta.
+
+
+## 12. Requisito vinculante: alta en Biblioteca y emisión autónoma
+
+**Decisión del propietario (18/10/2026):** las tres etiquetas **deben estar dadas de alta como elementos independientes y localizables en la Biblioteca**, incluso cuando los tres diseños procedan de un único Word/PDF. No basta con conservarlas como accesorios o superposiciones de etiquetas principales.
+
+### Registro autónomo
+- Al importar y confirmar las tres regiones del Word común, crear **tres identidades lógicas separadas**: «Sin analizar», «Aprobado» y «Rechazado». Cada una debe tener ficha navegable en Biblioteca, categoría visible **Etiqueta de estado**, miniatura, búsqueda, estado documental y revisión vigente/pending correspondiente; no crear tres clones físicos innecesarios de la fuente y sí preservar la relación/huella del archivo único.
+- La importación repetida o la reinstalación **no debe duplicar registros**: comparar UID/tipo/huella/revisión y ofrecer vincular revisión existente o iniciar nueva revisión, con confirmación. No generar altas automáticas en instalaciones vacías sin documento local de origen.
+- Cada ficha debe permitir **abrir, editar borrador, consultar original, comparar/gestionar revisiones y lanzar «Emitir esta etiqueta» directamente**. El archivo fuente común no obliga a editar ni aprobar las otras dos.
+- Las revisiones, aprobaciones externas, estado y retención documental son **por etiqueta individual**, no por documento Word completo. Ningún tipo se activa por el simple hecho de importarse.
+- No confundir el **tipo de etiqueta «Aprobado»** con la autorización documental de su propia plantilla ni con la disposición real de un lote.
+
+### Emisión como etiqueta independiente
+- Desde Biblioteca y desde Centro de emisión, el usuario podrá seleccionar **exclusivamente una** de las tres etiquetas de estado **sin seleccionar etiqueta de producto, material del catálogo CM, ni revisión principal de producto**.
+- Presentar exclusivamente los **campos variables configurados y verificados en su revisión** (lote y fecha cuando correspondan, aprobado/rechazado por, reanálisis/caducidad, etc.). No imponer campos de un producto ajeno ni agregar «LOTE» automáticamente a Rechazado si no existe en el diseño.
+- Permitir elección de perfil, formato de hoja disponible, tamaño/escalado proporcional, posición, número de copias/etiquetas, previsualización exacta y PDF de prueba, y emisión definitiva únicamente con revisión aprobada, integridad válida y todos los controles existentes. No requiere material o pedido real para generar **PDF de prueba** sintético.
+- Las emisiones autónomas tendrán **identidad de tipo de trabajo propia** (p. ej., `STATUS_ONLY`) en contratos, persistencia, historial, snapshots y reimpresiones. No crear una etiqueta/producto ficticio para satisfacer claves foráneas existentes; ampliar el modelo mediante migración segura conservando todos los historiales y la semántica de las emisiones combinadas.
+- Guardar **UID y revisión exacta de estado, hash del documento, geometría, datos variables, perfil y PDF**. Permitir reimpresión fiel del documento histórico, no sustitución por revisión vigente; si faltan recursos históricos, bloquear con aviso claro. Mantener posibilidad de emisión **integrada** con etiqueta principal sin confundir ni duplicar las identidades.
+- Si se emite la clase «Aprobado» o «Rechazado», ello **no supone liberar/rechazar material ni efectuar una aprobación GMP en el ERP/QMS**.
+
+### Aceptación añadida a la única entrega R7A
+1. Importar un solo Word ficticio con tres etiquetas → aparecen **tres fichas** en Biblioteca, sin asignación a material/producto.
+2. Buscar «Sin analizar», abrirla y generar **su etiqueta individual** en hoja, con los datos y copias elegidos.
+3. Repetir con «Aprobado» y «Rechazado»; verificar que los campos, recortes y textos fijos difieren correctamente.
+4. Emitir un diseño de estado **independiente y también combinado** con una etiqueta principal; comprobar que ningún flujo invalida al otro.
+5. Cambiar/aprobar/retirar una revisión de «Aprobado» y verificar que no altera las versiones ni el estado documental de los otros dos tipos.
+6. Consultar/reimprimir emisiones autónomas previas tras importar una nueva revisión, conservando el PDF/snapshot original.
+7. Ejecutar regresiones de migración v4 y preservación de las 87 capacidades, sin producir datos reales en GitHub ni declarar aceptación GMP por pruebas sintéticas.
+
+Esta funcionalidad es **obligatoria dentro de la entrega unificada R7A**; no dejarla para una fase posterior ni dar R7A por completa si solo funciona el modo integrado.
