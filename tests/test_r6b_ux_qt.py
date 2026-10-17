@@ -272,13 +272,20 @@ def test_screen_retention_refreshes_on_hotplug():
     assert retained==app.current and other not in retained
 
 
-def test_dialog_bounds_do_not_borrow_screen_from_transient_widget(studio,monkeypatch):
-    from PySide6.QtWidgets import QVBoxLayout,QLabel
+@pytest.mark.parametrize('kind',['dialog','sheet'])
+def test_dialog_bounds_do_not_borrow_screen_from_transient_widget(studio,monkeypatch,kind):
+    from PySide6.QtWidgets import QVBoxLayout,QLabel,QWidget
     from covex_label_manager.qt_ui.responsive import AdaptiveDialog
-    w,s,app=studio;dialog=AdaptiveDialog(w)
-    QVBoxLayout(dialog).addWidget(QLabel('Synthetic'))
+    w,s,app=studio
     def forbidden():raise AssertionError('Do not borrow QScreen from the dialog')
-    monkeypatch.setattr(dialog,'screen',forbidden)
+    monkeypatch.setattr(QWidget,'screen',lambda *_:forbidden())
+    if kind=='sheet':
+        from covex_label_manager.qt_ui.sheet_designer import SheetDesigner
+        from test_r3e_layout import profile
+        dialog=SheetDesigner(w,profile('A4'))
+    else:
+        dialog=AdaptiveDialog(w)
+        QVBoxLayout(dialog).addWidget(QLabel('Synthetic'))
     dialog.fit_available()
     assert dialog.width()>0 and dialog.height()>0
 

@@ -13,7 +13,7 @@ Los tres bloques se han aplicado consecutivamente: estructura adaptable, reorgan
 - [Pruebas reproducibles, CI y guía del portable](PRUEBAS_Y_PORTABLE.md).
 - [Causa raíz y corrección de la caída nativa Qt](CI_QT_FIX.md).
 
-Resultado local tras corregir CI: 411 pruebas aprobadas, 2 omitidas; 32 casos de regresión UX y 6 de integridad del portable. El lienzo del Editor a 1366×768/150 % de la serie visual integrada pasa de 104 a 282 DIP de alto, sin esconder automáticamente paneles. No queda dock de lote en Configuración. Los diálogos críticos tienen cuerpo desplazable y pie de acciones accesible.
+Resultado local tras corregir CI: 412 pruebas aprobadas, 2 omitidas; 33 casos de regresión UX y 6 de integridad del portable. El lienzo del Editor a 1366×768/150 % de la serie visual integrada pasa de 104 a 282 DIP de alto, sin esconder automáticamente paneles. No queda dock de lote en Configuración. Los diálogos críticos tienen cuerpo desplazable y pie de acciones accesible.
 
 ## Límites y decisión de revisión
 

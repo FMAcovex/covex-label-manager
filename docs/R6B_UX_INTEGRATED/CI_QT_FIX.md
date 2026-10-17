@@ -37,6 +37,8 @@ con PySide 6.8.3; no se atribuye a documentos, aprobaciones ni al motor PDF.
 
 - Se consulta la pantalla por `QApplication.screenAt()` con el centro global del
   diálogo, con fallback a `primaryScreen()`, sin pedir un wrapper al diálogo.
+- El diseñador de hojas reutiliza ese límite adaptable en vez de consultar
+  `self.screen()` durante su construcción; no cambian medidas ni perfiles de hoja.
 - Se conservan wrappers de las pantallas actuales en la aplicación. Se actualizan
   al entrar en ventanas/diálogos y ante `screenAdded` / `screenRemoved`; no se
   cambia el padre nativo de pantallas, DPI, resolución ni configuración del monitor.

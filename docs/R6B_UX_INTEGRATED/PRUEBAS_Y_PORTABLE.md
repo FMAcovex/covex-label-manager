@@ -6,7 +6,7 @@ Entorno sintético aislado: Linux, Python 3.12.14, Qt 6.8.3, Fusion; Xorg dummy 
 
 | Comprobación | Resultado |
 |---|---|
-| `python -m pytest -q` | 411 aprobadas, 2 omitidas; suite completa existente, 32 casos UX parametrizados y 6 de integridad del ZIP. |
+| `python -m pytest -q` | 412 aprobadas, 2 omitidas; suite completa existente, 33 casos UX parametrizados y 6 de integridad del ZIP. |
 | Self-check de widgets Qt a factores 1 / 1.25 / 1.5 | 86 comprobaciones por factor, `ok=true`, puente Qt/Tk verificado. |
 | Variant, work, emission y R3E checks | `ok=true`; puente Qt/Tk en variantes/trabajo; recuperación, emisión e historial sintéticos. |
 | Gate visual | 53 estados × 6 = 318 PNG, sin errores de límites/pies; 129 SVG seleccionados versionados. |
