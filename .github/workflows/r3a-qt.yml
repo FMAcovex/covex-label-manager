@@ -28,7 +28,9 @@ on:
       - 'scripts/ux_acceptance_visual.py'
       - 'covex_label_manager/vessels.py'
       - 'covex_label_manager/engine.py'
+      - 'covex_label_manager/preview_render.py'
       - 'tests/test_mass_units.py'
+      - 'tests/test_preview_render.py'
       - 'scripts/verify_portable_archive.py'
       - 'tests/test_portable_archive_integrity.py'
       - 'covex_label_manager/work_tk.py'
@@ -105,6 +107,7 @@ jobs:
           tests/test_r6a_acceptance.py tests/test_r6a_qt.py
           tests/test_r6b_session.py tests/test_r6b_qt.py tests/test_r6b_ux_qt.py
           tests/test_r6b_acceptance_fixes_qt.py tests/test_mass_units.py
+          tests/test_preview_render.py
       - name: Importer close process regression at three native Windows scales
         shell: pwsh
         env:

@@ -24,10 +24,14 @@ def main():
         return recovery_cli(sys.argv[1:])
     p=argparse.ArgumentParser();p.add_argument('--r3e-check',type=Path);p.add_argument('--emission-check',type=Path);p.add_argument('--work-check',type=Path);p.add_argument('--variant-check',type=Path);p.add_argument('--demo',action='store_true');p.add_argument('--data-dir',type=Path)
     p.add_argument('--import-check',type=Path)
+    p.add_argument('--preview-job',type=Path)
     p.add_argument('--verify-bridge',action='store_true');p.add_argument('--capture',type=Path);p.add_argument('--self-check',type=Path);a=p.parse_args()
     if a.import_check:
         from covex_label_manager.qt_ui.import_checks import run
         return run(a.import_check)
+    if a.preview_job:
+        from covex_label_manager.preview_render import run_job
+        return run_job(a.preview_job)
     if a.r3e_check:
         from covex_label_manager.qt_ui.r3e_checks import run
         return run(a.r3e_check,a.capture)

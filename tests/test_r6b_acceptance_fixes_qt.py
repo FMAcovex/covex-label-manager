@@ -177,19 +177,25 @@ def test_stale_async_result_is_discarded_and_next_request_runs(studio,monkeypatc
     assert not api.issues()
 
 
-def test_worker_read_contention_is_retried_without_shared_sqlite(studio,monkeypatch):
-    from PySide6.QtCore import QThread
-    from covex_label_manager.emission_work import WorkRepository,WorkConflict
-    w,api,app=prepared(studio);w.preview_timer.stop();real=WorkRepository.get;calls=[]
-    def collide(repository,uid):
-        if QThread.currentThread()!=app.thread():
-            assert repository.api is not api
-            calls.append(uid)
-            if len(calls)==2:raise WorkConflict('SYNTHETIC transient lock contention')
-        return real(repository,uid)
-    monkeypatch.setattr(WorkRepository,'get',collide)
-    w.automatic_preview();await_preview(w)
-    assert len(calls)>=4 and w.preview_matches() and not api.issues()
+def test_worker_runs_in_another_process_without_shared_sqlite_or_mupdf(studio):
+    w,api,app=prepared(studio);w.preview_timer.stop();results=[]
+    w.automatic_preview();w.preview_task.completed.connect(results.append);await_preview(w)
+    assert results and results[0]['child_pid']!=os.getpid()
+    assert w.preview_matches() and not api.issues()
+
+
+def test_worker_retries_short_read_contention_without_ignoring_failure():
+    from covex_label_manager.preview_render import retry_read
+    from covex_label_manager.emission_work import WorkConflict
+    calls=[];waits=[]
+    def collide():
+        calls.append(1)
+        if len(calls)<3:raise WorkConflict('SYNTHETIC short contention')
+        return 'SYNTHETIC read'
+    assert retry_read(collide,waits.append)=='SYNTHETIC read'
+    assert len(calls)==3 and waits==[.05,.05]
+    def always_busy():raise WorkConflict('SYNTHETIC busy')
+    with pytest.raises(WorkConflict):retry_read(always_busy,waits.append)
 
 
 def test_main_close_during_render_does_not_destroy_worker(studio,monkeypatch):
@@ -199,3 +205,17 @@ def test_main_close_during_render_does_not_destroy_worker(studio,monkeypatch):
     monkeypatch.setattr(PreviewTask,'run',delayed);w.automatic_preview()
     w.close();assert w.isVisible() and w.preview_task is not None
     await_preview(w);assert w.preview_matches() and not api.issues()
+
+
+def test_preview_child_crash_blocks_issue_but_keeps_main_window(studio,monkeypatch):
+    from types import SimpleNamespace
+    w,api,app=prepared(studio);w.preview_timer.stop()
+    monkeypatch.setattr('covex_label_manager.qt_ui.preview_task.subprocess.run',
+        lambda *a,**k:SimpleNamespace(returncode=-1073740791))
+    w.automatic_preview()
+    for _ in range(200):
+        QTest.qWait(25)
+        if w.preview_task is None:break
+    assert w.preview_task is None and w.isVisible() and w.work_preview is None
+    assert not w.native_issue.isEnabled() and 'sin informe' in w.emission_pdf.note.text()
+    assert not api.issues()
