@@ -102,7 +102,7 @@ def exercise(w,app,captures=None):
     w.quick_search();settle();check(w.search.hasFocus(),'Ctrl+K focuses search')
     QTest.keyClick(w,Qt.Key.Key_K,Qt.KeyboardModifier.ControlModifier);settle();check(w.stack.currentWidget() is w.library,'Ctrl+K actual shortcut')
     w.reset_filters();w.select_version(w.session.initial_id);w.resize(1100,760);settle()
-    check(all(not w.nav[k].text() and title in w.nav[k].toolTip() and ('nativas Qt' if k=='history' else 'Función nativa Qt') in w.nav[k].toolTip() and w.nav[k].accessibleName()==title for k,title in [('history','Historial'),('settings','Configuración')]),'Compact navigation icons have clear tooltips and accessible names')
+    check(all(w.nav[k].text()==title and title in w.nav[k].toolTip() and ('nativas Qt' if k=='history' else 'Función nativa Qt') in w.nav[k].toolTip() and w.nav[k].accessibleName()==title for k,title in [('history','Historial'),('settings','Configuración')]),'Compact navigation retains labels, tooltips and accessible names')
     check(not w.inspector.isVisible(),'Compact inspector folded');snap('R3A_Qt_Compacta.png')
     w.inspector_button.click();settle();check(w.inspector.isVisible(),'Compact inspector can reopen');w.inspector_button.click()
     resolution=[]

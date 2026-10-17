@@ -38,6 +38,8 @@ def main():
         return run(a.variant_check,a.capture,a.verify_bridge)
     if a.data_dir:os.environ['COVEX_LABEL_DATA']=str(a.data_dir.resolve())
     app=QApplication(sys.argv[:1]);app.setStyle('Fusion')
+    from covex_label_manager.qt_ui.responsive import install_translation
+    install_translation(app)
     # Apply a consistent light palette before opening any native Qt modal.
     palette=app.palette()
     for role,colour in (

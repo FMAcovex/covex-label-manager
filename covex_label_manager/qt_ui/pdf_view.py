@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QWidget,QHBoxLayout,QComboBox,QDialog,QDialogButto
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import Qt,QUrl
 from .window import Preview,button,label,vbox
+from .responsive import AdaptiveDialog as QDialog
 
 
 class PdfPane(QWidget):
@@ -11,7 +12,7 @@ class PdfPane(QWidget):
         layout=vbox(self,0,8);top=QHBoxLayout();self.header_layout=top;self._full_title='Vista previa PDF'
         self.title=label(self._full_title,'panelTitle');self.title.setWordWrap(False)
         self.title.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Preferred);top.addWidget(self.title,1)
-        self.pages=QComboBox();self.pages.setMinimumWidth(105);self.pages.currentIndexChanged.connect(self.page_changed);top.addWidget(self.pages)
+        self.pages=QComboBox();self.pages.setMinimumWidth(105);self.pages.setAccessibleName('Página del PDF');self.pages.currentIndexChanged.connect(self.page_changed);top.addWidget(self.pages)
         layout.addLayout(top);self.tools=QWidget();tools=QHBoxLayout(self.tools);tools.setContentsMargins(0,0,0,0)
         self.view=Preview();self.zoom=label('Vista 100 %','subtle');self.view.zoom_label=self.zoom
         tools.addWidget(button('Ajustar',self.view.fit));tools.addWidget(button('−',lambda:self.view.zoom(1/1.2)));tools.addWidget(button('+',lambda:self.view.zoom(1.2)));tools.addWidget(self.zoom);tools.addStretch();self.expand_button=button('Ampliar PDF',self.expand_pdf)
@@ -29,7 +30,19 @@ class PdfPane(QWidget):
         for n in range(count):self.pages.addItem(f'Página {n+1} de {count}',n)
         self.pages.blockSignals(False);self.view.set_image(image);self.note.setText(note);self.note.setWordWrap(True);self.open_button.setEnabled(True);self.expand_button.setEnabled(True);self.elide_title()
     def compact(self,enabled):
-        self.tools.setVisible(not enabled);self.note.setVisible(not enabled)
+        self.tools.show();self.note.show()
+        if enabled and not getattr(self,'_compact_tools',False):
+            self.layout().removeWidget(self.tools)
+            self.header_layout.insertWidget(1,self.tools)
+        elif not enabled and getattr(self,'_compact_tools',False):
+            self.header_layout.removeWidget(self.tools)
+            self.layout().insertWidget(1,self.tools)
+        self._compact_tools=enabled
+        self.tools.layout().setSpacing(4 if enabled else 8)
+        for control in self.tools.findChildren(QWidget):
+            if hasattr(control,'setAccessibleName') and hasattr(control,'text'):
+                text=control.text()
+                if text in ('+','−'):control.setAccessibleName('Acercar vista PDF' if text=='+' else 'Alejar vista PDF')
         self.title.setStyleSheet('font-size:14px;' if enabled else '')
         self.elide_title()
     def elide_title(self):

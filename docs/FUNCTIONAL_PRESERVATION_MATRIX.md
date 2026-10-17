@@ -1,8 +1,15 @@
-# Matriz de conservación funcional — R3C en revisión
+# Matriz de conservación funcional — situación R6B-UX
+
+La clasificación vigente es **78 Qt, 2 mixtas y 7 motor**, sin eliminar ninguno
+de los 87 IDs históricos. Ver [matriz actual y rutas R6B-UX](R6B_UX_INTEGRATED/CONSERVACION_87.md)
+y [pruebas y límites](R6B_UX_INTEGRATED/PRUEBAS_Y_PORTABLE.md).
+No implica aceptación GMP, impresión física ni desaparición de la compatibilidad Tk.
+
+## Referencia histórica R3C (tabla conservada)
 
 Base: main `86475779b1eac6f39c9098e0e9d67dd2de51d5fe`, R3A/B1/B2/B3 integradas.
 Rama: `feature/r3c-native-emission`. **87 capacidades, ninguna eliminada.**
-Clasificación actual: **66 Qt, 4 parciales, 10 anteriores y 7 motor**.
+Clasificación en aquel hito: **66 Qt, 4 parciales, 10 anteriores y 7 motor**.
 [Paridad, pruebas y pendientes](R3C_PARITY.md). Las secciones posteriores a la tabla
 conservan la cronología de hitos anteriores; sus limitaciones fueron sustituidas
 por R3B2/B3/R3C cuando se indica. No implican validación GMP ni impresión real.

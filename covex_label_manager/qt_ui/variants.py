@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QComboBox,QHBoxLayout,QMenu,QMessageBox,QFileDialo
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
 from .window import button,label,vbox
+from .responsive import AdaptiveDialog as QDialog
 from ..editor_layout import LayoutHistory,layout_from_version,source_identity
 from ..variants import design_from_revision,update_design_layout
 from ..canonical import digest
@@ -131,13 +132,31 @@ class VariantsMixin:
             self.select_version(self.current_editor_id);self.library_variant_id=self.current_variant_id
             self.variant_selector.setCurrentIndex(self.variant_selector.findData(self.current_variant_id))
         if not self.row:return
-        menu=QMenu(self)
-        menu.addAction('Crear variante desde esta revisión',self.create_variant_ui)
-        for text,action in [('Derivar variante seleccionada',lambda:self.create_variant_ui(True)),('Tamaño nominal reutilizable',self.edit_nominal_size),('Enviar a revisión',lambda:self.variant_transition('PENDING')),
-            ('Devolver a borrador',lambda:self.variant_transition('DRAFT')),('Registrar aprobación externa',self.approve_variant_ui),
-            ('Retirar / cancelar variante',lambda:self.variant_transition('RETIRED')),('Comparar revisión y variante',self.compare_variant),('Consultar evidencia',self.open_variant_evidence)]:
-            item=menu.addAction(text,action);item.setEnabled(self.library_variant_id is not None)
-        menu.exec(self.cursor().pos())
+        self.build_variant_menu().exec(self.cursor().pos())
+
+    def build_variant_menu(self):
+        """Presentation mirrors the lifecycle; repositories still revalidate it."""
+        menu=QMenu(self);menu.setToolTipsVisible(True)
+        revision=self.api.version(self.row['version_id']) if self.row else None
+        variant=self.api.variant(self.library_variant_id) if self.library_variant_id is not None else None
+        state=variant['state'] if variant else None
+        available=bool(revision and revision['state']!='RETIRED' and not self.legacy_process)
+        commands=[
+            ('Crear variante desde esta revisión',self.create_variant_ui,available,'Seleccione una revisión no retirada.'),
+            ('Derivar variante seleccionada',lambda:self.create_variant_ui(True),available and variant is not None,'Seleccione una variante de una revisión no retirada.'),
+            ('Tamaño nominal reutilizable',self.edit_nominal_size,available and state=='DRAFT','Solo se edita una variante en borrador.'),
+            ('Enviar a revisión',lambda:self.variant_transition('PENDING'),available and state=='DRAFT','Solo desde borrador.'),
+            ('Devolver a borrador',lambda:self.variant_transition('DRAFT'),available and state=='PENDING','Solo desde pendiente de revisión.'),
+            ('Registrar aprobación externa',self.approve_variant_ui,available and state=='PENDING' and revision['state']=='APPROVED','Variante pendiente y revisión documental vigente obligatorias.'),
+            ('Retirar / cancelar variante',lambda:self.variant_transition('RETIRED'),state in ('DRAFT','PENDING','APPROVED') and not self.legacy_process,'Seleccione una variante no retirada; se exige motivo.'),
+            ('Comparar revisión y variante',self.compare_variant,variant is not None,'Seleccione una variante.'),
+            ('Consultar evidencia',self.open_variant_evidence,bool(variant and variant['evidence_path']),'La variante no tiene evidencia de aprobación registrada.'),
+        ]
+        for text,callback,enabled,reason in commands:
+            action=menu.addAction(text,callback);action.setEnabled(bool(enabled))
+            action.setToolTip(text if enabled else ('Cierre primero la compatibilidad Tkinter.' if self.legacy_process else reason))
+            action.setStatusTip(action.toolTip())
+        return menu
     def create_variant_ui(self,derive=False,field_adjustment=False):
         if not self.row or not self.resolve_work():return
         if field_adjustment:

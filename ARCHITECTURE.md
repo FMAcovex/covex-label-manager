@@ -91,3 +91,12 @@ FMAcovex/covex-label-manager es el repositorio privado oficial, main 0.3.1 y Act
 - Configuraciones Qt usan nuevas claves `qt_remember_filters`/`qt_filters_expanded` en la tabla settings existente. No se modifica esquema ni se reemplazan maestros, preferencias anteriores o histórico.
 
 El paquete experimental contiene Qt y compañero Tk; ninguno incluye data o documentos originales. El compañero recibe COVEX_LABEL_DATA desde la ubicación de servicios Qt. Se prueba con datos ficticios y con PDF de prueba marcado sin alta de emisión, también para revisiones vigentes. Conservación del 100 % exige la matriz de 87 capacidades, regresión y aceptación del propietario antes de sustituir la distribución. Integraciones futuras continúan documentadas conceptualmente, sin conexiones reales ni infraestructura nueva.
+## Composición Qt R6B-UX
+
+`qt_ui/responsive.py` adapta cuerpos y pies de diálogos sin intervenir en servicios;
+`workspace.py` compone paneles existentes dentro del Editor y fija acciones del Inspector;
+`revision_browser.py` consulta revisiones/variantes mediante los servicios existentes.
+El WorkPanel conserva su controlador y persistencia, pero ya no es un dock global.
+SQLite v4, contratos PDF, snapshots y guardas documentales no cambian.
+Ver [rutas y equivalencia funcional](docs/R6B_UX_INTEGRATED/CAMBIOS_Y_ESTADO.md).
+Las secciones anteriores documentan la evolución previa.

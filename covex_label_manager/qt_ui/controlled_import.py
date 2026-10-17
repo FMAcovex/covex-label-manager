@@ -2,6 +2,7 @@
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QDialog,QFileDialog,QMessageBox,QComboBox,QTableWidget,QTableWidgetItem,QHeaderView,QAbstractItemView,QProgressBar,QHBoxLayout,QDialogButtonBox,QLineEdit,QFormLayout
 from .window import vbox,label,button
+from .responsive import AdaptiveDialog as QDialog
 
 class ControlledImportDialog(QDialog):
     def __init__(self,parent,api,folder):

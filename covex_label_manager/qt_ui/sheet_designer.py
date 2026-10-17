@@ -6,6 +6,7 @@ from PySide6.QtGui import QColor, QPen, QBrush, QPalette
 from PySide6.QtWidgets import (QDialog,QWidget,QHBoxLayout,QFormLayout,QComboBox,QSpinBox,
  QDoubleSpinBox,QCheckBox,QDialogButtonBox,QScrollArea,QLineEdit,QInputDialog,QGraphicsItem,QGridLayout)
 from .window import vbox,label,button,Preview,pixmap
+from .responsive import AdaptiveDialog as QDialog
 from .resize_item import ResizableRect
 from ..sheet_layout import PAPERS,paper_size,slots,template
 from ..engine import plan_sheet

@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QFrame, QLabel, QVBoxLayout
     QGraphicsRectItem, QGraphicsItem, QListWidget, QDoubleSpinBox, QCheckBox, QFormLayout,
     QMenu, QMessageBox, QTabWidget, QGridLayout)
 from .style import STYLE, icon
+from .responsive import AdaptiveDialog as QDialog
 
 STATE={'APPROVED':('Vigente','#E2F2E9','#247454'),
        'PENDING':('Pendiente','#FFF0D7','#90651D'),'RETIRED':('Retirada','#F4E6E7','#986066')}
@@ -24,6 +25,7 @@ def label(text,kind=None):
 
 def button(text,callback,kind=None,ico=None):
     w=QPushButton(text)
+    w.setAccessibleName({'+':'Acercar vista','−':'Alejar vista'}.get(text,text.replace('▾','').strip()))
     if kind:w.setObjectName(kind)
     if ico:w.setIcon(icon(ico,'white' if kind=='primary' else '#607B80'))
     w.clicked.connect(callback);return w
@@ -112,7 +114,8 @@ class StudioWindow(QMainWindow):
         row=QHBoxLayout();title=QVBoxLayout();title.addWidget(label('Biblioteca de etiquetas','title'))
         self.library_subtitle=label('Busca, comprueba la revisión y abre tu etiqueta.','subtle');title.addWidget(self.library_subtitle)
         row.addLayout(title);row.addStretch()
-        row.addWidget(button('Documentos y acciones',self.actions_menu,ico='plus'));lay.addLayout(row)
+        row.addWidget(button('Documento ▾',self.actions_menu))
+        row.addWidget(button('Intercambio ▾',self.exchange_menu,ico='plus'));lay.addLayout(row)
         searchrow=QHBoxLayout();self.search=QLineEdit();self.search.setObjectName('search')
         self.search.setPlaceholderText('Buscar por código, denominación, producto o cliente…')
         self.search.addAction(icon('search'),QLineEdit.ActionPosition.LeadingPosition)
@@ -270,7 +273,7 @@ class StudioWindow(QMainWindow):
         self.advanced_button.setText('Más filtros'+(f' ({active})' if active else ''))
         QTimer.singleShot(0,self.adapt_columns)
         if self.rows:self.select_version(selected if any(r['version_id']==selected for r in self.rows) else self.rows[0]['version_id'])
-        else:self.row=None;self.inspector.setEnabled(False);self.preview.scene().clear();self.doc_title.setText('Sin resultados');self.meta.clear();self.revision.clear();self.doc_note.clear();self.badge.clear()
+        else:self.row=None;self.inspector_panel.setEnabled(False);self.preview.scene().clear();self.doc_title.setText('Sin resultados');self.meta.clear();self.revision.clear();self.doc_note.clear();self.badge.clear()
     def sort_table(self,column):
         self.table.sortItems(column,Qt.SortOrder.AscendingOrder)
     def select_version(self,vid):
@@ -283,7 +286,7 @@ class StudioWindow(QMainWindow):
         if i<0 or not self.table.item(i,0):return
         vid=self.table.item(i,0).data(Qt.ItemDataRole.UserRole)
         self.row=next(r for r in self.rows if r['version_id']==vid)
-        self.inspector.setEnabled(True);self.doc_title.setText(self.row['name'])
+        self.inspector_panel.setEnabled(True);self.doc_title.setText(self.row['name'])
         text,bg,fg=STATE[self.row['state']];self.badge.setText(text)
         self.badge.setStyleSheet(f'background:{bg};color:{fg};')
         v=dict(self.api.version(vid));self.preview.set_image(self.api.thumbnail(v,width_px=850))
@@ -317,7 +320,8 @@ class StudioWindow(QMainWindow):
         lay.addLayout(controls);lay.addWidget(label('Proporciones conservadas · Zoom de visualización, no escala de impresión · Rueda para ampliar · Arrastra para desplazar','subtle'))
         QTimer.singleShot(0,view.fit);dialog.exec()
     def quick_search(self):
-        self.navigate('library');self.search.setFocus();self.search.selectAll()
+        self.navigate('library');self.activateWindow()
+        self.search.setFocus(Qt.FocusReason.ShortcutFocusReason);self.search.selectAll()
     def actions_menu(self):
         menu=QMenu(self)
         menu.addAction('Ficha completa del ejemplo',self.document_details)
@@ -336,6 +340,8 @@ class StudioWindow(QMainWindow):
         lay.addWidget(button('Cerrar',dialog.accept));dialog.exec()
     def show_access(self,key):
         self.navigate(key)
+    def exchange_menu(self):
+        self.show_access('import')
     def navigate(self,key):
         for name,b in self.nav.items():b.setChecked(name==key)
         if key=='library':self.stack.setCurrentWidget(self.library)
@@ -361,16 +367,15 @@ class StudioWindow(QMainWindow):
                 self.compact_mode=compact
                 self.set_inspector(not compact)
                 if compact and self.advanced.isVisible():self.toggle_advanced()
-            self.brand_title.setText('COVEX / LABELS' if event.size().width()<1300 else 'COVEX  /  LABEL MANAGER')
+            self.brand_title.setText('COVEX' if event.size().width()<1200 else 'COVEX  /  LABEL MANAGER')
             for key,title in [('history','Historial'),('settings','Configuración')]:
-                self.nav[key].setText('' if compact else title);self.nav[key].setToolTip(title+' · Acceso a la versión anterior Tkinter');self.nav[key].setAccessibleName(title)
+                self.nav[key].setText(title);self.nav[key].setAccessibleName(title)
             if hasattr(self,'editor_advanced_button'):
                 self.editor_note.setVisible(not short)
                 self.editor_title.setStyleSheet('font-size:21px;' if short else '')
                 self.editor.layout().setContentsMargins(*([14]*4 if short else [24]*4))
                 self.editor.layout().setSpacing(8 if short else 14)
-                if event.size().width()<1100:self.tools_scroll.hide()
-                elif event.oldSize().width()<1100:self.tools_scroll.show()
+                # Panel visibility is an explicit user choice, never a resize side effect.
                 self.editor_advanced_button.setText('Avanzadas' if compact else 'Ajuste avanzado')
                 self.editor_fit_button.setText('Ajustar' if compact else 'Ajustar a pantalla')
                 self.editor_reset_button.setText('Restablecer' if compact else 'Restablecer campos')
@@ -432,7 +437,7 @@ class StudioWindow(QMainWindow):
         return page
     def editor_panels_menu(self):
         menu=QMenu(self)
-        for title,panel in [('Elementos y herramientas',self.tools_scroll),('Propiedades',self.properties_scroll)]:
+        for title,panel in [('Elementos y herramientas',self.tools_scroll),('Propiedades y trabajo',getattr(self,'editor_context',self.properties_scroll))]:
             action=menu.addAction(title);action.setCheckable(True);action.setChecked(panel.isVisible())
             action.triggered.connect(lambda checked,p=panel:p.setVisible(checked))
         menu.exec(self.cursor().pos())

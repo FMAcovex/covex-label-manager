@@ -1,6 +1,7 @@
 """Qt R6A read-only pre-acceptance inspection and template export."""
 from PySide6.QtWidgets import QDialog,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem,QHeaderView,QAbstractItemView,QDialogButtonBox,QHBoxLayout
 from .window import vbox,label,button
+from .responsive import AdaptiveDialog as QDialog
 class ReadinessDialog(QDialog):
     def __init__(self,parent,api):
         super().__init__(parent);self.api=api;self.report=None

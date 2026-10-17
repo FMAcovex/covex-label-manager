@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QSplitter,QLineEd
     QTableWidgetItem,QHeaderView,QAbstractItemView,QTabWidget,QPlainTextEdit,QDialog,QFormLayout,
     QDialogButtonBox,QCheckBox,QMessageBox,QPushButton,QComboBox,QScrollArea)
 from .window import label,button,vbox,box
+from .responsive import AdaptiveDialog as QDialog
 from .pdf_view import PdfPane
 
 
