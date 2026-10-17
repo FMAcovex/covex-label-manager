@@ -97,8 +97,6 @@ def test_guard_against_source_overwrite_and_bad_values(source):
         render_proof(source, layout, {}, source)
     with pytest.raises(StatusDesignError):
         validate_values(layout, {"another": "x"}, strict=True)
+    field_layout = {**layout, "fields": [{"key": "another", "label": "Another", "required": False}]}
     with pytest.raises(StatusDesignError):
-        validate_values(layout, {"another": "x\n"}, strict=False) if layout["fields"] else validate_values(
-            {**layout, "fields": [{"key": "another", "label": "Another", "required": False}]},
-            {"another": "x\n"}, strict=False
-        )
+        validate_values(field_layout, {"another": "x\n"}, strict=False)
