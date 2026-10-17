@@ -8,6 +8,7 @@ from .functional import FunctionalWindow
 def exercise(w,app,captures=None):
     checks=[]
     def check(value,name):
+        print(('PASS' if value else 'FAIL')+': '+name,flush=True)
         assert value,name
         checks.append(name)
     def settle():

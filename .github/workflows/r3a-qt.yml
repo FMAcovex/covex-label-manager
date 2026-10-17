@@ -82,11 +82,20 @@ jobs:
           tests/test_r6b_session.py tests/test_r6b_qt.py tests/test_r6b_ux_qt.py
       - name: Interact with real Qt widgets and capture fictional windows
         shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
         run: |
           foreach ($scale in @('1', '1.25', '1.5')) {
             $env:QT_SCALE_FACTOR = $scale
-            python main_qt.py --capture "test-results/scale-$scale" --self-check "test-results/qt-source-$scale.json"
-            if ($LASTEXITCODE -ne 0) { throw "Qt source check failed at $scale" }
+            python -u -X faulthandler main_qt.py --capture "test-results/scale-$scale" --self-check "test-results/qt-source-$scale.json"
+            $checkExit = $LASTEXITCODE
+            Write-Host "Qt source exit code at ${scale}: $checkExit"
+            $report = "test-results/qt-source-$scale.json"
+            if (Test-Path $report) { Get-Content $report -Raw }
+            if ($checkExit -ne 0) { throw "Qt source check failed at $scale (exit $checkExit)" }
+            if (!(Test-Path $report)) { throw "Qt source report missing at $scale" }
+            $check = Get-Content $report -Raw | ConvertFrom-Json
+            if (!$check.ok -or $check.count -ne 86) { throw "Qt source interaction check incomplete at $scale" }
           }
           Remove-Item Env:QT_SCALE_FACTOR
       - name: R6B integrated UX at both viewports and three Qt scales
