@@ -1,4 +1,4 @@
-"""Peso neto y bruto: sufijo kg opcional sin alteración de maestros."""
+"""Explicit mass conversion preserves approved documentary suffixes and inputs."""
 import fitz
 import pytest
 
@@ -12,16 +12,17 @@ from covex_label_manager.engine import _overlay_field
     ('0,3558',.3558), ('0,3558 kg',.3558),
     ('0,3558kg',.3558), ('0.3558 KG',.3558),
     (' 0,3558 Kg  ',.3558), ('1 kg',1), ('1e3 kg',1000),
+    ('350 g',.35),('350000 mg',.35),('0,5 G',.0005),('1.5mg',.0000015),
 ])
 def test_mass_accepts_optional_kg_without_changing_numeric_meaning(raw,expected):
     assert parse_mass(raw)==pytest.approx(expected)
 
 
 @pytest.mark.parametrize('raw',[
-    'kg', '0,3558 g', '0,3558 mg', '0,3558kgkg',
+    'kg', '0,3558 lb', '0,3558 t', '0,3558kgkg',
     '1 kg extra', '0,35 kg/l', 'NaN kg', '-1 kg', 'inf kg',
 ])
-def test_invalid_or_non_kg_units_are_rejected(raw):
+def test_invalid_or_unsupported_units_are_rejected(raw):
     with pytest.raises(ValueError):parse_mass(raw)
 
 
@@ -66,3 +67,36 @@ def test_field_without_document_suffix_can_render_explicit_kg():
 def test_mass_numeric_text_does_not_mutate_text_without_kg():
     assert mass_numeric_text('0,3558kg')=='0,3558'
     assert mass_numeric_text('0,3558')=='0,3558'
+
+
+@pytest.mark.parametrize('entered,suffix,expected',[
+    ('350g',' KG','0.35 KG'),('350000 mg',' KG','0.35 KG'),
+    ('0,35 kg',' g','350 g'),('350g',' mg','350000 mg'),
+    ('0,35',' g','350 g'),('350 g',' g','350 g'),
+])
+def test_render_converts_to_documentary_unit_exactly_once(entered,suffix,expected):
+    with fitz.open() as pdf:
+        page=pdf.new_page(width=400,height=300)
+        field=dict(key='pn',label='Peso neto',x=.1,y=.1,w=.75,h=.15,font_pt=12,draw='textbox',suffix=suffix)
+        before=dict(field);values={'pn':entered,'_label_scale':1.0}
+        _overlay_field(page,field,values,1,1,fitz.Rect(0,0,350,250),None,None,[],True)
+        assert expected in page.get_text()
+        assert page.get_text().strip()==expected
+        assert field==before and values['pn']==entered
+
+
+def test_mixed_mass_units_and_excel_compare_in_canonical_kg():
+    validate_vessel_masses({'pn':'350g','pb':'0,5 kg'},1)
+    validate_vessel_masses({'pn':'350000mg','pb':'500g'},1)
+    with pytest.raises(ValueError,match='menor que su peso neto'):
+        validate_vessel_masses({'pn':'350g','pb':'349999mg'},1)
+    data=parse_tabular_vessels('Nº\tPN\tPB\n1\t350 g\t500000 mg',1)
+    validate_vessel_masses(data['1'],1)
+    assert data['1']=={'pn':'350 g','pb':'500000 mg'}
+
+
+def test_excel_declared_header_units_and_explicit_cell_override():
+    data=parse_tabular_vessels('Nº\tPN (g)\tPeso bruto mg\n1\t350\t500000\n2\t0,35 kg\t500000',2)
+    assert data['1']=={'pn':'350 g','pb':'500000 mg'}
+    assert data['2']=={'pn':'0,35 kg','pb':'500000 mg'}
+    for number,values in data.items():validate_vessel_masses(values,number)

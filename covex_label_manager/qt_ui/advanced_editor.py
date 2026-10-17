@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, Q
     QAbstractItemView, QMessageBox, QGraphicsRectItem, QGraphicsItem, QPushButton, QLabel,
     QSplitter)
 from .window import Preview, pixmap, label, button, vbox
+from .responsive import AdaptiveDialog as QDialog
 from ..editor_layout import (LayoutHistory, layout_from_version, version_with_layout,
     validate_layout, recrop, move_field, align_fields, scale_fields, anchor_field,
     relocate_anchors, source_identity, check_locked_changes, MM_PER_POINT)
@@ -153,7 +154,7 @@ class AdvancedEditorMixin:
         anchor_button=action(doc,'Anclar a referencia',self.edit_anchor); anchor_button.setToolTip('Anclar campo al texto extraído del PDF o Word convertido; sin editar el original.')
         relocate_button=action(doc,'Relocalizar referencias',self.relocate); relocate_button.setToolTip('Solo anclas verificables de la misma fuente o plantillas reconocidas ACETONA/EDROFONIO. No adapta automáticamente nuevas revisiones Word/PDF.')
         fld = section('Campo')
-        action(fld,'Agregar campo',self.add_field); action(fld,'Quitar campo',self.remove_field)
+        action(fld,'Quitar campo',self.remove_field)
         fld.addWidget(self.required); fld.addWidget(self.locked)
         self.draw_mode = QComboBox()
         for name,key in [('Caja de texto','textbox'),('Línea base','baseline'),('Continuación','continuation'),('Párrafo','paragraph')]: self.draw_mode.addItem(name,key)
@@ -168,7 +169,6 @@ class AdvancedEditorMixin:
         self.format_button = button('Formato físico y prueba',self.edit_output); self.format_button.setToolTip('Escalado físico proporcional de la etiqueta completa para impresión y PDF de prueba. Independiente del reajuste de campos y del zoom de visualización.'); comp.addWidget(self.format_button)
         state = section('Estado y límites')
         action(state,'Zona de estado visual / mm',self.edit_status_area)
-        state.addWidget(button('Seguridad de salida',self.edit_output))
         state.addWidget(label('Prepare los datos variables y emita desde el Centro de emisión.','subtle'))
         legacy_button=button('Editor Tkinter',lambda:self.open_legacy('editor')); legacy_button.setToolTip('Abrir Editor de la versión anterior; misma revisión y carpeta de datos.'); state.addWidget(legacy_button)
         self.field_action_bar=QWidget();row=QHBoxLayout(self.field_action_bar);row.setContentsMargins(0,0,0,0)

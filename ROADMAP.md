@@ -1,5 +1,13 @@
 # COVEX Label Manager — Plan maestro vivo
 
+Situación R6B-UX: [implementación UX-1/2/3 y evidencias](docs/R6B_UX_INTEGRATED/README.md),
+alternativa A, conservación de 87 capacidades y entrega en PR borrador. Pendientes:
+UX-15 (concurrencia Word), UIA/teclado y pruebas físicas Windows, calibración/impresión
+y aceptación humana. No adelanta la validación GMP ni autoriza R6C automáticamente.
+La planificación siguiente conserva la cronología de los hitos anteriores.
+
+Aceptación Windows de `46d3eab`: **NO CONFORME**. [Correcciones funcionales solicitadas](docs/R6B_UX_INTEGRATED/CORRECCIONES_ACEPTACION.md): cierre seguro del importador, asistente, masas kg/g/mg, vista previa automática y variantes por estado. Requieren nuevo portable y aceptación humana; no autorizan R6C, squash ni merge.
+
 Versión de aplicación: 0.3.1 (consolidación de R1/R2; referencia histórica `v0.3.0-reference` sin originales). Revisado: 15/10/2026. R3A Qt integrada como hito de desarrollo por squash de PR #4 en `5d27de30ce98ee89f17485225e3a45b92f544484`; no equivale a validación GMP.
 
 Este inventario contrasta las propuestas aceptadas del chat con README, traspaso, código, pruebas y muestras del proyecto recuperado. **Aprobada** significa acordada como requisito; no significa implementada ni validada GMP. Solo se consideran implementadas las funciones verificadas en este paquete. La comprobación física en Windows/impresora sigue pendiente.

@@ -14,6 +14,10 @@ def studio():
     session=DemoSession();session.fictional=True
     w=FunctionalWindow(session);w.show();app.processEvents()
     yield w,session,app
+    if getattr(w,'preview_timer',None):w.preview_timer.stop();w.preview_pending=False
+    if getattr(w,'preview_task',None):
+        assert w.preview_task.wait(30000)
+        app.processEvents()
     w.dirty=False;w.legacy_process=None;w.legacy_timer.stop();w.poll_timer.stop();w.hide();w.deleteLater();app.processEvents();session.close()
 
 def test_filter_preference_and_hidden_summary(studio):

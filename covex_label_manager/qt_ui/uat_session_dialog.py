@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (QDialog,QFileDialog,QMessageBox,QLineEdit,QComboB
     QFormLayout,QHBoxLayout,QDialogButtonBox,QWidget,QSplitter)
 from PySide6.QtCore import Qt
 from .window import vbox,label,button
+from .responsive import AdaptiveDialog as QDialog
 
 STATES=(('Sin ejecutar','NOT_EXECUTED'),('Conforme','PASS'),('No conforme','FAIL'),
         ('Bloqueada','BLOCKED'),('No aplicable','NOT_APPLICABLE'))
@@ -56,8 +57,9 @@ class UatSessionDialog(QDialog):
         self.existing=label('Evidencias: —','subtle');self.existing.setWordWrap(True)
         form.addRow('Registradas',self.existing)
         self.save_button=button('Guardar nueva generación',self.save_case,'primary')
-        self.save_button.setEnabled(False);form.addRow(self.save_button)
+        self.save_button.setEnabled(False)
         split.addWidget(editor);split.setSizes([480,650]);layout.addWidget(split,1)
+        layout.addWidget(self.save_button)
         footer=QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         footer.rejected.connect(self.reject);layout.addWidget(footer)
 

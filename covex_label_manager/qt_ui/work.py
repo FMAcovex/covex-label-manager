@@ -1,5 +1,6 @@
 """Shared Qt work controller: variable data is separate from structural editor."""
 import copy
+import math
 import json
 import uuid
 import unicodedata
@@ -10,6 +11,16 @@ from .window import button,label,vbox
 from ..emission_work import WorkConflict
 
 PHASE={'DRAFT':'Borrador','EMITTING':'Intento interrumpido','ISSUED':'Emitido','ERROR':'Revisar archivo'}
+
+
+def format_measure(value):
+    """Readable millimetres; the original value is retained separately for saving."""
+    try:
+        number=float(str(value).replace(',','.'))
+        if not math.isfinite(number):return str(value)
+        return f'{number:.3f}'.rstrip('0').rstrip('.')
+    except (TypeError,ValueError):
+        return str(value)
 
 
 class VariableText(QPlainTextEdit):
@@ -23,7 +34,7 @@ class VariableText(QPlainTextEdit):
 
 
 class WorkPanel(QWidget):
-    def __init__(self,window):
+    def __init__(self,window,context='emission'):
         super().__init__();self.window=window;self.loading=False;self.inputs={};self.profile_inputs={};self.error_labels={};self.field_widgets={}
         layout=vbox(self,12,8);self.panel_layout=layout;self._compact=False
         top=QHBoxLayout();self.top_actions=top;self.choice=QComboBox();self.choice.setMinimumWidth(170);top.addWidget(self.choice,1)
@@ -41,7 +52,7 @@ class WorkPanel(QWidget):
         self.common_form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
         self.common_form.setVerticalSpacing(10);self.common_form.setContentsMargins(10,12,10,12)
         scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(common);self.tabs.addTab(scroll,'Datos de lote')
-        self.containers=QTableWidget(0,5);self.containers.setHorizontalHeaderLabels(['Nº','Lote','PN kg','PB kg','Conservación'])
+        self.containers=QTableWidget(0,5);self.containers.setHorizontalHeaderLabels(['Nº','Lote','PN (kg/g/mg)','PB (kg/g/mg)','Conservación'])
         self.containers.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.container_keys=['lote','pn','pb','conservacion']
         self.containers.setAlternatingRowColors(True);self.containers.verticalHeader().hide()
@@ -50,10 +61,11 @@ class WorkPanel(QWidget):
         from PySide6.QtGui import QAction
         clear=QAction('Limpiar datos de este recipiente (heredar lote)',self.containers);clear.triggered.connect(self.clear_container_row);self.containers.addAction(clear)
         self.tabs.currentChanged.connect(self.tab_changed)
-        self.containers.setToolTip('Un valor vacío hereda el dato común. Pesos PN/PB: puede escribir 0,3558 o 0,3558 kg. También puede pegar datos desde Excel.')
+        self.containers.setToolTip('Vacío hereda el dato común. PN/PB: kg, g o mg; sin unidad significa kg. Se convierte a la unidad documental del campo. Admite Excel.')
         cfg=QWidget();cfg.setObjectName('workForm');form=QFormLayout(cfg)
         self.design_sheet_button=button('Diseñar hoja…',self.design_sheet,'primary');form.addRow(self.design_sheet_button)
-        self.calibrate_button=button('Calibrar impresora…',self.calibrate_printer)
+        self.calibrate_button=button('Aplicar medidas de impresora…',self.calibrate_printer)
+        self.calibrate_button.setToolTip('Introduzca medidas realizadas en papel; generar una hoja patrón no calibra la impresora.')
         form.addRow(self.calibrate_button)
         for key,title in [('count','Recipientes'),('copies','Copias por recipiente'),('selection','Números (1-3,5; vacío = todos)')]:
             e=QLineEdit();e.textEdited.connect(self.changed);self.inputs[key]=e;form.addRow(title,self.with_error(e,key))
@@ -86,10 +98,51 @@ class WorkPanel(QWidget):
         for key,title in [('fecha','Fecha'),('persona','Responsable'),('caducidad_reanalisis','Caducidad / reanálisis')]:
             e=QLineEdit();e.textEdited.connect(self.changed);self.status_inputs[key]=e;f.addRow(title,self.with_error(e,'status:'+key))
         self.tabs.addTab(status,'Estado')
-        row=QHBoxLayout();self.save=button('Guardar borrador',window.flush_emission_work,'primary');row.addWidget(self.save)
-        row.addWidget(button('Recuperar',window.recover_emission_work));layout.addLayout(row)
-        row=QHBoxLayout();row.addWidget(button('PDF de prueba',window.proof_emission_work));row.addWidget(button('Emitir…',window.issue_emission_work));layout.addLayout(row)
-        layout.addWidget(button('Actualizar vínculo documental…',window.refresh_work_binding))
+        row=QHBoxLayout();self.save=button('Guardar trabajo',window.flush_emission_work);row.addWidget(self.save)
+        self.recover=button('Recuperar',window.recover_emission_work);row.addWidget(self.recover);layout.addLayout(row)
+        row=QHBoxLayout();self.proof=button('PDF de prueba',window.proof_emission_work)
+        self.issue=button('Emitir…',window.issue_emission_work)
+        row.addWidget(self.proof);row.addWidget(self.issue);layout.addLayout(row)
+        self.binding_button=button('Actualizar vínculo documental…',window.refresh_work_binding)
+        layout.addWidget(self.binding_button)
+        if context=='editor':
+            self.proof.hide();self.issue.hide()
+            self.recover.hide();self.binding_button.hide()
+            layout.setContentsMargins(6,6,6,6);layout.setSpacing(4)
+            self.tabs.setMinimumHeight(80)
+            self.tabs.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Ignored)
+            self.choice.setMinimumWidth(90)
+            self.choice.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+            self.choice.setMinimumContentsLength(8)
+            self.tabs.setUsesScrollButtons(True);self.tabs.setElideMode(Qt.TextElideMode.ElideRight)
+            self.tabs.tabBar().setExpanding(False)
+            self.common_form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
+            for form_layout in self.findChildren(QFormLayout):
+                form_layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
+                form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+            for combo in (self.status_kind,self.placement,self.profile_choice,self.orientation,self.cut):
+                combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+                combo.setMinimumContentsLength(8)
+                combo.currentTextChanged.connect(combo.setToolTip)
+            self.keep_ratio.setText('Conservar proporción')
+            self.keep_ratio.setToolTip('Conservar la proporción del diseño al cambiar ancho o alto.')
+            self.binding_button.setText('Vínculo documental…')
+            self.binding_button.setToolTip('Actualizar expresamente el vínculo documental del trabajo.')
+            for action in self.shortcut_buttons:action.setStyleSheet('padding:6px;')
+            # Keep draft persistence here; production/proofs share the centre's footer.
+            save_row=None
+            # Locate the row by its existing save widget, not its translated caption.
+            for index in range(layout.count()):
+                candidate=layout.itemAt(index).layout()
+                if candidate and candidate.indexOf(self.save)>=0:
+                    save_row=candidate;break
+            self.save.setStyleSheet('padding:6px;')
+            save_row.addWidget(button('Emisión',lambda:window.navigate('emission'),'primary'))
+            options=button('⋯',window.work_options)
+            options.setAccessibleName('Opciones del trabajo')
+            options.setToolTip('Recuperar trabajo o actualizar vínculo documental')
+            options.setStyleSheet('padding:6px 4px;')
+            save_row.addWidget(options)
     def set_compact(self,enabled):
         """Move the same work buttons into one line in short windows; no commands disappear."""
         enabled=bool(enabled)
@@ -160,14 +213,20 @@ class WorkPanel(QWidget):
             for key,title in labels.items():
                 if key in ('pn','pb'):
                     e=QLineEdit(w['values'].get(key,''))
-                    e.setPlaceholderText('Ej.: 0,3558 kg')
-                    e.setToolTip('Admite 0,3558 o 0,3558 kg. El valor se conserva como lo escribió; el maestro controla cómo aparece KG en la etiqueta.')
-                    if 'kg' not in title.lower():title+=' (kg)'
+                    e.setPlaceholderText('Ej.: 350 g · 0,35 kg · 350000 mg')
+                    suffix=next((f.get('suffix','').strip() for f in fields if f['key']==key),'')
+                    e.setToolTip('Entrada: kg, g o mg; sin unidad significa kg. Se conserva el texto introducido. '+('Salida documental: '+suffix+' (conversión automática).' if suffix else 'Sin sufijo documental: se imprime la unidad introducida.'))
+                    title+=' · entrada kg/g/mg'
                 else:
                     e=VariableText(w['values'].get(key,''))
                 e.textEdited.connect(self.changed);self.value_inputs[key]=e;self.common_form.addRow(title,self.with_error(e,'value:'+key))
             for k,e in self.inputs.items():e.setText(w[k])
-            for k,e in self.profile_inputs.items():e.setText(str(w['profile'].get(k,'')))
+            self._profile_display={}
+            for k,e in self.profile_inputs.items():
+                raw=w['profile'].get(k,'')
+                shown=format_measure(raw) if k!='printer_name' else str(raw)
+                e.setText(shown);self._profile_display[k]=(shown,raw)
+                e.setToolTip(f'Valor exacto conservado: {raw}. Solo una edición expresa cambia este dato.')
             self.orientation.setCurrentIndex(max(0,self.orientation.findData(w['profile'].get('orientation','portrait'))));self.cut.setCurrentIndex(max(0,self.cut.findData(str(w['profile'].get('crop_marks',0)))))
             state=w['status'];self.status_kind.setCurrentIndex(max(0,self.status_kind.findData(state.get('kind','ninguna'))));self.placement.setCurrentIndex(max(0,self.placement.findData(state.get('placement','integrada'))))
             for k,e in self.status_inputs.items():e.setText(state.get(k,''))
@@ -178,6 +237,8 @@ class WorkPanel(QWidget):
                 n=QTableWidgetItem(str(row+1));n.setFlags(n.flags() & ~Qt.ItemFlag.ItemIsEditable);self.containers.setItem(row,0,n)
                 for col,key in enumerate(('lote','pn','pb','conservacion'),1):self.containers.setItem(row,col,QTableWidgetItem(w['per_container'].get(str(row+1),{}).get(key,'')))
             editable=w['phase']=='DRAFT';self.tabs.setEnabled(editable);self.save.setEnabled(editable)
+            from .responsive import accessible_form
+            accessible_form(self.common_form)
         finally:self.loading=False
     def capture(self):
         w=self.window.emission_work;per=copy.deepcopy(w['per_container'])
@@ -192,13 +253,19 @@ class WorkPanel(QWidget):
         status={'kind':self.status_kind.currentData()}
         if status['kind']!='ninguna':status.update(placement=self.placement.currentData(),**{k:e.text() for k,e in self.status_inputs.items()})
         return {'values':{k:e.text() for k,e in self.value_inputs.items()},'per_container':per,
-            'profile':{**w['profile'],**{k:e.text() for k,e in self.profile_inputs.items()},'orientation':self.orientation.currentData(),'crop_marks':self.cut.currentData()},
+            'profile':{**w['profile'],**{k:self.profile_value(k,e) for k,e in self.profile_inputs.items()},
+                'orientation':self.orientation.currentData(),
+                'crop_marks':w['profile'].get('crop_marks',0) if str(w['profile'].get('crop_marks',0))==self.cut.currentData() else self.cut.currentData()},
             'status':status,**{k:e.text() for k,e in self.inputs.items()}}
     def restore_size(self):
         if not self.window.emission_work:return
         b=self.window.emission_work['binding'];v=self.window.api.resolved_design(b['revision_id'],b['variant_id'])
         for k,source in [('width_mm','base_w_mm'),('height_mm','base_h_mm')]:self.profile_inputs[k].setText(f"{v[source]:.6f}".rstrip('0').rstrip('.'))
         self.changed()
+    def profile_value(self,key,entry):
+        shown,raw=getattr(self,'_profile_display',{}).get(key,(None,None))
+        # Untouched presentation must never round stored geometry or calibration.
+        return raw if entry.text()==shown else entry.text()
     def scale_size(self,key):
         if self.loading or not self.keep_ratio.isChecked() or not self.window.emission_work:return
         try:
@@ -272,7 +339,7 @@ class EmissionWorkMixin:
         self.work_timer=QTimer(self);self.work_timer.setSingleShot(True);self.work_timer.timeout.connect(self.flush_emission_work)
         self.emission_page=self.build_emission_page();self.stack.addWidget(self.emission_page)
         self.work_dock=QDockWidget('Datos variables del trabajo',self);self.work_dock.setObjectName('emissionWork')
-        self.editor_work_panel=WorkPanel(self);self.work_panels.append(self.editor_work_panel);self.work_dock.setWidget(self.editor_work_panel)
+        self.editor_work_panel=WorkPanel(self,context='editor');self.work_panels.append(self.editor_work_panel);self.work_dock.setWidget(self.editor_work_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea,self.work_dock);self.work_dock.hide()
         # Add a compact explicit entry, without changing structural tool panels.
         self.editor.layout().itemAt(0).layout().addWidget(button('Datos del trabajo',self.show_editor_work))

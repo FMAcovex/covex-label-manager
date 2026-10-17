@@ -148,12 +148,11 @@ def _overlay_field(page,field,values,number,total,view_rect,font_regular,font_bo
         txt=str(field.get('text',''))
     else:
         txt=str(values.get(key,'')).strip()
-        # A legacy Word master can already define a mandatory ' KG' suffix.
-        # When an operator writes e.g. '0,3558kg', render that unit once, using
-        # the approved template's typography/casing rather than 'kg KG'.
-        if key in ('pn','pb') and str(field.get('suffix','')).strip().lower()=='kg':
+        # The approved suffix fixes the documentary unit, not the input unit.
+        # Convert the amount, never simply strip "g" and append "KG".
+        if key in ('pn','pb') and str(field.get('suffix','')).strip().lower() in ('kg','g','mg'):
             from .vessels import mass_numeric_text
-            txt=mass_numeric_text(txt)
+            txt=mass_numeric_text(txt,field['suffix'])
         if field.get('strip_prefix') and txt.upper().startswith(field['strip_prefix'].upper()):
             txt=txt[len(field['strip_prefix']):]
         if txt and field.get('suffix') and not txt.upper().endswith(field['suffix'].upper()):

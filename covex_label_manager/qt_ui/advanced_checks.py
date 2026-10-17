@@ -11,6 +11,7 @@ from ..editor_layout import recrop, anchor_field, relocate_anchors, align_fields
 def exercise_advanced(w,app,captures=None):
     checks=[]
     def check(value,title):
+        print(('PASS' if value else 'FAIL')+': R3B1: '+title,flush=True)
         assert value,title
         checks.append('R3B1: '+title)
     def settle():
@@ -18,20 +19,33 @@ def exercise_advanced(w,app,captures=None):
     def snap(title):
         settle()
         if captures: assert w.grab().save(str(captures/title))
-    w.resize(1500,980); w.select_version(w.session.initial_id); w.open_editor(); settle()
+    print('R3B1: resize Editor',flush=True)
+    w.resize(1500,980)
+    print('R3B1: select pending revision',flush=True)
+    w.select_version(w.session.initial_id)
+    print('R3B1: open Editor',flush=True)
+    w.open_editor(); settle()
     original=copy.deepcopy(w.design.state); source=w.editor_version['pdf_sha256']; previous=len(w.api.issues())
+    print('R3B1: expand advanced tools',flush=True)
     w.editor_advanced_button.setChecked(True); w.toggle_editor_advanced()
+    print('R3B1: expand Document section',flush=True)
     w.tool_sections['Documento'][0].setChecked(True); settle()
     check(w.tool_sections['Documento'][1].isVisible(),'Native document section opens')
     snap('R3B1_Editor_Documento_Pendiente.png')
     def capture_dialog(method,title,prepare=None):
+        print('R3B1: opening '+title,flush=True)
         errors=[]; seen=[]
         def visit():
             dialog=app.activeModalWidget()
+            print('R3B1: visiting '+title,flush=True)
             try:
                 assert isinstance(dialog,QDialog),'Expected native modal dialog'
-                if prepare: prepare(dialog)
+                if prepare:
+                    print('R3B1: preparing '+title,flush=True)
+                    prepare(dialog)
+                    print('R3B1: prepared '+title,flush=True)
                 settle(); seen.append(dialog.windowTitle())
+                print('R3B1: settled '+title,flush=True)
                 if captures: assert dialog.grab().save(str(captures/title))
             except Exception as error: errors.append(str(error))
             finally:
@@ -41,7 +55,9 @@ def exercise_advanced(w,app,captures=None):
     def select_anchor(dialog):
         ls=dialog.findChild(QListWidget)
         row=next(i for i in range(ls.count()) if 'LOTE' in ls.item(i).text())
+        print('R3B1: selecting anchor row '+str(row),flush=True)
         ls.setCurrentRow(row)
+        print('R3B1: anchor row selected',flush=True)
     capture_dialog(w.edit_crop,'R3B1_Dialogo_Recorte_Visual.png',lambda d:d.from_drag([5,5,427,295]))
     capture_dialog(w.edit_anchor,'R3B1_Dialogo_Anclaje.png',select_anchor)
     capture_dialog(w.edit_scale,'R3B1_Dialogo_Reajuste_Proporcional.png')

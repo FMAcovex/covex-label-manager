@@ -75,6 +75,8 @@ def run(report,captures=None,verify_bridge=False):
         import traceback
         result.update(ok=False,error=traceback.format_exc());print(result['error'])
     finally:
+        w.preview_timer.stop();w.preview_pending=False
+        if w.preview_task:w.preview_task.wait(30000);app.processEvents()
         timer.stop();w.legacy_process=None;w.work_dirty_panel=None;w.close();app.processEvents();session.close()
     report.parent.mkdir(parents=True,exist_ok=True);report.write_text(json.dumps(result,indent=2,ensure_ascii=False),encoding='utf-8')
     return 0 if result['ok'] else 1

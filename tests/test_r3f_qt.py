@@ -44,7 +44,7 @@ def test_folder_import_creates_only_pending_and_counts_failures(studio,tmp_path,
     d=FolderImportDialog(w,session.services,tmp_path,[good,bad])
     monkeypatch.setattr(QMessageBox,'question',lambda *args:QMessageBox.StandardButton.Yes)
     d.start();d.timer.stop();d.step();d.timer.stop();d.step();d.timer.stop();d.finish()
-    assert d.ok==1 and len(d.failures)==1 and d.done==2
+    assert d.ok==1 and len(d.failures)==1 and d.processed==2
     assert any(v['state']=='PENDING' for v in session.services.labels() if 'Synthetic_Label' in v['name'] or 'Synthetic Label' in v['name'])
 
 
@@ -59,5 +59,5 @@ def test_folder_import_cancel_does_not_rollback_committed(studio,tmp_path,monkey
     d=FolderImportDialog(w,s.services,tmp_path,paths)
     monkeypatch.setattr(QMessageBox,'question',lambda *args:QMessageBox.StandardButton.Yes)
     d.start();d.timer.stop();d.step();d.timer.stop();d.stop();d.step()
-    assert d.ok==1 and d.done==1 and d.cancelled
+    assert d.ok==1 and d.processed==1 and d.cancelled
     assert '1 sin procesar' in d.status.text()

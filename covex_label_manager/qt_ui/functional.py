@@ -7,6 +7,7 @@ from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QLineEdit,
     QDialog,QDialogButtonBox,QMessageBox,QFileDialog,QInputDialog,QMenu,QCheckBox,QPushButton,QLabel)
 from .window import StudioWindow,STATE,FILTERS,label,button,vbox
+from .responsive import AdaptiveDialog as QDialog
 from ..contracts import METADATA_FIELDS
 from ..qt_legacy import launch_legacy
 
@@ -33,9 +34,14 @@ class BaseFunctionalWindow(StudioWindow):
         for note in self.inspector.findChildren(QLabel):
             if 'PDF ficticio' in note.text():note.setText('Documentos locales · Fuente controlada')
         for widget in self.inspector.findChildren(QPushButton):
-            replacements={'Ficha completa y referencias':self.document_details,'Documentos y aprobación externa':self.approve_revision,'Importaciones PDF / Word':self.import_document}
+            replacements={'Ficha completa y referencias':self.document_details,
+                'Documentos y aprobación externa':lambda:self.open_document(),
+                'Importaciones PDF / Word':lambda:self.open_document(True)}
             if widget.text() in replacements:
-                widget.clicked.disconnect();widget.clicked.connect(replacements[widget.text()])
+                old_text=widget.text()
+                widget.clicked.disconnect();widget.clicked.connect(replacements[old_text])
+                widget.setText({'Documentos y aprobación externa':'Abrir PDF maestro',
+                    'Importaciones PDF / Word':'Abrir documento original'}.get(old_text,old_text))
         self.active_filter_text=label('','subtle');page.layout().insertWidget(3,self.active_filter_text)
         self.remember_filters=QCheckBox('Recordar apertura')
         self.remember_filters.setToolTip('Recordar si los filtros avanzados estaban abiertos o cerrados entre inicios.')
@@ -135,18 +141,43 @@ class BaseFunctionalWindow(StudioWindow):
         target={'emission':'emitir','history':'historial','settings':'admin','import':'maestro','document':'maestro'}.get(self.catalog_key,'maestro')
         self.open_legacy(target)
     def actions_menu(self):
+        self.document_menu().exec(self.cursor().pos())
+
+    def document_menu(self):
         menu=QMenu(self)
+        menu.setToolTipsVisible(True)
         for title,action in [('Ficha completa',self.document_details),('Abrir PDF maestro',lambda:self.open_document()),
             ('Abrir documento original',lambda:self.open_document(True)),('Editar metadatos con fuente',self.edit_metadata),
             ('Crear nueva revisión documental',self.clone_revision),('Registrar aprobación externa',self.approve_revision),
-            ('Importar PDF / Word',self.import_document)]:menu.addAction(title,action)
+            ('Revisiones y variantes…',lambda:self.show_access('document'))]:
+            item=menu.addAction(title,action)
+            pending=bool(self.row and self.api.version(self.row['version_id'])['state']=='PENDING')
+            enabled=bool(self.row and not self.legacy_process and (pending or action!=self.approve_revision))
+            item.setEnabled(enabled)
+            item.setToolTip('Seleccione una revisión pendiente.' if action==self.approve_revision and not pending
+                            else ('Cierre primero la compatibilidad Tkinter.' if self.legacy_process else 'Seleccione una revisión.'))
         menu.addSeparator()
-        menu.addAction('Inventariar carpeta… (R5A)',self.review_catalog_folder)
+        item=menu.addAction('Comparar revisiones…',self.compare_revisions)
+        item.setEnabled(bool(self.row and len(self.api.versions(self.row['id']))>1 and not self.legacy_process))
+        item.setToolTip('Se necesitan dos revisiones de la misma etiqueta.')
+        return menu
+
+    def exchange_menu(self):
+        self.build_exchange_menu().exec(self.cursor().pos())
+
+    def build_exchange_menu(self):
+        menu=QMenu(self);menu.setToolTipsVisible(True)
+        menu.addAction('Importar PDF / Word…',self.import_document)
         menu.addAction('Importar carpeta…',self.import_folder_native)
-        menu.addAction('Exportar catálogo completo… (R5A)',self.export_entire_library)
-        menu.addAction('Conciliar libro máster… (R5C)',self.reconcile_master)
-        menu.addAction('Comparar revisiones…',self.compare_revisions)
-        menu.exec(self.cursor().pos())
+        menu.addSeparator()
+        menu.addAction('Inventariar carpeta sin importar…',self.review_catalog_folder)
+        menu.addAction('Conciliar libro máster…',self.reconcile_master)
+        menu.addAction('Exportar catálogo completo…',self.export_entire_library)
+        for item in menu.actions():
+            if not item.isSeparator():
+                item.setEnabled(not self.legacy_process)
+                item.setToolTip('Cierre primero la compatibilidad Tkinter.' if self.legacy_process else item.text())
+        return menu
     def open_document(self,original=False):
         if not self.row:return
         try:
@@ -313,6 +344,110 @@ from .catalog_exchange_ui import CatalogExchangeMixin
 from .print_control import PrintWorkflowMixin
 
 class FunctionalWindow(CatalogExchangeMixin, PrintWorkflowMixin, FolderImportMixin, CompareMixin, SettingsMixin, HistoryMixin, EmissionCentreMixin, EmissionWorkMixin, VariantsMixin, AdvancedEditorMixin, BaseFunctionalWindow):
-    """R3B1 tools on the approved R3A library and legacy transition controller."""
+    """Retained controllers, with an integrated responsive Qt workspace."""
+    def __init__(self, session):
+        from PySide6.QtWidgets import QApplication,QFormLayout
+        from .responsive import install_translation,accessible_form
+        install_translation(QApplication.instance())
+        super().__init__(session)
+        from .workspace import arrange_editor,arrange_inspector
+        arrange_editor(self)
+        arrange_inspector(self)
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self.library_context_menu)
+        self.history_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.history_table.customContextMenuRequested.connect(self.history_context_menu)
+        self.canvas.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.canvas.customContextMenuRequested.connect(self.editor_context_menu)
+        self.setWindowTitle('COVEX Label Manager · '+('Datos ficticios' if self.demo else 'Local'))
+        self.search.setAccessibleName('Buscar en Biblioteca')
+        self.history_search.setAccessibleName('Buscar en Historial')
+        self.name_input.setAccessibleName('Nombre visible del campo')
+        self.key_input.setAccessibleName('Identificador del campo')
+        self.canvas.setAccessibleName('Lienzo de campos variables sobre el PDF fijo')
+        self.font_size.setAccessibleName('Tamaño de texto en puntos')
+        for key,control in self.spins.items():
+            control.setAccessibleName({'x':'Posición X en mm','y':'Posición Y en mm',
+                'w':'Ancho del campo en mm','h':'Alto del campo en mm'}[key])
+        for form in self.findChildren(QFormLayout):accessible_form(form)
+        self.adapt_header()
+
+    def library_context_menu(self, point):
+        index=self.table.indexAt(point)
+        if index.isValid():self.table.selectRow(index.row())
+        self.document_menu().exec(self.table.viewport().mapToGlobal(point))
+
+    def history_context_menu(self, point):
+        index=self.history_table.indexAt(point)
+        if index.isValid():self.history_table.selectRow(index.row())
+        menu=QMenu(self)
+        view=menu.addAction('Verificar y ver PDF',self.preview_native_issue)
+        view.setEnabled(self.history_id is not None)
+        reprint=menu.addAction('Reimpresión controlada…',self.native_reprint)
+        reprint.setEnabled(self.reprint_button.isEnabled())
+        printing=menu.addAction('Imprimir PDF registrado…',self.print_historical_pdf)
+        printing.setEnabled(self.print_history_button.isEnabled())
+        menu.exec(self.history_table.viewport().mapToGlobal(point))
+
+    def editor_context_menu(self, point):
+        item=self.canvas.itemAt(point)
+        while item is not None and not hasattr(item,'index'):item=item.parentItem()
+        if item is not None:
+            self.canvas.scene().clearSelection();item.setSelected(True)
+        menu=QMenu(self);menu.setToolTipsVisible(True)
+        for text,callback,enabled in [
+            ('Nuevo campo…',self.add_field,self.editable()),
+            ('Dibujar campo…',self.draw_new_field,self.editable()),
+            ('Quitar campo…',self.remove_field,self.editable() and bool(self.selected_indices())),
+            ('Deshacer diseño',self.undo_edit,self.undo_button.isEnabled()),
+            ('Rehacer diseño',self.redo_edit,self.redo_button.isEnabled())]:
+            action=menu.addAction(text,callback);action.setEnabled(bool(enabled))
+            action.setToolTip(text if enabled else 'Requiere un diseño editable y una selección o cambio aplicable.')
+        menu.exec(self.canvas.viewport().mapToGlobal(point))
+
+    def show_access(self, key):
+        if key=='document':
+            if self.legacy_process or not self.flush_emission_work() or not self.resolve_work():return
+            from .revision_browser import RevisionBrowserDialog
+            if self.row:RevisionBrowserDialog(self).exec()
+            return
+        if key=='import':return self.import_document()
+        return super().show_access(key)
+
+    def navigate(self, key):
+        result = super().navigate(key)
+        if hasattr(self, 'work_dock') and hasattr(self,'editor_context'):
+            self.work_dock.setVisible(self.stack.currentWidget() is self.editor and self.editor_context.currentIndex()==1)
+        return result
+
+    def show_editor_work(self):
+        if not hasattr(self, 'editor_context'):
+            return super().show_editor_work()
+        self.editor_context.show()
+        self.editor_context.setCurrentIndex(1)
+        self.work_dock.show()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, 'editor_context'):
+            self.editor_note.hide()
+            self.editor_title.setStyleSheet('font-size:20px;')
+            self.editor.layout().setContentsMargins(8, 6, 8, 6)
+            self.editor.layout().setSpacing(6)
+            self.editor_reset_button.setText('Restablecer diseño guardado')
+            self.adapt_header()
+
+    def adapt_header(self):
+        compact=self.width()<1200
+        self.header.setFixedHeight(46 if compact else 56)
+        self.header.layout().setContentsMargins(12,5,12,5)
+        self.header.layout().setSpacing(4)
+        for control in self.nav.values():control.setStyleSheet('padding:7px 6px;')
+        for note in self.header.findChildren(QLabel):
+            if note.text()=='Diseño y emisión de etiquetas':note.setVisible(not compact)
+
+    def toggle_editor_advanced(self):
+        if hasattr(self,'canvas_focus') and self.canvas_focus.isChecked():self.canvas_focus.setChecked(False)
+        return super().toggle_editor_advanced()
 
 

@@ -6,6 +6,7 @@ from PySide6.QtGui import QColor, QPen, QBrush, QPalette
 from PySide6.QtWidgets import (QDialog,QWidget,QHBoxLayout,QFormLayout,QComboBox,QSpinBox,
  QDoubleSpinBox,QCheckBox,QDialogButtonBox,QScrollArea,QLineEdit,QInputDialog,QGraphicsItem,QGridLayout)
 from .window import vbox,label,button,Preview,pixmap
+from .responsive import AdaptiveDialog as QDialog
 from .resize_item import ResizableRect
 from ..sheet_layout import PAPERS,paper_size,slots,template
 from ..engine import plan_sheet
@@ -77,7 +78,8 @@ class OccupiedSlotsDialog(QDialog):
 class SheetDesigner(QDialog):
     def __init__(self,parent,profile,proof=None,root=None,counts='',thumbnail=None,nominal=None):
         super().__init__(parent);self.setWindowTitle('Diseñador de hojas · mm');self.resize(1120,700)
-        screen=self.screen().availableGeometry();self.resize(min(1120,screen.width()-24),min(700,screen.height()-32))
+        # AdaptiveDialog applies the available-screen bounds when shown. Avoid
+        # borrowing a QScreen wrapper from this transient dialog at construction.
         self.thumbnail=thumbnail;self.nominal=nominal
         self.history=ProfileHistory(copy.deepcopy(profile));self.profile=copy.deepcopy(profile);self.proof=proof;self.busy=False;self.items=[];self.repo=LayoutProfiles(root) if root else None
         palette=self.palette()

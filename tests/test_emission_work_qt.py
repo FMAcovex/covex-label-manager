@@ -13,6 +13,10 @@ def studio(monkeypatch):
     w=FunctionalWindow(s);w.show();app.processEvents()
     monkeypatch.setattr(QMessageBox,'warning',lambda *a,**k:QMessageBox.StandardButton.Ok)
     yield w,s.services,app
+    w.preview_timer.stop();w.preview_pending=False
+    if w.preview_task:
+        assert w.preview_task.wait(30000)
+        app.processEvents()
     w.work_dirty_panel=None;w.legacy_process=None;w.dirty=False
     if w.design:w.design.mark_clean()
     w.close();app.processEvents();s.close()

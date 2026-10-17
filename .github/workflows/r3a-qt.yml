@@ -24,6 +24,15 @@ on:
       - 'covex_label_manager/sheet_layout.py'
       - 'covex_label_manager/layout_profiles.py'
       - 'scripts/r3e_backward_gate.py'
+      - 'scripts/ux_visual_gate.py'
+      - 'scripts/ux_acceptance_visual.py'
+      - 'covex_label_manager/vessels.py'
+      - 'covex_label_manager/engine.py'
+      - 'covex_label_manager/preview_render.py'
+      - 'tests/test_mass_units.py'
+      - 'tests/test_preview_render.py'
+      - 'scripts/verify_portable_archive.py'
+      - 'tests/test_portable_archive_integrity.py'
       - 'covex_label_manager/work_tk.py'
       - 'tests/test_emission_work*.py'
       - 'covex_label_manager/qt_ui/**'
@@ -67,8 +76,42 @@ jobs:
           python -m pip install --require-hashes --only-binary=:all:
           -r requirements-windows.lock -r requirements-qt-windows.lock
       - run: python -m pip check
+      - name: Interact with real Qt widgets and capture fictional windows
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            python -u -X faulthandler main_qt.py --capture "test-results/scale-$scale" --self-check "test-results/qt-source-$scale.json"
+            $checkExit = $LASTEXITCODE
+            Write-Host "Qt source exit code at ${scale}: $checkExit"
+            $report = "test-results/qt-source-$scale.json"
+            if (Test-Path $report) { Get-Content $report -Raw }
+            if ($checkExit -ne 0) { throw "Qt source check failed at $scale (exit $checkExit)" }
+            if (!(Test-Path $report)) { throw "Qt source report missing at $scale" }
+            $check = Get-Content $report -Raw | ConvertFrom-Json
+            if (!$check.ok -or $check.count -ne 86) { throw "Qt source interaction check incomplete at $scale" }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
+      - name: Windows acceptance regressions before the full Qt suite
+        timeout-minutes: 4
+        run: >-
+          python -m pytest -q -o faulthandler_timeout=60
+          --junitxml=test-results/acceptance-fixes.xml tests/test_r6b_acceptance_fixes_qt.py
+      - name: Native emission, history and reprint on actual Qt
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            python -u -X faulthandler main_qt.py --emission-check "test-results/r3c-source-$scale.json" --capture "test-results/r3c-source-$scale"
+            if ($LASTEXITCODE -ne 0) { if (Test-Path "test-results/r3c-source-$scale.json") { Get-Content "test-results/r3c-source-$scale.json" -Raw }; throw "R3C native source failed at $scale" }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
       - name: Qt and migration-consent regression (core/Tk covered in Windows job)
-        timeout-minutes: 6
+        timeout-minutes: 8
         run: >-
           python -m pytest -q -o faulthandler_timeout=60 --junitxml=test-results/qt.xml
           tests/test_r3a_qt.py tests/test_r3b1_qt.py tests/test_emission_work_qt.py
@@ -78,14 +121,55 @@ jobs:
           tests/test_r4c_dispatch.py tests/test_r4c_qt.py tests/test_r5a_catalog.py
           tests/test_r5b_migration.py tests/test_r5c_reconciliation.py tests/test_r5c_qt.py
           tests/test_r6a_acceptance.py tests/test_r6a_qt.py
-          tests/test_r6b_session.py tests/test_r6b_qt.py
-      - name: Interact with real Qt widgets and capture fictional windows
+          tests/test_r6b_session.py tests/test_r6b_qt.py tests/test_r6b_ux_qt.py
+          tests/test_mass_units.py
+          tests/test_preview_render.py
+      - name: Importer close process regression at three native Windows scales
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            $report = "test-results/import-source-$scale.json"
+            python -u -X faulthandler main_qt.py --import-check $report
+            if ($LASTEXITCODE -ne 0 -or !(Test-Path $report)) { throw "Importer process failed at $scale" }
+            $check = Get-Content $report -Raw | ConvertFrom-Json
+            if (!$check.ok -or $check.cases.Count -ne 18) { throw "Importer close coverage incomplete at $scale" }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 46d3eab93381a81bae47f04ffe367334c8f16709
+          path: .ux-before-source
+          persist-credentials: false
+      - name: Synthetic acceptance before and after at six Windows viewport/scales
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            foreach ($viewport in @(@(1366, 768), @(1920, 1080))) {
+              python scripts/ux_acceptance_visual.py --baseline --source-root .ux-before-source --width $viewport[0] --height $viewport[1]
+              if ($LASTEXITCODE -ne 0) { throw "Baseline capture failed at $scale / $viewport" }
+              python scripts/ux_acceptance_visual.py --width $viewport[0] --height $viewport[1]
+              if ($LASTEXITCODE -ne 0) { throw "Acceptance capture failed at $scale / $viewport" }
+            }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
+          Remove-Item .ux-before-source -Recurse -Force
+      - name: R6B integrated UX at both viewports and three Qt scales
         shell: pwsh
         run: |
           foreach ($scale in @('1', '1.25', '1.5')) {
             $env:QT_SCALE_FACTOR = $scale
-            python main_qt.py --capture "test-results/scale-$scale" --self-check "test-results/qt-source-$scale.json"
-            if ($LASTEXITCODE -ne 0) { throw "Qt source check failed at $scale" }
+            foreach ($viewport in @(@(1366, 768), @(1920, 1080))) {
+              $viewportWidth = $viewport[0]
+              $viewportHeight = $viewport[1]
+              python scripts/ux_visual_gate.py --width $viewportWidth --height $viewportHeight
+              if ($LASTEXITCODE -ne 0) { throw "Integrated UX failed at $scale / $viewport" }
+            }
           }
           Remove-Item Env:QT_SCALE_FACTOR
       - name: Exercise controlled variants and capture real synthetic UI
@@ -96,15 +180,6 @@ jobs:
         run: >-
           python main_qt.py --work-check test-results/r3b3-source.json
           --capture test-results/r3b3-source --verify-bridge
-      - name: Native emission, history and reprint on actual Qt
-        shell: pwsh
-        run: |
-          foreach ($scale in @('1', '1.25', '1.5')) {
-            $env:QT_SCALE_FACTOR = $scale
-            python main_qt.py --emission-check "test-results/r3c-source-$scale.json" --capture "test-results/r3c-source-$scale"
-            if ($LASTEXITCODE -ne 0) { throw "R3C native source failed at $scale" }
-          }
-          Remove-Item Env:QT_SCALE_FACTOR
       - name: R3E visual design proof on native Qt
         shell: pwsh
         run: |
@@ -149,6 +224,19 @@ jobs:
           Copy-Item $result "test-results/qt-packaged-$scale.json"
           }
           Remove-Item Env:QT_SCALE_FACTOR
+      - name: Frozen importer closes without quitting the application
+        shell: pwsh
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            $result = Join-Path $env:RUNNER_TEMP "import-frozen-$scale.json"
+            $process = Start-Process -FilePath dist/COVEXLabelManager_Qt/COVEXLabelManager_Qt.exe -ArgumentList @('--import-check', $result) -Wait -PassThru
+            if (Test-Path $result) { Copy-Item $result "test-results/import-frozen-$scale.json" }
+            if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { throw "Frozen importer failed at $scale" }
+            $check = Get-Content $result -Raw | ConvertFrom-Json
+            if (!$check.ok -or $check.cases.Count -ne 18) { throw "Frozen importer coverage incomplete at $scale" }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
       - name: Check frozen variant selector and both bridge modes
         shell: pwsh
         run: |
@@ -178,7 +266,7 @@ jobs:
           $captures = Join-Path $env:RUNNER_TEMP 'r3c-packaged-captures'
           $process = Start-Process -FilePath dist/COVEXLabelManager_Qt/COVEXLabelManager_Qt.exe -ArgumentList @('--emission-check', $result, '--capture', $captures) -Wait -PassThru
           if (Test-Path $result) { Copy-Item $result test-results/r3c-packaged.json }
-          if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { throw 'Packaged R3C native emission failed' }
+          if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { if (Test-Path $result) { Get-Content $result -Raw }; throw 'Packaged R3C native emission failed' }
           $check = Get-Content $result -Raw | ConvertFrom-Json
           if (!$check.ok -or $check.count -lt 31) { throw 'Packaged R3C contract incomplete' }
           Copy-Item $captures test-results/r3c-packaged -Recurse
@@ -211,7 +299,15 @@ jobs:
           Copy-Item docs/R3B2_IMPLEMENTATION.md dist/COVEXLabelManager_Qt/R3B2_VARIANTS.md
           Copy-Item scripts/PROBAR_DEMO_QT.bat dist/COVEXLabelManager_Qt/
           Copy-Item docs/FUNCTIONAL_PRESERVATION_MATRIX.md dist/COVEXLabelManager_Qt/
+          Copy-Item docs/R6B_UX_INTEGRATED/PRUEBAS_Y_PORTABLE.md dist/COVEXLabelManager_Qt/GUIA_R6B_UX.md
+          Copy-Item docs/R6B_UX_INTEGRATED/CORRECCIONES_ACEPTACION.md dist/COVEXLabelManager_Qt/
+          Copy-Item docs/R6B_UX_INTEGRATED/CONSERVACION_87.md dist/COVEXLabelManager_Qt/
+          Copy-Item docs/R6B_UX_INTEGRATED/CI_QT_FIX.md dist/COVEXLabelManager_Qt/
+          python scripts/build_manifest.py dist/COVEXLabelManager_Qt
+          if ($LASTEXITCODE -ne 0) { throw 'Qt build manifest failed' }
           Compress-Archive -Path dist/COVEXLabelManager_Qt -DestinationPath COVEXLabelManager_Qt.zip
+          python scripts/verify_portable_archive.py COVEXLabelManager_Qt.zip --report test-results/qt-archive-integrity.json
+          if ($LASTEXITCODE -ne 0) { throw 'Qt archive integrity failed' }
           Get-FileHash COVEXLabelManager_Qt.zip -Algorithm SHA256 | Format-List | Out-File test-results/qt-ZIP_SHA256.txt
           Get-ChildItem dist/COVEXLabelManager_Qt -Recurse -File | Measure-Object -Property Length -Sum | Format-List | Out-File test-results/qt-package-size.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

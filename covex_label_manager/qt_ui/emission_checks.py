@@ -4,13 +4,47 @@ import sys
 from pathlib import Path
 from datetime import date
 import fitz
+from contextlib import contextmanager
 from PySide6.QtWidgets import QApplication,QMessageBox,QFileDialog,QDialog,QLineEdit,QPushButton
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer,QObject,QEvent
 from PySide6.QtTest import QTest
 from .demo import DemoSession
 from .functional import FunctionalWindow
 from ..storage import sha256
 from ..canonical import digest
+
+
+class ModalGuard(QObject):
+    """Record every unknown modal, excluding only the exact expected dialog."""
+    def __init__(self,unexpected):
+        super().__init__(QApplication.instance())
+        self.unexpected=unexpected;self.expected=None;self.expected_shows=0
+        QApplication.instance().installEventFilter(self)
+
+    @contextmanager
+    def expect(self,dialog):
+        assert self.expected is None,'Only one expected modal at a time'
+        self.expected=dialog
+        try:yield
+        finally:self.expected=None
+
+    def record(self,modal):
+        message=modal.windowTitle()+' '+getattr(modal,'text',lambda:'')()
+        if message not in self.unexpected:self.unexpected.append(message)
+
+    def eventFilter(self,obj,event):
+        if event.type()==QEvent.Type.Show and isinstance(obj,QDialog) and obj.isModal():
+            if obj is self.expected:self.expected_shows+=1
+            else:
+                self.record(obj);QTimer.singleShot(0,obj.reject)
+        return False
+
+    def inspect(self):
+        modal=QApplication.activeModalWidget()
+        if modal is not None and modal is not self.expected:self.record(modal);modal.reject()
+
+    def close(self):
+        QApplication.instance().removeEventFilter(self);self.deleteLater()
 
 
 def run(report,captures=None):
@@ -19,16 +53,29 @@ def run(report,captures=None):
     report=Path(report);captures=Path(captures) if captures else report.parent/'r3c-captures';captures.mkdir(parents=True,exist_ok=True)
     result={'synthetic_only':True,'platform':sys.platform,'native_windows_monitor_acceptance':False};checks=[]
     real_question=QMessageBox.question;real_warning=QMessageBox.warning;real_save=QFileDialog.getSaveFileName;unexpected=[]
-    def watchdog():
-        modal=QApplication.activeModalWidget()
-        if modal:unexpected.append(modal.windowTitle()+' '+getattr(modal,'text',lambda:'')());modal.reject()
-    timer=QTimer();timer.timeout.connect(watchdog);timer.start(10000)
+    guard=ModalGuard(unexpected)
+    timer=QTimer();timer.timeout.connect(guard.inspect);timer.start(10000)
     def check(condition,name):
-        assert condition,name;checks.append(name)
+        assert condition,{'check':name,'unexpected_dialogs':unexpected,
+            'preview_status':w.emission_pdf.note.text(),'feedback':w.emission_feedback.text()};checks.append(name)
     def capture(name):
         app.processEvents();QTest.qWait(30);assert w.grab().save(str(captures/(name+'.png')))
     def pdf_words(path):
         with fitz.open(path) as doc:return [[(word[4].replace('\xad','-'),*[round(v,2) for v in word[:4]]) for word in page.get_text('words') if word[4].replace('\xad','-').startswith('R3C-')] for page in doc]
+    def preview():
+        # Automatic rendering is now asynchronous. Await it, then exercise the
+        # retained manual action and every original PDF/production assertion.
+        for _ in range(1200):
+            if w.preview_task is None and not w.preview_timer.isActive():break
+            QTest.qWait(25)
+        assert w.preview_task is None and not w.preview_timer.isActive(),'Preview did not settle'
+        review=w.refresh_emission_review()
+        if (w.emission_work['phase']=='DRAFT' and review['proof_allowed']
+            and not any(e['target']!='document' for e in review['errors'])):
+            # Mandatory on both source and frozen EXE: a successful manual
+            # refresh must never conceal a broken automatic worker launch.
+            check(w.preview_matches(review),'automatic_preview_ready_before_manual_refresh')
+        return w.preview_emission_work()
     try:
         vid=next(r['version_id'] for r in api.library.entries() if r['state']=='APPROVED');before=dict(api.version(vid));source_hash=sha256(api.asset_path(before['master_pdf']))
         schema=[tuple(r) for r in api._repository.db.execute('SELECT type,name,sql FROM sqlite_master ORDER BY type,name')]
@@ -50,7 +97,7 @@ def run(report,captures=None):
         panel.tabs.setCurrentIndex(1);capture('02-tabla-recipientes');check(panel.containers.rowCount()==6,'recipient_table')
         panel.tabs.setCurrentIndex(2);capture('03-formato-perfil');check(panel.capture()['profile']['start_slot']=='2','format_kept_separate')
         panel.tabs.setCurrentIndex(0)
-        check(w.preview_emission_work(),'native_actual_pdf_preview');capture('04-vista-previa-A4')
+        check(preview(),'native_actual_pdf_preview');capture('04-vista-previa-A4')
         proof=w.work_preview['path'];words=pdf_words(proof);check(bool(words),'preview_contains_actual_work_data')
         check(w.work_preview['result']['physical']==10 and w.work_preview['result']['pages']==2,'A4_selection_copies_start_slot')
         with fitz.open(proof) as pdf:check('PRUEBA' in pdf[0].get_text(),'unambiguous_proof_watermark')
@@ -59,7 +106,7 @@ def run(report,captures=None):
         QMessageBox.question=lambda *a,**k:QMessageBox.StandardButton.Cancel
         check(not w.issue_emission_work() and not api.issues(),'definitive_cancel_no_effect')
         saved=api.work.get(uid);w.close();w=FunctionalWindow(session);w.resize(1560,960);w.show();app.processEvents();w.load_emission_work(uid);w.navigate('emission')
-        check(api.work.get(uid)==saved,'restart_draft_recovery');check(w.preview_emission_work(),'preview_after_restart')
+        check(api.work.get(uid)==saved,'restart_draft_recovery');check(preview(),'preview_after_restart')
         QMessageBox.question=lambda *a,**k:QMessageBox.StandardButton.Yes
         check(w.issue_emission_work(),'native_definitive_issue');capture('05-PDF-definitivo-registrado')
         first=w.emission_work['issue_id'];issue=api.issue(first);snapshot=json.loads(issue['design_snapshot_json'])
@@ -71,7 +118,7 @@ def run(report,captures=None):
         p=w.emission_panel;p.value_inputs['lote'].setText('R3C-LOCAL-CONFLICT');p.changed();check(not w.flush_emission_work() and p.value_inputs['lote'].text()=='R3C-LOCAL-CONFLICT','stale_generation_keeps_input')
         w.work_timer.stop();w.work_dirty_panel=None;w.reload_emission_work()
         pending=next(r['version_id'] for r in api.library.entries() if r['state']=='PENDING');draft=api.work.create(pending,name='Pendiente sintético',template=saved)
-        w.load_emission_work(draft['uid']);check(w.preview_emission_work() and not w.native_issue.isEnabled(),'pending_proof_without_definitive');capture('06-pendiente-bloqueada')
+        w.load_emission_work(draft['uid']);check(preview() and not w.native_issue.isEnabled(),'pending_proof_without_definitive');capture('06-pendiente-bloqueada')
         w.load_emission_work(uid);w.navigate('history');w.history_table.selectRow(0)
         check(w.stack.currentWidget() is w.history_page and w.preview_native_issue(),'native_history_verified_pdf');capture('07-historial-y-PDF')
         check('R3C-RECIPIENTE-2' in w.history_text['containers'].toPlainText(),'historical_recipient_data')
@@ -84,11 +131,20 @@ def run(report,captures=None):
             if not isinstance(dialog,QDialog):return
             fields=dialog.findChildren(QLineEdit);fields[0].setText('2-3');fields[1].setText('Rotura ficticia durante evaluación')
             next(b for b in dialog.findChildren(QPushButton) if b.text()=='Registrar reimpresión…').click()
-        QTimer.singleShot(100,complete_reprint);w.native_reprint()
+        real_exec=QDialog.exec
+        def expected_reprint_exec(dialog):
+            if dialog.parent() is w and dialog.windowTitle()=='Reimpresión controlada · #'+str(first):
+                with guard.expect(dialog):return real_exec(dialog)
+            return real_exec(dialog)
+        QDialog.exec=expected_reprint_exec
+        try:
+            QTimer.singleShot(100,complete_reprint);w.native_reprint()
+        finally:QDialog.exec=real_exec
+        check(guard.expected_shows==1,'exact_expected_reprint_dialog')
         check(len(api.issues())==2 and api.issues()[0]['source_issue_id']==first,'native_controlled_reprint');capture('08-reimpresion-controlada')
         check(json.loads(api.issues()[0]['selected_indices'])==[2,3],'original_reprint_numbers')
         check(api.issue(first)['design_snapshot_json']==issue['design_snapshot_json'],'historical_snapshot_preserved')
-        w.navigate('emission');w.load_emission_work(uid);check(w.preview_emission_work(),'issued_work_proof_for_geometry_review')
+        w.navigate('emission');w.load_emission_work(uid);check(preview(),'issued_work_proof_for_geometry_review')
         resolution=[]
         for width,height in [(1920,1080),(1366,768)]:
             scale=w.screen().devicePixelRatio();target=(int(width/scale)-16,int(height/scale)-44);w.resize(*target);app.processEvents()
@@ -107,10 +163,12 @@ def run(report,captures=None):
         result.update(ok=True,count=len(checks),checks=checks,resolution=resolution,captures=sorted(p.name for p in captures.glob('*.png')))
     except Exception:
         import traceback
-        result.update(ok=False,checks=checks,error=traceback.format_exc());print(result['error'])
+        result.update(ok=False,checks=checks,error=traceback.format_exc(),unexpected_dialogs=unexpected);print(result['error'])
     finally:
-        timer.stop();QMessageBox.question=real_question;QMessageBox.warning=real_warning;QFileDialog.getSaveFileName=real_save
+        timer.stop();guard.close();QMessageBox.question=real_question;QMessageBox.warning=real_warning;QFileDialog.getSaveFileName=real_save
         w.work_dirty_panel=None;w.dirty=False
+        w.preview_timer.stop();w.preview_pending=False
+        if w.preview_task:w.preview_task.wait(30000);app.processEvents()
         if w.design:w.design.mark_clean()
         w.close();app.processEvents();session.close()
     report.parent.mkdir(parents=True,exist_ok=True);report.write_text(json.dumps(result,indent=2,ensure_ascii=False),encoding='utf-8')
