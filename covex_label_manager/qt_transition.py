@@ -11,6 +11,13 @@ class ActiveWork:
     dirty: bool = False
 
 class TransitionServices(LocalServices):
+    @property
+    def status_catalog(self):
+        from .status_catalog import StatusCatalogue
+        if not hasattr(self, '_status_catalogue'):
+            self._status_catalogue = StatusCatalogue(self._repository.root)
+        return self._status_catalogue
+
     def save_editor_layout(self, version_id, layout, expected, expected_source):
         return self._repository.save_pending_layout(version_id, layout, expected, expected_source)
 
