@@ -1,0 +1,982 @@
+[
+  {
+    "test": "tests/test_consolidation.py::test_defective_pdf_cannot_be_laundered_by_revision_or_name",
+    "line": 15
+  },
+  {
+    "test": "tests/test_consolidation.py::test_approval_and_clone_reject_tampered_master",
+    "line": 30
+  },
+  {
+    "test": "tests/test_consolidation.py::test_retired_ui_snapshot_cannot_emit",
+    "line": 42
+  },
+  {
+    "test": "tests/test_consolidation.py::test_pending_r1_only_test_pdf_then_explicit_approval",
+    "line": 55
+  },
+  {
+    "test": "tests/test_consolidation.py::test_reopen_preserves_all_controlled_data_and_single_r1",
+    "line": 68
+  },
+  {
+    "test": "tests/test_core.py::test_seed_cm_materials",
+    "line": 33
+  },
+  {
+    "test": "tests/test_core.py::test_paper_distribution_and_partial_sheets",
+    "line": 41
+  },
+  {
+    "test": "tests/test_core.py::test_synthetic_master_crop",
+    "line": 52
+  },
+  {
+    "test": "tests/test_core.py::test_original_is_immutable_and_test_watermark",
+    "line": 59
+  },
+  {
+    "test": "tests/test_core.py::test_approved_issuance_and_double_labels",
+    "line": 73
+  },
+  {
+    "test": "tests/test_core.py::test_source_integrity",
+    "line": 108
+  },
+  {
+    "test": "tests/test_core.py::test_approval_closed_customer_pdf",
+    "line": 116
+  },
+  {
+    "test": "tests/test_core.py::test_validation_blocks_missing_and_small",
+    "line": 129
+  },
+  {
+    "test": "tests/test_core.py::test_word_import_as_pdf_if_converter_exists",
+    "line": 140
+  },
+  {
+    "test": "tests/test_core.py::test_import_name_parsing",
+    "line": 147
+  },
+  {
+    "test": "tests/test_core.py::test_persist_store_and_audit",
+    "line": 154
+  },
+  {
+    "test": "tests/test_core.py::test_calibration_sheet_marks",
+    "line": 166
+  },
+  {
+    "test": "tests/test_editor_layout.py::test_recrop_preserves_absolute_special_geometry_and_original",
+    "line": 24
+  },
+  {
+    "test": "tests/test_editor_layout.py::test_recrop_exclusion_is_atomic",
+    "line": 34
+  },
+  {
+    "test": "tests/test_editor_layout.py::test_alignment_keeps_special_geometry_relative_to_field",
+    "line": 42
+  },
+  {
+    "test": "tests/test_editor_layout.py::test_distribution_and_locked_selection",
+    "line": 50
+  },
+  {
+    "test": "tests/test_editor_layout.py::test_proportional_transform_includes_erase_continuation_and_status",
+    "line": 58
+  },
+  {
+    "test": "tests/test_editor_layout.py::test_locked_absolute_geometry_can_be_recropped_but_not_deleted_or_moved",
+    "line": 68
+  },
+  {
+    "test": "tests/test_editor_layout.py::test_complete_history_save_point_and_redo_branch",
+    "line": 77
+  },
+  {
+    "test": "tests/test_editor_layout.py::test_invalid_geometry_is_not_added_to_history",
+    "line": 86
+  },
+  {
+    "test": "tests/test_editor_layout.py::test_anchor_identity_ambiguity_offset_and_source_guard",
+    "line": 92
+  },
+  {
+    "test": "tests/test_editor_layout.py::test_service_save_is_atomic_and_detects_external_crop_change",
+    "line": 104
+  },
+  {
+    "test": "tests/test_emission_work.py::test_restart_cas_copy_incomplete_and_no_issue",
+    "line": 26
+  },
+  {
+    "test": "tests/test_emission_work.py::test_os_lock_cross_process_and_death_releases",
+    "line": 39
+  },
+  {
+    "test": "tests/test_emission_work.py::test_atomic_failure_corruption_previous_and_backup",
+    "line": 50
+  },
+  {
+    "test": "tests/test_emission_work.py::test_interrupted_emission_reconciles_once",
+    "line": 71
+  },
+  {
+    "test": "tests/test_emission_work.py::test_document_change_pending_retired_and_refresh",
+    "line": 92
+  },
+  {
+    "test": "tests/test_emission_work.py::test_tk_persistence_wraps_legacy_methods",
+    "line": 107
+  },
+  {
+    "test": "tests/test_emission_work.py::test_unknown_contract_symlink_and_no_rollback_of_issued",
+    "line": 114
+  },
+  {
+    "test": "tests/test_emission_work.py::test_real_process_exit_during_issue",
+    "line": 129
+  },
+  {
+    "test": "tests/test_emission_work.py::test_schema_unchanged_and_document_withdrawn_after_render",
+    "line": 156
+  },
+  {
+    "test": "tests/test_emission_work.py::test_canonical_unicode_work_matches_document_and_render",
+    "line": 171
+  },
+  {
+    "test": "tests/test_emission_work.py::test_backup_excludes_concurrent_work_cutover",
+    "line": 187
+  },
+  {
+    "test": "tests/test_emission_work_qt.py::test_autosave_restart_panels_and_document_identity",
+    "line": 21
+  },
+  {
+    "test": "tests/test_emission_work_qt.py::test_stale_autosave_keeps_screen_and_requires_explicit_reload",
+    "line": 44
+  },
+  {
+    "test": "tests/test_emission_work_tk.py::test_tk_autosave_restart_handoff_cas_and_close_guard",
+    "line": 9
+  },
+  {
+    "test": "tests/test_mass_units.py::test_mass_accepts_optional_kg_without_changing_numeric_meaning",
+    "line": 16
+  },
+  {
+    "test": "tests/test_mass_units.py::test_invalid_or_non_kg_units_are_rejected",
+    "line": 24
+  },
+  {
+    "test": "tests/test_mass_units.py::test_gross_vs_net_compares_kilograms_in_all_notations",
+    "line": 28
+  },
+  {
+    "test": "tests/test_mass_units.py::test_excel_import_keeps_original_unit_and_supports_overrides",
+    "line": 35
+  },
+  {
+    "test": "tests/test_mass_units.py::test_word_master_field_keeps_approved_kg_suffix_once",
+    "line": 44
+  },
+  {
+    "test": "tests/test_mass_units.py::test_field_without_document_suffix_can_render_explicit_kg",
+    "line": 56
+  },
+  {
+    "test": "tests/test_mass_units.py::test_mass_numeric_text_does_not_mutate_text_without_kg",
+    "line": 66
+  },
+  {
+    "test": "tests/test_migration_consent.py::test_no_implicit_migration_and_cancel_is_read_only",
+    "line": 17
+  },
+  {
+    "test": "tests/test_migration_consent.py::test_recovery_does_not_silently_reauthorize_legacy",
+    "line": 37
+  },
+  {
+    "test": "tests/test_migration_consent.py::test_qt_startup_uses_cancel_default_and_accepts_only_yes",
+    "line": 54
+  },
+  {
+    "test": "tests/test_migration_consent.py::test_tk_startup_cancel_then_accept_and_reopen",
+    "line": 75
+  },
+  {
+    "test": "tests/test_migration_v4.py::test_canonical_vectors",
+    "line": 32
+  },
+  {
+    "test": "tests/test_migration_v4.py::test_preserve_backup_restore",
+    "line": 45
+  },
+  {
+    "test": "tests/test_migration_v4.py::test_interrupt_each_phase",
+    "line": 66
+  },
+  {
+    "test": "tests/test_migration_v4.py::test_racing_old_creator_preserved",
+    "line": 77
+  },
+  {
+    "test": "tests/test_migration_v4.py::test_unknown_and_corruption_abort",
+    "line": 87
+  },
+  {
+    "test": "tests/test_migration_v4.py::test_failed_ddl_transaction_rolls_back",
+    "line": 98
+  },
+  {
+    "test": "tests/test_migration_v4.py::test_backup_corruption_rejected",
+    "line": 110
+  },
+  {
+    "test": "tests/test_migration_v4.py::test_missing_barrier_future_schema_and_changed_schema",
+    "line": 116
+  },
+  {
+    "test": "tests/test_migration_v4.py::test_new_issue_cannot_omit_snapshot_at_sql_boundary",
+    "line": 123
+  },
+  {
+    "test": "tests/test_migration_v4.py::test_backup_includes_evidence_and_hashes",
+    "line": 135
+  },
+  {
+    "test": "tests/test_migration_v4.py::test_backup_failure_and_disk_full_leave_legacy_untouched",
+    "line": 146
+  },
+  {
+    "test": "tests/test_migration_v4.py::test_sqlite_backup_includes_uncheckpointed_wal",
+    "line": 155
+  },
+  {
+    "test": "tests/test_migration_v4.py::test_migration_audit_recovered_exactly_once",
+    "line": 169
+  },
+  {
+    "test": "tests/test_migration_v4.py::test_windows_refuses_existing_old_sqlite_reader",
+    "line": 180
+  },
+  {
+    "test": "tests/test_publication.py::test_packaging_refuses_default_and_alternate_data",
+    "line": 7
+  },
+  {
+    "test": "tests/test_publication.py::test_packaging_refuses_sqlite_in_arbitrary_directory",
+    "line": 14
+  },
+  {
+    "test": "tests/test_publication.py::test_empty_distribution_reuses_existing_instance",
+    "line": 20
+  },
+  {
+    "test": "tests/test_publication.py::test_new_distribution_has_empty_library",
+    "line": 39
+  },
+  {
+    "test": "tests/test_publication.py::test_legacy_r1_can_be_derived_only_from_intact_local_source",
+    "line": 49
+  },
+  {
+    "test": "tests/test_r1.py::test_r1_number_inside_true_outer_frame_and_sources_preserved",
+    "line": 9
+  },
+  {
+    "test": "tests/test_r1.py::test_safety_and_actual_ascender_block_generation",
+    "line": 31
+  },
+  {
+    "test": "tests/test_r1.py::test_safety_profile_persisted",
+    "line": 44
+  },
+  {
+    "test": "tests/test_r2.py::test_combined_search_filters_metadata_and_document_state",
+    "line": 9
+  },
+  {
+    "test": "tests/test_r2.py::test_favorites_recent_specific_revision_and_uids_survive_restart",
+    "line": 25
+  },
+  {
+    "test": "tests/test_r2.py::test_services_hide_sqlite_and_backup_retains_catalog",
+    "line": 40
+  },
+  {
+    "test": "tests/test_r2.py::test_metadata_requires_source_and_does_not_change_approved_design",
+    "line": 56
+  },
+  {
+    "test": "tests/test_r2.py::test_upgrade_from_legacy_schema_preserves_custom_fields_and_profile",
+    "line": 69
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_filter_preference_and_hidden_summary",
+    "line": 19
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_three_actions_have_documentary_states",
+    "line": 31
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_open_editor_is_not_emission",
+    "line": 38
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_dirty_work_persists_navigation_and_saves",
+    "line": 44
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_cancel_revision_change_retains_dirty_work",
+    "line": 53
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_stale_documentary_state_blocks_saved_work",
+    "line": 60
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_metadata_source_validation_and_persistence",
+    "line": 68
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_clone_is_pending_and_approval_retires_previous",
+    "line": 75
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_integrity_blocks_bridge_before_process",
+    "line": 85
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_bridge_selects_same_data_and_explicit_test",
+    "line": 94
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_import_pdf_remains_pending",
+    "line": 104
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_missing_metadata_is_not_invented",
+    "line": 111
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_native_add_remove_and_identifiers",
+    "line": 119
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_approval_dialog_cancel_does_not_approve",
+    "line": 132
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_guarded_ui_approval_and_clone",
+    "line": 139
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_native_approval_requires_confirmation_and_keeps_state_on_cancel",
+    "line": 157
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_compact_auto_fold_does_not_forget_manual_preference",
+    "line": 173
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_enter_opens_only_from_table_not_search",
+    "line": 184
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_save_state_tracks_dirty_work_and_legacy_lock",
+    "line": 194
+  },
+  {
+    "test": "tests/test_r3a_qt.py::test_disabled_prepare_click_cannot_open_legacy",
+    "line": 206
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_geometry_undo_redo_save_and_navigation",
+    "line": 14
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_crop_status_one_command_and_atomic_exclusion",
+    "line": 25
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_stale_status_and_integrity_are_blocked",
+    "line": 38
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_locked_numeric_multi_alignment_and_template_cannot_move",
+    "line": 46
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_canvas_and_list_keep_multiple_selection",
+    "line": 58
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_graphical_drag_is_one_command_and_undo",
+    "line": 67
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_anchor_saved_and_relocatable_without_schema_change",
+    "line": 77
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_native_crop_dialog_coordinate_selection",
+    "line": 86
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_proof_uses_engine_and_never_saves_design_or_issues",
+    "line": 97
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_retired_and_companion_block_new_editor_operations",
+    "line": 107
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_unrecognized_template_does_not_fall_back_to_another_document",
+    "line": 118
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_pdf_baseline_matches_editor_coordinates_and_physical_scale",
+    "line": 124
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_status_dialog_commits_and_undo_recovers_entire_design",
+    "line": 146
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_crop_dialog_cancellation_does_not_change_design",
+    "line": 155
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_output_dialog_opens_with_real_sheet_plan",
+    "line": 161
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_representative_payloads_after_layout_changes",
+    "line": 173
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_pdf_rejects_overflow_after_layout_changes",
+    "line": 206
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_saved_pending_layout_survives_window_and_database_reopen",
+    "line": 229
+  },
+  {
+    "test": "tests/test_r3b1_qt.py::test_relocation_confirmation_and_scale_descriptions",
+    "line": 268
+  },
+  {
+    "test": "tests/test_r3c_emission_qt.py::test_native_preview_export_cancel_issue_and_recovery",
+    "line": 20
+  },
+  {
+    "test": "tests/test_r3c_emission_qt.py::test_changed_after_confirmation_and_tampered_preview_block",
+    "line": 45
+  },
+  {
+    "test": "tests/test_r3c_emission_qt.py::test_inline_checks_pending_invalid_format_and_long_fields",
+    "line": 58
+  },
+  {
+    "test": "tests/test_r3c_emission_qt.py::test_format_ratio_restore_profile_and_multiline_preservation",
+    "line": 68
+  },
+  {
+    "test": "tests/test_r3c_emission_qt.py::test_native_failure_reconciliation_and_no_duplicate",
+    "line": 84
+  },
+  {
+    "test": "tests/test_r3c_emission_qt.py::test_editor_pdf_summary_is_readable_and_close_translated",
+    "line": 101
+  },
+  {
+    "test": "tests/test_r3c_emission_qt.py::test_compact_centre_keeps_work_actions_and_pdf_controls",
+    "line": 116
+  },
+  {
+    "test": "tests/test_r3c_history.py::test_reprint_proof_original_numbers_and_document_snapshot",
+    "line": 23
+  },
+  {
+    "test": "tests/test_r3c_history.py::test_reprint_rejects_invalid_ranges_and_reason",
+    "line": 38
+  },
+  {
+    "test": "tests/test_r3c_history.py::test_history_integrity_state_concurrency_and_registration_failure",
+    "line": 45
+  },
+  {
+    "test": "tests/test_r3c_history.py::test_legacy_null_requires_ack_and_is_not_retrofilled",
+    "line": 59
+  },
+  {
+    "test": "tests/test_r3c_history.py::test_origin_changed_between_render_and_transaction_is_blocked",
+    "line": 69
+  },
+  {
+    "test": "tests/test_r3c_history.py::test_schema_and_master_history_unchanged_by_native_services",
+    "line": 80
+  },
+  {
+    "test": "tests/test_r3c_history.py::test_reprint_error_after_commit_keeps_registered_pdf_and_reconciles",
+    "line": 90
+  },
+  {
+    "test": "tests/test_r3c_history_qt.py::test_native_history_view_and_reprint_confirmation",
+    "line": 9
+  },
+  {
+    "test": "tests/test_r3d_settings_qt.py::test_settings_is_native_without_launching_tk",
+    "line": 11
+  },
+  {
+    "test": "tests/test_r3d_settings_qt.py::test_operator_validation_and_backup_are_native",
+    "line": 25
+  },
+  {
+    "test": "tests/test_r3d_settings_qt.py::test_cm_import_no_delete_and_duplicates",
+    "line": 46
+  },
+  {
+    "test": "tests/test_r3d_settings_qt.py::test_pending_status_never_autoapproves",
+    "line": 63
+  },
+  {
+    "test": "tests/test_r3d_settings_qt.py::test_dark_os_modal_styles_have_light_explicit_background",
+    "line": 81
+  },
+  {
+    "test": "tests/test_r3d_settings_qt.py::test_legacy_transition_keeps_all_87_feature_ids",
+    "line": 89
+  },
+  {
+    "test": "tests/test_r3e_layout.py::test_historical_a4_arithmetic_exact",
+    "line": 25
+  },
+  {
+    "test": "tests/test_r3e_layout.py::test_actual_pdf_box_geometry_and_pagination",
+    "line": 45
+  },
+  {
+    "test": "tests/test_r3e_layout.py::test_unknown_contracts_fail_closed",
+    "line": 65
+  },
+  {
+    "test": "tests/test_r3e_layout.py::test_collisions_limits_and_copy_limit",
+    "line": 69
+  },
+  {
+    "test": "tests/test_r3e_layout.py::test_profiles_cas_hash_and_backup",
+    "line": 77
+  },
+  {
+    "test": "tests/test_r3e_layout.py::test_work_restart_proof_issue_and_reprint",
+    "line": 88
+  },
+  {
+    "test": "tests/test_r3e_layout.py::test_backup_restores_work_profiles_and_conflicting_writer",
+    "line": 99
+  },
+  {
+    "test": "tests/test_r3e_layout.py::test_corrupt_layout_profile_is_isolated_without_silent_repair",
+    "line": 119
+  },
+  {
+    "test": "tests/test_r3e_qt.py::test_create_field_by_button_draw_save_reopen_and_undo",
+    "line": 14
+  },
+  {
+    "test": "tests/test_r3e_qt.py::test_eight_field_handles_mouse_resize_is_single_command",
+    "line": 27
+  },
+  {
+    "test": "tests/test_r3e_qt.py::test_sheet_mouse_geometry_undo_cancel_and_errors",
+    "line": 38
+  },
+  {
+    "test": "tests/test_r3e_qt.py::test_approved_revision_only_offers_variant",
+    "line": 53
+  },
+  {
+    "test": "tests/test_r3e_qt.py::test_designer_applies_by_repository_and_invalidates_pdf",
+    "line": 61
+  },
+  {
+    "test": "tests/test_r3e_qt.py::test_sheet_light_palette_even_with_dark_application",
+    "line": 72
+  },
+  {
+    "test": "tests/test_r3e_qt.py::test_sheet_canvas_keeps_calibration_offsets_in_mm",
+    "line": 82
+  },
+  {
+    "test": "tests/test_r3e_qt.py::test_designer_proof_rejects_document_changed_while_open",
+    "line": 96
+  },
+  {
+    "test": "tests/test_r3e_qt.py::test_corrupt_visual_profile_does_not_prevent_native_windows",
+    "line": 111
+  },
+  {
+    "test": "tests/test_r3e_qt.py::test_mass_fields_accept_kg_in_native_work_without_altering_saved_text",
+    "line": 130
+  },
+  {
+    "test": "tests/test_r3e_qt.py::test_approved_field_adjustment_guides_to_draft_variant",
+    "line": 152
+  },
+  {
+    "test": "tests/test_r3e_qt.py::test_guided_field_adjustment_prefills_identity_and_requires_reason",
+    "line": 172
+  },
+  {
+    "test": "tests/test_r3f_qt.py::test_native_comparison_does_not_mutate_document",
+    "line": 11
+  },
+  {
+    "test": "tests/test_r3f_qt.py::test_compare_prevents_same_revision",
+    "line": 26
+  },
+  {
+    "test": "tests/test_r3f_qt.py::test_folder_import_creates_only_pending_and_counts_failures",
+    "line": 35
+  },
+  {
+    "test": "tests/test_r3f_qt.py::test_folder_import_cancel_does_not_rollback_committed",
+    "line": 51
+  },
+  {
+    "test": "tests/test_r4a_layout.py::test_new_slot_mask_skips_only_first_sheet_and_preserves_sequence",
+    "line": 21
+  },
+  {
+    "test": "tests/test_r4a_layout.py::test_start_slot_and_occupied_are_orthogonal",
+    "line": 34
+  },
+  {
+    "test": "tests/test_r4a_layout.py::test_occupation_invalid_shapes_fail_closed",
+    "line": 45
+  },
+  {
+    "test": "tests/test_r4a_layout.py::test_refuse_fully_occupied_first_page_and_incompatible_legacy",
+    "line": 50
+  },
+  {
+    "test": "tests/test_r4a_layout.py::test_legacy_a4_layout_unchanged_with_no_occupation",
+    "line": 60
+  },
+  {
+    "test": "tests/test_r4a_layout.py::test_pdf_skips_used_boxes_but_preserves_number_and_pages",
+    "line": 69
+  },
+  {
+    "test": "tests/test_r4a_qt.py::test_used_slots_picker_and_undo_and_cancel",
+    "line": 11
+  },
+  {
+    "test": "tests/test_r4a_qt.py::test_used_slots_picker_marks_start_slot_unavailable",
+    "line": 36
+  },
+  {
+    "test": "tests/test_r4b_calibration.py::test_reference_minus_measured_applies_correct_sign",
+    "line": 13
+  },
+  {
+    "test": "tests/test_r4b_calibration.py::test_mismatched_profile_refuses_emission",
+    "line": 24
+  },
+  {
+    "test": "tests/test_r4b_calibration.py::test_nonfinite_measurements_rejected",
+    "line": 33
+  },
+  {
+    "test": "tests/test_r4b_calibration.py::test_large_correction_and_blank_printer_blocked",
+    "line": 38
+  },
+  {
+    "test": "tests/test_r4b_calibration.py::test_legacy_profile_unmodified",
+    "line": 45
+  },
+  {
+    "test": "tests/test_r4b_calibration.py::test_versioned_profile_accepts_measured_negative_offset_within_paper",
+    "line": 50
+  },
+  {
+    "test": "tests/test_r4b_calibration.py::test_missing_or_invalid_calibration_contract_fails_closed",
+    "line": 64
+  },
+  {
+    "test": "tests/test_r4b_calibration.py::test_calibration_signature_includes_both_offsets_and_detects_drift",
+    "line": 71
+  },
+  {
+    "test": "tests/test_r4b_calibration.py::test_versioned_calibration_rejects_shift_outside_paper",
+    "line": 81
+  },
+  {
+    "test": "tests/test_r4b_qt.py::test_native_calibration_applies_offset_without_modifying_input",
+    "line": 9
+  },
+  {
+    "test": "tests/test_r4b_qt.py::test_calibration_dialog_versioned_profile_negative_shift",
+    "line": 25
+  },
+  {
+    "test": "tests/test_r4c_dispatch.py::test_preflight_from_registered_snapshot_is_read_only",
+    "line": 28
+  },
+  {
+    "test": "tests/test_r4c_dispatch.py::test_used_sheet_requires_explicit_operator_check",
+    "line": 37
+  },
+  {
+    "test": "tests/test_r4c_dispatch.py::test_unverifiable_documents_are_never_dispatched",
+    "line": 46
+  },
+  {
+    "test": "tests/test_r4c_dispatch.py::test_printer_name_and_physical_paper_are_checked",
+    "line": 60
+  },
+  {
+    "test": "tests/test_r4c_dispatch.py::test_raster_memory_and_resolution_guard",
+    "line": 76
+  },
+  {
+    "test": "tests/test_r4c_qt.py::test_no_production_print_from_draft",
+    "line": 10
+  },
+  {
+    "test": "tests/test_r4c_qt.py::test_registered_emission_and_history_share_verified_print",
+    "line": 20
+  },
+  {
+    "test": "tests/test_r4c_qt.py::test_tampered_history_pdf_blocks_before_driver",
+    "line": 41
+  },
+  {
+    "test": "tests/test_r5a_catalog.py::test_inventory_uses_hash_and_only_reads",
+    "line": 17
+  },
+  {
+    "test": "tests/test_r5a_catalog.py::test_export_includes_all_versions_and_integrity",
+    "line": 30
+  },
+  {
+    "test": "tests/test_r5a_catalog.py::test_corrupt_asset_aborts_export_without_output",
+    "line": 44
+  },
+  {
+    "test": "tests/test_r5a_catalog.py::test_export_cannot_write_inside_data",
+    "line": 53
+  },
+  {
+    "test": "tests/test_r5a_catalog.py::test_inventory_identifies_repeated_identity_without_modification",
+    "line": 59
+  },
+  {
+    "test": "tests/test_r5b_migration.py::test_controlled_pending_add_and_rerun_rejected",
+    "line": 19
+  },
+  {
+    "test": "tests/test_r5b_migration.py::test_pair_preserves_word_original_and_pdf",
+    "line": 27
+  },
+  {
+    "test": "tests/test_r5b_migration.py::test_new_revision_existing_target_and_no_state_change",
+    "line": 36
+  },
+  {
+    "test": "tests/test_r5b_migration.py::test_changed_file_and_path_escape_blocked",
+    "line": 44
+  },
+  {
+    "test": "tests/test_r5b_migration.py::test_intra_batch_same_hash_flagged",
+    "line": 50
+  },
+  {
+    "test": "tests/test_r5b_migration.py::test_known_hash_and_existing_name_blocked",
+    "line": 56
+  },
+  {
+    "test": "tests/test_r5c_qt.py::test_master_wizard_maps_and_filters_without_mutations",
+    "line": 8
+  },
+  {
+    "test": "tests/test_r5c_reconciliation.py::test_coverage_missing_revision_and_app_only",
+    "line": 32
+  },
+  {
+    "test": "tests/test_r5c_reconciliation.py::test_status_and_metadata_discrepancies",
+    "line": 49
+  },
+  {
+    "test": "tests/test_r5c_reconciliation.py::test_formula_injection_escaped_and_archive_checks_sha",
+    "line": 66
+  },
+  {
+    "test": "tests/test_r5c_reconciliation.py::test_duplicate_invalid_and_mapping_guard",
+    "line": 83
+  },
+  {
+    "test": "tests/test_r5c_reconciliation.py::test_minimal_xlsx_shared_text_and_numeric_revision_is_blocked",
+    "line": 96
+  },
+  {
+    "test": "tests/test_r5c_reconciliation.py::test_export_blocks_db_location_and_stale_catalog",
+    "line": 122
+  },
+  {
+    "test": "tests/test_r6a_acceptance.py::test_no_approval_even_when_integrity_passes",
+    "line": 10
+  },
+  {
+    "test": "tests/test_r6a_acceptance.py::test_corrupt_master_blocks_stale_export",
+    "line": 17
+  },
+  {
+    "test": "tests/test_r6a_acceptance.py::test_export_integrity_and_never_overwrite",
+    "line": 23
+  },
+  {
+    "test": "tests/test_r6a_qt.py::test_r6a_native_dialog_is_explicit_and_non_approving",
+    "line": 5
+  },
+  {
+    "test": "tests/test_r6b_qt.py::test_r6b_qt_open_and_explicit_failure",
+    "line": 16
+  },
+  {
+    "test": "tests/test_r6b_qt.py::test_r6b_qt_pass_requires_evidence",
+    "line": 36
+  },
+  {
+    "test": "tests/test_r6b_session.py::test_verified_origin_and_pending_by_default",
+    "line": 11
+  },
+  {
+    "test": "tests/test_r6b_session.py::test_evidence_and_generations",
+    "line": 17
+  },
+  {
+    "test": "tests/test_r6b_session.py::test_origin_tamper_and_no_overwrite",
+    "line": 28
+  },
+  {
+    "test": "tests/test_regressions_v02.py::test_lot_prefix_checked_without_state",
+    "line": 12
+  },
+  {
+    "test": "tests/test_regressions_v02.py::test_status_date_rejects_invalid",
+    "line": 18
+  },
+  {
+    "test": "tests/test_regressions_v02.py::test_paste_rejects_duplicate_vessels",
+    "line": 23
+  },
+  {
+    "test": "tests/test_regressions_v02.py::test_first_word_moves_below_caption",
+    "line": 28
+  },
+  {
+    "test": "tests/test_regressions_v02.py::test_long_conservation_blocks_overflow",
+    "line": 38
+  },
+  {
+    "test": "tests/test_regressions_v02.py::test_crop_change_preserves_absolute_anchors",
+    "line": 43
+  },
+  {
+    "test": "tests/test_regressions_v02.py::test_migration_backup_keeps_legacy_schema",
+    "line": 55
+  },
+  {
+    "test": "tests/test_v02.py::test_seed_uses_synthetic_documents_and_pending_statuses",
+    "line": 48
+  },
+  {
+    "test": "tests/test_v02.py::test_geometries_derive_from_word_positions",
+    "line": 60
+  },
+  {
+    "test": "tests/test_v02.py::test_integrated_colored_states_all_three",
+    "line": 73
+  },
+  {
+    "test": "tests/test_v02.py::test_two_vessels_different_lots_and_weights_and_two_copies",
+    "line": 92
+  },
+  {
+    "test": "tests/test_v02.py::test_status_only_in_a4_and_original_status_source_preserved",
+    "line": 110
+  },
+  {
+    "test": "tests/test_v02.py::test_approval_required_for_original_and_status",
+    "line": 125
+  },
+  {
+    "test": "tests/test_v02.py::test_status_asset_integrity_and_empty_status_region",
+    "line": 147
+  },
+  {
+    "test": "tests/test_v02.py::test_mass_validation_with_european_commas",
+    "line": 162
+  },
+  {
+    "test": "tests/test_v02.py::test_paste_excel_tsv_and_semicolon_csv",
+    "line": 175
+  },
+  {
+    "test": "tests/test_v02.py::test_old_database_adds_columns_and_preserves_fields",
+    "line": 184
+  },
+  {
+    "test": "tests/test_v02.py::test_reprint_retains_per_vessel_and_status_exactly",
+    "line": 204
+  },
+  {
+    "test": "tests/test_variants_v4.py::test_coexistence_freeze_derivation_and_evidence",
+    "line": 33
+  },
+  {
+    "test": "tests/test_variants_v4.py::test_stale_generation_and_transactional_audit",
+    "line": 51
+  },
+  {
+    "test": "tests/test_variants_v4.py::test_emission_snapshots_legacy_and_variant",
+    "line": 66
+  },
+  {
+    "test": "tests/test_variants_v4.py::test_retired_between_render_and_register_and_pdf_tamper",
+    "line": 85
+  },
+  {
+    "test": "tests/test_variants_v4.py::test_backup_restore_contains_approval_evidence",
+    "line": 97
+  },
+  {
+    "test": "tests/test_variants_v4.py::test_pending_parent_cannot_approve_and_changed_evidence_blocks",
+    "line": 106
+  },
+  {
+    "test": "tests/test_variants_v4.py::test_variant_geometry_matches_pdf_without_changing_source",
+    "line": 117
+  },
+  {
+    "test": "tests/test_variants_v4.py::test_reprint_uses_snapshot_and_original_number_link",
+    "line": 133
+  },
+  {
+    "test": "tests/test_variants_v4.py::test_nominal_format_is_persistent_and_independent_of_print_profile",
+    "line": 143
+  },
+  {
+    "test": "tests/test_variants_v4.py::test_duplicate_identifier_and_missing_evidence_are_domain_errors",
+    "line": 155
+  }
+]
