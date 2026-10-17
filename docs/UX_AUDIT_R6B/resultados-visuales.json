@@ -1,0 +1,1210 @@
+[
+  {
+    "configuration": "1366x768_1",
+    "captures": 51,
+    "errors": [],
+    "observations": {
+      "approval_accesses": [
+        "Documentos y aprobación externa",
+        "Registrar aprobación de revisión…"
+      ],
+      "preview_ok": true,
+      "issue_enabled_after_preview": true,
+      "menus": [
+        [
+          {
+            "text": "Ficha completa",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Abrir PDF maestro",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Abrir documento original",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Editar metadatos con fuente",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Crear nueva revisión documental",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Registrar aprobación externa",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Importar PDF / Word",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Inventariar carpeta… (R5A)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Importar carpeta…",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Exportar catálogo completo… (R5A)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Conciliar libro máster… (R5C)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Comparar revisiones…",
+            "enabled": true,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Tipo",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Origen",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Cliente",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "País",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Restablecer adaptación automática",
+            "enabled": true,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Elementos y herramientas",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Propiedades",
+            "enabled": true,
+            "checkable": true
+          }
+        ],
+        [
+          {
+            "text": "Crear variante desde esta revisión",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Derivar variante seleccionada",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Tamaño nominal reutilizable",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Enviar a revisión",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Devolver a borrador",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Registrar aprobación externa",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Retirar / cancelar variante",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Comparar revisión y variante",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Consultar evidencia",
+            "enabled": false,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Recuperar trabajo…",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Actualizar vínculo documental…",
+            "enabled": true,
+            "checkable": false
+          }
+        ]
+      ],
+      "dock_visible_in_settings": true,
+      "revisions_variants_opens_legacy_catalog": true,
+      "sql_version": "see migration_v4 tests"
+    },
+    "oversized_windows": []
+  },
+  {
+    "configuration": "1366x768_1.25",
+    "captures": 51,
+    "errors": [],
+    "observations": {
+      "approval_accesses": [
+        "Documentos y aprobación externa",
+        "Registrar aprobación de revisión…"
+      ],
+      "preview_ok": true,
+      "issue_enabled_after_preview": true,
+      "menus": [
+        [
+          {
+            "text": "Ficha completa",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Abrir PDF maestro",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Abrir documento original",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Editar metadatos con fuente",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Crear nueva revisión documental",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Registrar aprobación externa",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Importar PDF / Word",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Inventariar carpeta… (R5A)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Importar carpeta…",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Exportar catálogo completo… (R5A)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Conciliar libro máster… (R5C)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Comparar revisiones…",
+            "enabled": true,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Tipo",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Origen",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Cliente",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "País",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Restablecer adaptación automática",
+            "enabled": true,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Elementos y herramientas",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Propiedades",
+            "enabled": true,
+            "checkable": true
+          }
+        ],
+        [
+          {
+            "text": "Crear variante desde esta revisión",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Derivar variante seleccionada",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Tamaño nominal reutilizable",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Enviar a revisión",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Devolver a borrador",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Registrar aprobación externa",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Retirar / cancelar variante",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Comparar revisión y variante",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Consultar evidencia",
+            "enabled": false,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Recuperar trabajo…",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Actualizar vínculo documental…",
+            "enabled": true,
+            "checkable": false
+          }
+        ]
+      ],
+      "dock_visible_in_settings": true,
+      "revisions_variants_opens_legacy_catalog": true,
+      "sql_version": "see migration_v4 tests"
+    },
+    "oversized_windows": [
+      {
+        "id": "dynamic-10",
+        "title": "Formato físico y prueba PDF",
+        "actual_logical": [
+          690,
+          607
+        ],
+        "limit": [
+          1092,
+          574
+        ]
+      },
+      {
+        "id": "33-conciliar-master",
+        "title": "R5C · Conciliación con libro máster (solo lectura)",
+        "actual_logical": [
+          1068,
+          676
+        ],
+        "limit": [
+          1092,
+          574
+        ]
+      }
+    ]
+  },
+  {
+    "configuration": "1366x768_1.5",
+    "captures": 51,
+    "errors": [],
+    "observations": {
+      "approval_accesses": [
+        "Documentos y aprobación externa",
+        "Registrar aprobación de revisión…"
+      ],
+      "preview_ok": true,
+      "issue_enabled_after_preview": true,
+      "menus": [
+        [
+          {
+            "text": "Ficha completa",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Abrir PDF maestro",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Abrir documento original",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Editar metadatos con fuente",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Crear nueva revisión documental",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Registrar aprobación externa",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Importar PDF / Word",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Inventariar carpeta… (R5A)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Importar carpeta…",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Exportar catálogo completo… (R5A)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Conciliar libro máster… (R5C)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Comparar revisiones…",
+            "enabled": true,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Tipo",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Origen",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Cliente",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "País",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Restablecer adaptación automática",
+            "enabled": true,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Elementos y herramientas",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Propiedades",
+            "enabled": true,
+            "checkable": true
+          }
+        ],
+        [
+          {
+            "text": "Crear variante desde esta revisión",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Derivar variante seleccionada",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Tamaño nominal reutilizable",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Enviar a revisión",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Devolver a borrador",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Registrar aprobación externa",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Retirar / cancelar variante",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Comparar revisión y variante",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Consultar evidencia",
+            "enabled": false,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Recuperar trabajo…",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Actualizar vínculo documental…",
+            "enabled": true,
+            "checkable": false
+          }
+        ]
+      ],
+      "dock_visible_in_settings": true,
+      "revisions_variants_opens_legacy_catalog": true,
+      "sql_version": "see migration_v4 tests"
+    },
+    "oversized_windows": [
+      {
+        "id": "dynamic-10",
+        "title": "Formato físico y prueba PDF",
+        "actual_logical": [
+          690,
+          607
+        ],
+        "limit": [
+          910,
+          472
+        ]
+      },
+      {
+        "id": "32-sesion-uat",
+        "title": "R6B · Pruebas presenciales y evidencias",
+        "actual_logical": [
+          886,
+          554
+        ],
+        "limit": [
+          910,
+          472
+        ]
+      },
+      {
+        "id": "32b-sesion-uat-casos",
+        "title": "R6B · Pruebas presenciales y evidencias",
+        "actual_logical": [
+          886,
+          554
+        ],
+        "limit": [
+          910,
+          472
+        ]
+      },
+      {
+        "id": "33-conciliar-master",
+        "title": "R5C · Conciliación con libro máster (solo lectura)",
+        "actual_logical": [
+          886,
+          676
+        ],
+        "limit": [
+          910,
+          472
+        ]
+      }
+    ]
+  },
+  {
+    "configuration": "1920x1080_1",
+    "captures": 51,
+    "errors": [],
+    "observations": {
+      "approval_accesses": [
+        "Documentos y aprobación externa",
+        "Registrar aprobación de revisión…"
+      ],
+      "preview_ok": true,
+      "issue_enabled_after_preview": true,
+      "menus": [
+        [
+          {
+            "text": "Ficha completa",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Abrir PDF maestro",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Abrir documento original",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Editar metadatos con fuente",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Crear nueva revisión documental",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Registrar aprobación externa",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Importar PDF / Word",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Inventariar carpeta… (R5A)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Importar carpeta…",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Exportar catálogo completo… (R5A)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Conciliar libro máster… (R5C)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Comparar revisiones…",
+            "enabled": true,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Tipo",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Origen",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Cliente",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "País",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Restablecer adaptación automática",
+            "enabled": true,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Elementos y herramientas",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Propiedades",
+            "enabled": true,
+            "checkable": true
+          }
+        ],
+        [
+          {
+            "text": "Crear variante desde esta revisión",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Derivar variante seleccionada",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Tamaño nominal reutilizable",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Enviar a revisión",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Devolver a borrador",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Registrar aprobación externa",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Retirar / cancelar variante",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Comparar revisión y variante",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Consultar evidencia",
+            "enabled": false,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Recuperar trabajo…",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Actualizar vínculo documental…",
+            "enabled": true,
+            "checkable": false
+          }
+        ]
+      ],
+      "dock_visible_in_settings": true,
+      "revisions_variants_opens_legacy_catalog": true,
+      "sql_version": "see migration_v4 tests"
+    },
+    "oversized_windows": []
+  },
+  {
+    "configuration": "1920x1080_1.25",
+    "captures": 51,
+    "errors": [],
+    "observations": {
+      "approval_accesses": [
+        "Documentos y aprobación externa",
+        "Registrar aprobación de revisión…"
+      ],
+      "preview_ok": true,
+      "issue_enabled_after_preview": true,
+      "menus": [
+        [
+          {
+            "text": "Ficha completa",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Abrir PDF maestro",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Abrir documento original",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Editar metadatos con fuente",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Crear nueva revisión documental",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Registrar aprobación externa",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Importar PDF / Word",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Inventariar carpeta… (R5A)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Importar carpeta…",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Exportar catálogo completo… (R5A)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Conciliar libro máster… (R5C)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Comparar revisiones…",
+            "enabled": true,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Tipo",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Origen",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Cliente",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "País",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Restablecer adaptación automática",
+            "enabled": true,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Elementos y herramientas",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Propiedades",
+            "enabled": true,
+            "checkable": true
+          }
+        ],
+        [
+          {
+            "text": "Crear variante desde esta revisión",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Derivar variante seleccionada",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Tamaño nominal reutilizable",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Enviar a revisión",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Devolver a borrador",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Registrar aprobación externa",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Retirar / cancelar variante",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Comparar revisión y variante",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Consultar evidencia",
+            "enabled": false,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Recuperar trabajo…",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Actualizar vínculo documental…",
+            "enabled": true,
+            "checkable": false
+          }
+        ]
+      ],
+      "dock_visible_in_settings": true,
+      "revisions_variants_opens_legacy_catalog": true,
+      "sql_version": "see migration_v4 tests"
+    },
+    "oversized_windows": []
+  },
+  {
+    "configuration": "1920x1080_1.5",
+    "captures": 51,
+    "errors": [],
+    "observations": {
+      "approval_accesses": [
+        "Documentos y aprobación externa",
+        "Registrar aprobación de revisión…"
+      ],
+      "preview_ok": true,
+      "issue_enabled_after_preview": true,
+      "menus": [
+        [
+          {
+            "text": "Ficha completa",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Abrir PDF maestro",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Abrir documento original",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Editar metadatos con fuente",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Crear nueva revisión documental",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Registrar aprobación externa",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Importar PDF / Word",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Inventariar carpeta… (R5A)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Importar carpeta…",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Exportar catálogo completo… (R5A)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Conciliar libro máster… (R5C)",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Comparar revisiones…",
+            "enabled": true,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Tipo",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Origen",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Cliente",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "País",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Restablecer adaptación automática",
+            "enabled": true,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Elementos y herramientas",
+            "enabled": true,
+            "checkable": true
+          },
+          {
+            "text": "Propiedades",
+            "enabled": true,
+            "checkable": true
+          }
+        ],
+        [
+          {
+            "text": "Crear variante desde esta revisión",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Derivar variante seleccionada",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Tamaño nominal reutilizable",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Enviar a revisión",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Devolver a borrador",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Registrar aprobación externa",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Retirar / cancelar variante",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Comparar revisión y variante",
+            "enabled": false,
+            "checkable": false
+          },
+          {
+            "text": "Consultar evidencia",
+            "enabled": false,
+            "checkable": false
+          }
+        ],
+        [
+          {
+            "text": "Recuperar trabajo…",
+            "enabled": true,
+            "checkable": false
+          },
+          {
+            "text": "Actualizar vínculo documental…",
+            "enabled": true,
+            "checkable": false
+          }
+        ]
+      ],
+      "dock_visible_in_settings": true,
+      "revisions_variants_opens_legacy_catalog": true,
+      "sql_version": "see migration_v4 tests"
+    },
+    "oversized_windows": []
+  }
+]
