@@ -107,6 +107,13 @@ class AdaptiveDialog(QDialog):
         self.fit_available()
         super().showEvent(event)
 
+    def setVisible(self, visible):
+        # Establish QObject/layout ownership before Qt enters native show/event
+        # handling (including QDialog.exec), not while processing showEvent.
+        if visible:
+            self.prepare_layout()
+        super().setVisible(visible)
+
 
 def accessible_form(form):
     """Expose explicit field names as well as Qt's native form associations."""

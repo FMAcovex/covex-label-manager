@@ -218,3 +218,25 @@ def test_preview_fit_is_non_reentrant_and_zoom_retains_scrolling(studio,monkeypa
     view.fit();app.processEvents()
     assert view.auto_fit and abs(view.transform().m11()-view.transform().m22())<1e-9
     assert view.mapToScene(view.viewport().rect()).boundingRect().contains(view.sceneRect())
+
+
+@pytest.mark.parametrize('modal',[False,True])
+def test_adaptive_dialog_owns_content_before_native_show(studio,modal):
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QVBoxLayout,QLineEdit,QDialogButtonBox,QSplitter
+    from covex_label_manager.qt_ui.responsive import AdaptiveDialog
+    w,s,app=studio;seen=[]
+    class Probe(AdaptiveDialog):
+        def showEvent(self,event):
+            seen.append(getattr(self,'_adaptive_ready',False))
+            super().showEvent(event)
+    dialog=Probe(w);layout=QVBoxLayout(dialog)
+    splitter=QSplitter();splitter.addWidget(QLineEdit('Synthetic'))
+    layout.addWidget(splitter)
+    layout.addWidget(QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel))
+    if modal:
+        QTimer.singleShot(0,dialog.reject);dialog.exec()
+    else:
+        dialog.show();app.processEvents();dialog.reject()
+    assert seen==[True]
+    assert dialog.content_scroll.widget().isAncestorOf(splitter)

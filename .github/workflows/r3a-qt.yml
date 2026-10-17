@@ -70,18 +70,6 @@ jobs:
           python -m pip install --require-hashes --only-binary=:all:
           -r requirements-windows.lock -r requirements-qt-windows.lock
       - run: python -m pip check
-      - name: Qt and migration-consent regression (core/Tk covered in Windows job)
-        timeout-minutes: 6
-        run: >-
-          python -m pytest -q -o faulthandler_timeout=60 --junitxml=test-results/qt.xml
-          tests/test_r3a_qt.py tests/test_r3b1_qt.py tests/test_emission_work_qt.py
-          tests/test_r3c_emission_qt.py tests/test_r3c_history_qt.py tests/test_r3d_settings_qt.py
-          tests/test_migration_consent.py tests/test_r3e_layout.py tests/test_r3e_qt.py tests/test_r3f_qt.py
-          tests/test_r4a_layout.py tests/test_r4a_qt.py tests/test_r4b_calibration.py tests/test_r4b_qt.py
-          tests/test_r4c_dispatch.py tests/test_r4c_qt.py tests/test_r5a_catalog.py
-          tests/test_r5b_migration.py tests/test_r5c_reconciliation.py tests/test_r5c_qt.py
-          tests/test_r6a_acceptance.py tests/test_r6a_qt.py
-          tests/test_r6b_session.py tests/test_r6b_qt.py tests/test_r6b_ux_qt.py
       - name: Interact with real Qt widgets and capture fictional windows
         shell: pwsh
         env:
@@ -100,6 +88,18 @@ jobs:
             if (!$check.ok -or $check.count -ne 86) { throw "Qt source interaction check incomplete at $scale" }
           }
           Remove-Item Env:QT_SCALE_FACTOR
+      - name: Qt and migration-consent regression (core/Tk covered in Windows job)
+        timeout-minutes: 6
+        run: >-
+          python -m pytest -q -o faulthandler_timeout=60 --junitxml=test-results/qt.xml
+          tests/test_r3a_qt.py tests/test_r3b1_qt.py tests/test_emission_work_qt.py
+          tests/test_r3c_emission_qt.py tests/test_r3c_history_qt.py tests/test_r3d_settings_qt.py
+          tests/test_migration_consent.py tests/test_r3e_layout.py tests/test_r3e_qt.py tests/test_r3f_qt.py
+          tests/test_r4a_layout.py tests/test_r4a_qt.py tests/test_r4b_calibration.py tests/test_r4b_qt.py
+          tests/test_r4c_dispatch.py tests/test_r4c_qt.py tests/test_r5a_catalog.py
+          tests/test_r5b_migration.py tests/test_r5c_reconciliation.py tests/test_r5c_qt.py
+          tests/test_r6a_acceptance.py tests/test_r6a_qt.py
+          tests/test_r6b_session.py tests/test_r6b_qt.py tests/test_r6b_ux_qt.py
       - name: R6B integrated UX at both viewports and three Qt scales
         shell: pwsh
         run: |
