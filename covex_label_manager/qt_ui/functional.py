@@ -47,6 +47,8 @@ class BaseFunctionalWindow(StudioWindow):
         old=layout.takeAt(layout.count()-1)
         if old and old.widget():old.widget().deleteLater()
         row=QHBoxLayout();row.addWidget(self.prepare_button);row.addWidget(self.test_button);layout.addLayout(row)
+        self.native_approval_button=button('Registrar aprobación de revisión…',self.approve_revision)
+        self.inspector.layout().insertWidget(self.inspector.layout().count()-1,self.native_approval_button)
         self.inspector.setMinimumHeight(550)
         return page
     def update_filter_summary(self):
@@ -91,6 +93,10 @@ class BaseFunctionalWindow(StudioWindow):
         test_ok,test_reason=self.api.eligibility(vid,False) if vid else (False,'Seleccione una revisión.')
         self.prepare_button.setEnabled(ok and not busy);self.prepare_button.setToolTip(reason or 'Abrir emisión en la versión anterior, con esta revisión.')
         self.test_button.setEnabled(test_ok and not busy);self.test_button.setToolTip(test_reason or 'Abrir preparación de prueba en la versión anterior. No registra emisión definitiva.')
+        if hasattr(self,'native_approval_button'):
+            pending=bool(vid and self.api.version(vid)['state']=='PENDING')
+            self.native_approval_button.setEnabled(pending and not busy)
+            self.native_approval_button.setToolTip('Registrar una aprobación documental externa existente.' if pending else 'Seleccione una revisión pendiente.')
         if hasattr(self,'save_button'):
             editable=self.current_editor_id is not None and self.api.version(self.current_editor_id)['state']=='PENDING'
             self.save_button.setEnabled(self.dirty and not busy and editable)
@@ -175,13 +181,17 @@ class BaseFunctionalWindow(StudioWindow):
             vid=self.api.clone_version(self.row['version_id'],values['version'],values['notes']);self.reset_filters();self.select_version(vid);return vid
         self.mutate(create)
     def approve_revision(self):
-        if not self.row or not self.resolve_work():return
-        vid=self.row['version_id'];version=self.api.version(vid)
-        if version['state']!='PENDING':QMessageBox.information(self,'Estado documental','Solo pueden registrarse aprobaciones de revisiones pendientes.');return
-        values=self.ask_form('Registrar aprobación documental externa',[('reviewer','Responsable',''),('evidence','Referencia documental aprobada','')])
-        if not values:return
-        if QMessageBox.question(self,'Confirmar registro',f'Registrar aprobación externa de {version["name"]} / {version["version"]}?\nRetirará la revisión vigente anterior. No equivale a firma electrónica.')!=QMessageBox.StandardButton.Yes:return
-        self.mutate(lambda:self.api.approve(vid,values['reviewer'],values['evidence']))
+        if not self.row or not self.resolve_work() or self.legacy_process:return
+        version=self.api.version(self.row['version_id'])
+        if version['state']!='PENDING':
+            QMessageBox.information(self,'Estado documental',
+                'Solo pueden registrarse aprobaciones de revisiones pendientes.');return
+        from .revision_approval import RevisionApprovalDialog
+        dialog=RevisionApprovalDialog(self,self.api,version)
+        if dialog.exec()==QDialog.DialogCode.Accepted:
+            self.refresh_facets();self.refresh();self.select_version(version['id'])
+            self.recheck_actions()
+            self.statusBar().showMessage('Aprobación documental externa registrada. Revise historial y estado.',7000)
     def import_document(self):
         path,_=QFileDialog.getOpenFileName(self,'Importar documento local','','PDF / Word (*.pdf *.docx)')
         if not path:return
