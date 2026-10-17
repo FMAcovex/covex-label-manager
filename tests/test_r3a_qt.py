@@ -130,18 +130,44 @@ def test_native_add_remove_and_identifiers(studio,monkeypatch):
     w.remove_field();assert len(w.fields)==before and w.save_work()
 
 def test_approval_dialog_cancel_does_not_approve(studio,monkeypatch):
+    from covex_label_manager.qt_ui.revision_approval import RevisionApprovalDialog
+    from PySide6.QtWidgets import QDialog
     w,s,app=studio;vid=w.row['version_id']
-    monkeypatch.setattr(w,'ask_form',lambda *a,**k:{'reviewer':'Demo reviewer','evidence':'Fictional approval reference'})
-    monkeypatch.setattr(QMessageBox,'question',lambda *a,**k:QMessageBox.StandardButton.No)
+    monkeypatch.setattr(RevisionApprovalDialog,'exec',lambda self:QDialog.DialogCode.Rejected)
     w.approve_revision();assert s.services.version(vid)['state']=='PENDING'
 
 def test_guarded_ui_approval_and_clone(studio,monkeypatch):
+    from covex_label_manager.qt_ui.revision_approval import RevisionApprovalDialog
+    from PySide6.QtWidgets import QDialog
     w,s,app=studio;vid=w.row['version_id']
-    monkeypatch.setattr(w,'ask_form',lambda *a,**k:{'reviewer':'Demo reviewer','evidence':'Fictional approval reference'})
-    monkeypatch.setattr(QMessageBox,'question',lambda *a,**k:QMessageBox.StandardButton.Yes)
+    def approve(dialog):
+        dialog.reviewer.setText('Demo reviewer')
+        dialog.reference.setText('Fictional approval reference')
+        assert not dialog.accept_button.isEnabled()
+        dialog.confirm.setChecked(True)
+        assert dialog.accept_button.isEnabled()
+        monkeypatch.setattr(QMessageBox,'question',lambda *a,**k:QMessageBox.StandardButton.Yes)
+        dialog.commit()
+        return dialog.result()
+    monkeypatch.setattr(RevisionApprovalDialog,'exec',approve)
     w.approve_revision();assert s.services.version(vid)['state']=='APPROVED'
     monkeypatch.setattr(w,'ask_form',lambda *a,**k:{'version':'fictional-R1','notes':'Fictional clone review'})
     w.clone_revision();assert w.row['version']=='fictional-R1' and w.row['state']=='PENDING'
+
+def test_native_approval_requires_confirmation_and_keeps_state_on_cancel(studio,monkeypatch):
+    from covex_label_manager.qt_ui.revision_approval import RevisionApprovalDialog
+    w,s,app=studio;vid=w.row['version_id']
+    dialog=RevisionApprovalDialog(w,s.services,s.services.version(vid))
+    assert not dialog.accept_button.isEnabled()
+    dialog.reviewer.setText('Synthetic reviewer')
+    dialog.reference.setText('Evidence document for demonstration')
+    assert not dialog.accept_button.isEnabled()
+    dialog.confirm.setChecked(True);assert dialog.accept_button.isEnabled()
+    monkeypatch.setattr(QMessageBox,'question',lambda *a,**k:QMessageBox.StandardButton.Cancel)
+    dialog.commit()
+    assert s.services.version(vid)['state']=='PENDING'
+    dialog.close()
+
 
 
 def test_compact_auto_fold_does_not_forget_manual_preference(studio):
