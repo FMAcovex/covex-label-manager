@@ -240,3 +240,72 @@ def test_adaptive_dialog_owns_content_before_native_show(studio,modal):
         dialog.show();app.processEvents();dialog.reject()
     assert seen==[True]
     assert dialog.content_scroll.widget().isAncestorOf(splitter)
+
+
+def test_screen_wrappers_survive_collection_and_registration_is_idempotent(studio):
+    import gc
+    from shiboken6 import isValid
+    from covex_label_manager.qt_ui.responsive import retain_screens
+    w,s,app=studio
+    retained=app._covex_screens
+    retain_screens(app)
+    assert app._covex_screens is retained and retained
+    for _ in range(3):
+        gc.collect()
+        assert all(isValid(screen) for screen in retained)
+        assert w.screen() in retained
+
+
+def test_screen_retention_refreshes_on_hotplug():
+    from covex_label_manager.qt_ui.responsive import retain_screens
+    class Signal:
+        def connect(self,callback):self.callback=callback
+        def emit(self):self.callback()
+    class App:
+        def __init__(self):
+            self.current=[object()];self.screenAdded=Signal();self.screenRemoved=Signal()
+        def screens(self):return self.current[:]
+    app=App();retain_screens(app);retained=app._covex_screens
+    other=object();app.current.append(other);app.screenAdded.emit()
+    assert app._covex_screens is retained and retained==app.current
+    app.current.remove(other);app.screenRemoved.emit()
+    assert retained==app.current and other not in retained
+
+
+def test_dialog_bounds_do_not_borrow_screen_from_transient_widget(studio,monkeypatch):
+    from PySide6.QtWidgets import QVBoxLayout,QLabel
+    from covex_label_manager.qt_ui.responsive import AdaptiveDialog
+    w,s,app=studio;dialog=AdaptiveDialog(w)
+    QVBoxLayout(dialog).addWidget(QLabel('Synthetic'))
+    def forbidden():raise AssertionError('Do not borrow QScreen from the dialog')
+    monkeypatch.setattr(dialog,'screen',forbidden)
+    dialog.fit_available()
+    assert dialog.width()>0 and dialog.height()>0
+
+
+def test_full_widget_check_survives_collection_between_native_dialogs(tmp_path):
+    import json
+    from pathlib import Path
+    import subprocess
+    import sys
+    report=tmp_path/'synthetic-screen-lifetime.json'
+    code='''
+import gc,sys
+import main_qt
+from covex_label_manager.qt_ui.responsive import AdaptiveDialog
+original=AdaptiveDialog.prepare_layout
+def prepare(self):
+    gc.collect()
+    result=original(self)
+    gc.collect()
+    return result
+AdaptiveDialog.prepare_layout=prepare
+sys.argv=['main_qt.py','--self-check',sys.argv[1]]
+sys.exit(main_qt.main())
+'''
+    result=subprocess.run([sys.executable,'-u','-X','faulthandler','-c',code,str(report)],
+        cwd=Path(__file__).resolve().parents[1],capture_output=True,text=True,timeout=90)
+    assert result.returncode==0,result.stdout+'\n'+result.stderr
+    assert report.exists(),result.stdout+'\n'+result.stderr
+    data=json.loads(report.read_text(encoding='utf-8'))
+    assert data['ok'] and data['count']==86

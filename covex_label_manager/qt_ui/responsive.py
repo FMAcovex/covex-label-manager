@@ -1,16 +1,36 @@
 """Qt-only presentation helpers; no document, database or emission decisions."""
-from PySide6.QtCore import QSize, QTranslator, QLibraryInfo
+from PySide6.QtCore import QSize, QPoint, QTranslator, QLibraryInfo
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QAbstractButton, QWidget,
     QVBoxLayout, QScrollArea, QSizePolicy, QLayout, QFormLayout, QLineEdit,
-    QComboBox, QPlainTextEdit, QAbstractSpinBox)
+    QComboBox, QPlainTextEdit, QAbstractSpinBox, QApplication)
 
 
 def install_translation(app):
+    retain_screens(app)
     if not hasattr(app, '_covex_standard_buttons'):
         translator=QTranslator(app)
         translator.load('qtbase_es',QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath))
         app._covex_standard_buttons=translator
         if not translator.isEmpty():app.installTranslator(translator)
+
+
+def retain_screens(app):
+    """Keep PySide QScreen wrappers alive for the QApplication's lifetime.
+
+    In PySide 6.8.3 a collected transient QWidget.screen() wrapper can delete
+    the native QScreen while Qt still lists it. A subsequent QWidget then
+    crashes in QScreen::virtualSiblings. Track hotplug without owning/deleting
+    monitors or changing their geometry, DPI or resolution.
+    """
+    if not hasattr(app, '_covex_screens'):
+        app._covex_screens = []
+        def refresh(*_):
+            app._covex_screens[:] = app.screens()
+        app.screenAdded.connect(refresh)
+        app.screenRemoved.connect(refresh)
+    # QWidget destruction may invalidate an existing wrapper; reacquire the
+    # current application-owned wrappers, rather than retaining a stale list.
+    app._covex_screens[:] = app.screens()
 
 
 def translate_buttons(root):
@@ -47,6 +67,7 @@ class AdaptiveDialog(QDialog):
     The wrapping is deferred until show so dynamically built dialogs are complete.
     """
     def prepare_layout(self):
+        retain_screens(QApplication.instance())
         if getattr(self, '_adaptive_ready', False) or self.layout() is None:
             return
         self._adaptive_ready = True
@@ -96,7 +117,13 @@ class AdaptiveDialog(QDialog):
 
     def fit_available(self, size=None):
         self.prepare_layout()
-        available = size or self.screen().availableGeometry().size() - QSize(24, 48)
+        if size is None:
+            # QWidget.screen() binds the wrapper to this transient dialog in
+            # PySide 6.8.3. Query via QApplication, whose lifetime is stable.
+            screen = QApplication.screenAt(self.mapToGlobal(QPoint(self.width()//2,self.height()//2))) or QApplication.primaryScreen()
+            available = screen.availableGeometry().size() - QSize(24, 48)
+        else:
+            available = size
         wanted=self.width()
         if hasattr(self,'content_scroll'):
             margins=self.layout().contentsMargins()
