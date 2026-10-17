@@ -165,30 +165,17 @@ class StatusManagerMixin:
                         )
                         if choice != QMessageBox.StandardButton.Yes:
                             continue
-                        page, ok = QInputDialog.getInt(
-                            self, "Página de " + NAMES[kind], "Página (comienza en 1):",
-                            1, 1, len(doc))
-                        if not ok:
+                        from .status_crop_dialog import StatusCropDialog
+                        crop_dialog = StatusCropDialog(
+                            self.api, converted, NAMES[kind], self)
+                        if crop_dialog.exec() != QDialog.DialogCode.Accepted:
                             return
-                        rect = doc[page - 1].rect
-                        values = []
-                        for prompt, default, maximum in (
-                            ("Inicio horizontal X (puntos PDF)", rect.x0, rect.x1),
-                            ("Inicio vertical Y (puntos PDF)", rect.y0, rect.y1),
-                            ("Final horizontal X (puntos PDF)", rect.x1, rect.x1),
-                            ("Final vertical Y (puntos PDF)", rect.y1, rect.y1),
-                        ):
-                            val, ok = QInputDialog.getDouble(
-                                self, "Recorte: " + NAMES[kind], prompt,
-                                float(default), 0, float(maximum), 2)
-                            if not ok:
-                                return
-                            values.append(val)
+                        page_index, values = crop_dialog.selection()
                         revision, ok = QInputDialog.getText(
                             self, "Revisión documental", "Revisión autorizada de " + NAMES[kind] + ":")
                         if not ok:
                             return
-                        proposed = make_layout(converted, kind, page-1, values)
+                        proposed = make_layout(converted, kind, page_index, values)
                         entries.append({"kind": kind, "revision": revision.strip(), "layout": proposed})
                 if entries:
                     response = QMessageBox.question(
