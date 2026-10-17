@@ -94,6 +94,11 @@ jobs:
             if (!$check.ok -or $check.count -ne 86) { throw "Qt source interaction check incomplete at $scale" }
           }
           Remove-Item Env:QT_SCALE_FACTOR
+      - name: Windows acceptance regressions before the full Qt suite
+        timeout-minutes: 4
+        run: >-
+          python -m pytest -q -o faulthandler_timeout=60
+          --junitxml=test-results/acceptance-fixes.xml tests/test_r6b_acceptance_fixes_qt.py
       - name: Qt and migration-consent regression (core/Tk covered in Windows job)
         timeout-minutes: 8
         run: >-
@@ -106,7 +111,7 @@ jobs:
           tests/test_r5b_migration.py tests/test_r5c_reconciliation.py tests/test_r5c_qt.py
           tests/test_r6a_acceptance.py tests/test_r6a_qt.py
           tests/test_r6b_session.py tests/test_r6b_qt.py tests/test_r6b_ux_qt.py
-          tests/test_r6b_acceptance_fixes_qt.py tests/test_mass_units.py
+          tests/test_mass_units.py
           tests/test_preview_render.py
       - name: Importer close process regression at three native Windows scales
         shell: pwsh

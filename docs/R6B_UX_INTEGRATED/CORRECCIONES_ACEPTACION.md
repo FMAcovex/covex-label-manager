@@ -63,6 +63,8 @@ Los PNG completos y JSON se conservan en el artefacto de CI (`test-results/accep
 
 La evidencia local usa Linux/Xorg dummy/Qt 6.8.3 y tamaños lógicos derivados; no equivale a cambiar físicamente el DPI de Windows. CI repite estas vistas en Windows, además del gate integrado anterior. La validación física, Word/Office real, lector de pantalla, impresión y aprobación GMP siguen pendientes.
 
+La primera regresión Windows (`891b52e`, ejecución `39072306034`) detectó un mínimo nativo de 453 px frente al límite de 424 px. Se corrige con scroll **solo del cuerpo de cada paso**, dejando encabezado, confirmación y acciones fuera; se conserva el límite de aceptación y se añade una prueba con tipografía ampliada. Dos aserciones de lote detectaron además U+00AD en la extracción de Arial: se normaliza a guion, igual que las pruebas R3C existentes, sin cambiar datos, fuentes ni PDF aprobados. Se exige el lote más reciente y la ausencia de los anteriores; no se eliminan comprobaciones.
+
 ## Comprobación y aceptación del nuevo portable
 
 Consultar [la guía](PRUEBAS_Y_PORTABLE.md) y el resultado CI del commit entregado. Tras descargar y extraer completamente el nuevo ZIP:

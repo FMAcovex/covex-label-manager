@@ -4,7 +4,8 @@ import uuid
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (QFileDialog,QMessageBox,QComboBox,QTableWidget,
     QTableWidgetItem,QHeaderView,QAbstractItemView,QProgressBar,QHBoxLayout,
-    QDialogButtonBox,QLineEdit,QFormLayout,QStackedWidget,QWidget,QCheckBox,QApplication)
+    QDialogButtonBox,QLineEdit,QFormLayout,QStackedWidget,QWidget,QCheckBox,QApplication,
+    QScrollArea,QSizePolicy)
 from .window import vbox,label,button
 from .responsive import AdaptiveDialog as QDialog,retain_screens
 
@@ -28,7 +29,12 @@ class ControlledImportDialog(QDialog):
         self.queue=[];self.imported=[];self.editor_version_id=None;self.close_when_stopped=False
         self.setWindowTitle('Importar carpeta · Asistente documental');self.resize(1050,650)
         layout=vbox(self);self.heading=label('1 · Seleccionar carpeta','panelTitle');layout.addWidget(self.heading)
-        self.pages=QStackedWidget();layout.addWidget(self.pages,1)
+        self.pages=QStackedWidget()
+        self.page_scroll=QScrollArea();self.page_scroll.setWidgetResizable(True)
+        self.page_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        self.page_scroll.setMinimumSize(0,40)
+        self.page_scroll.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Ignored)
+        self.page_scroll.setWidget(self.pages);layout.addWidget(self.page_scroll,1)
         first=QWidget();fl=vbox(first,0,6)
         note=label('Seleccione una carpeta local. No se modifica ningún original ni se aprueba documentación.','subtle');note.setWordWrap(True);fl.addWidget(note)
         self.folder_path=QLineEdit();self.folder_path.setReadOnly(True);self.folder_path.setAccessibleName('Carpeta seleccionada');fl.addWidget(self.folder_path)
@@ -68,8 +74,12 @@ class ControlledImportDialog(QDialog):
         self.stop_button=button('Detener tras archivo actual',self.stop);bar.addWidget(self.stop_button)
         bar.addStretch();self.close_button=button('Cerrar',self.close_requested);bar.addWidget(self.close_button);footer.addLayout(bar)
         self.timer=QTimer(self);self.timer.setSingleShot(True);self.timer.timeout.connect(self.step)
-        self.pages.currentChanged.connect(self.update_buttons)
+        self.pages.currentChanged.connect(self.step_changed)
         if folder is not None:self.set_folder(folder)
+        self.update_buttons()
+
+    def step_changed(self,*_):
+        self.page_scroll.verticalScrollBar().setValue(0)
         self.update_buttons()
 
     def update_buttons(self,*_):
@@ -82,15 +92,17 @@ class ControlledImportDialog(QDialog):
         QTimer.singleShot(0,self.fit_footer)
 
     def prepare_layout(self):
-        # This wizard already has scrollable tables and its own persistent
-        # footer. Do not wrap the whole stack in another height-for-width scroll
-        # area: changing pages can otherwise push footer children off-screen.
+        # Only the step body scrolls. The heading and footer never enter it;
+        # native Windows font metrics may require more height than Linux.
         retain_screens(QApplication.instance())
         self._adaptive_ready=True;self.footer_widgets=[self.wizard_footer]
         self.setMinimumSize(0,0)
 
     def fit_footer(self):
         """Reserve wrapped status + all actions, not just QWidget's one-line hint."""
+        compact=self.height()<520
+        self.layout().setContentsMargins(*([10]*4 if compact else [18]*4))
+        self.layout().setSpacing(4 if compact else 12)
         margins=self.layout().contentsMargins()
         width=max(100,self.width()-margins.left()-margins.right())
         footer_layout=self.wizard_footer.layout();footer_layout.invalidate()

@@ -11,7 +11,25 @@
 <g fill="#f3f6f7" fill-opacity="1" stroke="none" transform="matrix(1,0,0,1,0,0)"
 font-family="Segoe UI" font-size="13" font-weight="400" font-style="normal"
 >
-<rect x="0" y="0" width="1050" height="650"/>
+<rect x="0" y="0" width="1050" height="51"/>
+</g>
+
+<g fill="#f3f6f7" fill-opacity="1" stroke="none" transform="matrix(1,0,0,1,0,0)"
+font-family="Segoe UI" font-size="13" font-weight="400" font-style="normal"
+>
+<rect x="0" y="51" width="18" height="517"/>
+</g>
+
+<g fill="#f3f6f7" fill-opacity="1" stroke="none" transform="matrix(1,0,0,1,0,0)"
+font-family="Segoe UI" font-size="13" font-weight="400" font-style="normal"
+>
+<rect x="1032" y="51" width="18" height="517"/>
+</g>
+
+<g fill="#f3f6f7" fill-opacity="1" stroke="none" transform="matrix(1,0,0,1,0,0)"
+font-family="Segoe UI" font-size="13" font-weight="400" font-style="normal"
+>
+<rect x="0" y="568" width="1050" height="82"/>
 </g>
 
 <g fill="none" stroke="#223b40" stroke-opacity="1" stroke-width="1" stroke-linecap="square" stroke-linejoin="bevel" transform="matrix(1,0,0,1,0,0)"
@@ -51,6 +69,17 @@ font-family="Segoe UI" font-size="18" font-weight="700" font-style="normal"
 >
 <text fill="#223b40" fill-opacity="1" stroke="none" xml:space="preserve" x="0" y="16.7188" font-family="Segoe UI" font-size="18" font-weight="700" font-style="normal"
  >1 · Seleccionar carpeta</text>
+</g>
+
+<g fill="none" stroke="#000000" stroke-opacity="1" stroke-width="1" stroke-linecap="square" stroke-linejoin="bevel" transform="matrix(1,0,0,1,0,0)"
+font-family="Sans Serif" font-size="9" font-weight="400" font-style="normal"
+>
+</g>
+
+<g fill="#f3f6f7" fill-opacity="1" stroke="none" transform="matrix(1,0,0,1,18,51)"
+font-family="Segoe UI" font-size="13" font-weight="400" font-style="normal"
+>
+<rect x="0" y="0" width="1014" height="517"/>
 </g>
 
 <g fill="none" stroke="#000000" stroke-opacity="1" stroke-width="1" stroke-linecap="square" stroke-linejoin="bevel" transform="matrix(1,0,0,1,0,0)"
@@ -198,7 +227,7 @@ font-family="Segoe UI" font-size="13" font-weight="400" font-style="normal"
 font-family="Segoe UI" font-size="13" font-weight="400" font-style="normal"
 >
 <text fill="#223b40" fill-opacity="1" stroke="none" xml:space="preserve" x="10" y="21.0625" font-family="Segoe UI" font-size="13" font-weight="400" font-style="normal"
- >/tmp/covex_qt_fictional_ikiath8m/SYNTHETIC Categoria sugerida</text>
+ >/tmp/covex_qt_fictional_gt_ak0ou/SYNTHETIC Categoria sugerida</text>
 </g>
 
 <g fill="none" stroke="#000000" stroke-opacity="1" stroke-width="1" stroke-linecap="square" stroke-linejoin="bevel" transform="matrix(1,0,0,1,0,0)"

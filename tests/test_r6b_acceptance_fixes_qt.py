@@ -21,6 +21,13 @@ def source(folder,name='SYNTHETIC 00.pdf'):
     return folder/name
 
 
+def pdf_text(path):
+    # Windows Arial maps the visible hyphen to U+00AD in PDF extraction, as
+    # covered in the existing R3C tests. Normalize encoding, not expected data.
+    with fitz.open(path) as pdf:
+        return ''.join(p.get_text() for p in pdf).replace('\xad','-').replace('\xa0',' ')
+
+
 def test_importers_close_in_real_application_process(tmp_path):
     repo=Path(__file__).resolve().parents[1];report=tmp_path/'report.json'
     run=subprocess.run([sys.executable,'-u','-X','faulthandler','main_qt.py','--import-check',str(report)],
@@ -68,6 +75,25 @@ def test_wizard_folder_identity_confirm_pending_summary_editor(studio,tmp_path,m
     assert path.read_bytes()==before and not s.services.issues()
     d.open_editor();assert d.editor_version_id==version['id']
     w.refresh();w.select_version(d.editor_version_id);w.open_editor();assert w.current_editor_id==version['id']
+
+
+@pytest.mark.parametrize('stage',['review','summary'])
+def test_wizard_large_font_body_scrolls_but_footer_stays_fixed(studio,tmp_path,stage):
+    w,s,app=studio;source(tmp_path)
+    w.setStyleSheet(w.styleSheet()+'\nQDialog QLabel, QDialog QAbstractButton, QDialog QComboBox { font-size:16px; }')
+    d=ControlledImportDialog(w,s.services,tmp_path);d.next_page()
+    d.review_path.setText('SYNTHETIC long folder description ' * 25)
+    d.show();d.fit_available(QSize(886,424));app.processEvents()
+    if stage=='summary':d.pages.setCurrentIndex(2);d.finish();d.fit_available(QSize(886,424));app.processEvents()
+    assert d.width()<=886 and d.height()<=424
+    assert d.page_scroll.widget() is d.pages and not d.page_scroll.isAncestorOf(d.wizard_footer)
+    assert all(f.mapTo(d,f.rect().bottomRight()).y()<d.height()
+               for f in d.wizard_footer.findChildren(QAbstractButton) if f.isVisibleTo(d))
+    if stage=='review':
+        scroll=d.page_scroll.verticalScrollBar();assert scroll.maximum()>0
+        scroll.setValue(scroll.maximum());d.previous_page();app.processEvents()
+        assert d.pages.currentIndex()==0 and scroll.value()==0
+    d.reject()
 
 
 def test_wizard_revision_target_and_safe_hash_rejection(studio,tmp_path,monkeypatch):
@@ -143,7 +169,9 @@ def test_automatic_preview_debounce_inputs_format_count_and_no_issue(studio):
         panel.value_inputs['lote'].setText(text);panel.changed();QTest.qWait(30)
     assert not w.native_issue.isEnabled() and w.work_preview is None
     await_preview(w)
-    with fitz.open(w.work_preview['path']) as pdf:assert 'SYNTHETIC-FINAL' in ''.join(p.get_text() for p in pdf)
+    text=pdf_text(w.work_preview['path'])
+    assert 'SYNTHETIC-FINAL' in text
+    assert 'SYNTHETIC-1' not in text and 'SYNTHETIC-2' not in text
     panel.inputs['count'].setText('2');panel.changed();await_preview(w)
     assert w.work_review['summary']['physical']==2
     panel.profile_inputs['gap_mm'].setText('4');panel.changed();await_preview(w)
@@ -173,7 +201,8 @@ def test_stale_async_result_is_discarded_and_next_request_runs(studio,monkeypatc
     assert w.preview_task is old and not w.issue_emission_work()
     await_preview(w)
     assert not path.exists() and w.preview_matches()
-    with fitz.open(w.work_preview['path']) as pdf:assert 'SYNTHETIC-NEWEST' in ''.join(p.get_text() for p in pdf)
+    text=pdf_text(w.work_preview['path'])
+    assert 'SYNTHETIC-NEWEST' in text and 'SYNTHETIC-AUTO' not in text
     assert not api.issues()
 
 
