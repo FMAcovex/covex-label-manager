@@ -7,7 +7,7 @@ import sys
 import fitz
 import pytest
 pytest.importorskip('PySide6')
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QSize,QTimer
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QDialog,QMessageBox,QLineEdit,QCheckBox,QAbstractButton
 from test_r3a_qt import studio
@@ -248,3 +248,20 @@ def test_preview_child_crash_blocks_issue_but_keeps_main_window(studio,monkeypat
     assert w.preview_task is None and w.isVisible() and w.work_preview is None
     assert not w.native_issue.isEnabled() and 'sin informe' in w.emission_pdf.note.text()
     assert not api.issues()
+
+
+def test_modal_watchdog_distinguishes_expected_reprint_from_unknown_child(studio):
+    from covex_label_manager.qt_ui.emission_checks import ModalGuard
+    w,s,app=studio;unexpected=[];guard=ModalGuard(unexpected)
+    expected=QDialog(w);expected.setWindowTitle('SYNTHETIC expected reprint')
+    try:
+        with guard.expect(expected):
+            QTimer.singleShot(0,guard.inspect);QTimer.singleShot(20,expected.accept)
+            assert expected.exec()==QDialog.DialogCode.Accepted
+        assert guard.expected_shows==1 and not unexpected
+        other=QMessageBox(expected);other.setWindowTitle('SYNTHETIC unknown modal');other.setText('SYNTHETIC failure')
+        with guard.expect(expected):
+            QTimer.singleShot(50,guard.inspect)
+            assert other.exec()==QDialog.DialogCode.Rejected
+        assert unexpected==['SYNTHETIC unknown modal SYNTHETIC failure']
+    finally:guard.close()

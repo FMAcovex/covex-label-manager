@@ -99,6 +99,17 @@ jobs:
         run: >-
           python -m pytest -q -o faulthandler_timeout=60
           --junitxml=test-results/acceptance-fixes.xml tests/test_r6b_acceptance_fixes_qt.py
+      - name: Native emission, history and reprint on actual Qt
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            python -u -X faulthandler main_qt.py --emission-check "test-results/r3c-source-$scale.json" --capture "test-results/r3c-source-$scale"
+            if ($LASTEXITCODE -ne 0) { if (Test-Path "test-results/r3c-source-$scale.json") { Get-Content "test-results/r3c-source-$scale.json" -Raw }; throw "R3C native source failed at $scale" }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
       - name: Qt and migration-consent regression (core/Tk covered in Windows job)
         timeout-minutes: 8
         run: >-
@@ -169,15 +180,6 @@ jobs:
         run: >-
           python main_qt.py --work-check test-results/r3b3-source.json
           --capture test-results/r3b3-source --verify-bridge
-      - name: Native emission, history and reprint on actual Qt
-        shell: pwsh
-        run: |
-          foreach ($scale in @('1', '1.25', '1.5')) {
-            $env:QT_SCALE_FACTOR = $scale
-            python main_qt.py --emission-check "test-results/r3c-source-$scale.json" --capture "test-results/r3c-source-$scale"
-            if ($LASTEXITCODE -ne 0) { throw "R3C native source failed at $scale" }
-          }
-          Remove-Item Env:QT_SCALE_FACTOR
       - name: R3E visual design proof on native Qt
         shell: pwsh
         run: |
@@ -264,7 +266,7 @@ jobs:
           $captures = Join-Path $env:RUNNER_TEMP 'r3c-packaged-captures'
           $process = Start-Process -FilePath dist/COVEXLabelManager_Qt/COVEXLabelManager_Qt.exe -ArgumentList @('--emission-check', $result, '--capture', $captures) -Wait -PassThru
           if (Test-Path $result) { Copy-Item $result test-results/r3c-packaged.json }
-          if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { throw 'Packaged R3C native emission failed' }
+          if ($process.ExitCode -ne 0 -or !(Test-Path $result)) { if (Test-Path $result) { Get-Content $result -Raw }; throw 'Packaged R3C native emission failed' }
           $check = Get-Content $result -Raw | ConvertFrom-Json
           if (!$check.ok -or $check.count -lt 31) { throw 'Packaged R3C contract incomplete' }
           Copy-Item $captures test-results/r3c-packaged -Recurse

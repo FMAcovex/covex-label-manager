@@ -4,13 +4,47 @@ import sys
 from pathlib import Path
 from datetime import date
 import fitz
+from contextlib import contextmanager
 from PySide6.QtWidgets import QApplication,QMessageBox,QFileDialog,QDialog,QLineEdit,QPushButton
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer,QObject,QEvent
 from PySide6.QtTest import QTest
 from .demo import DemoSession
 from .functional import FunctionalWindow
 from ..storage import sha256
 from ..canonical import digest
+
+
+class ModalGuard(QObject):
+    """Record every unknown modal, excluding only the exact expected dialog."""
+    def __init__(self,unexpected):
+        super().__init__(QApplication.instance())
+        self.unexpected=unexpected;self.expected=None;self.expected_shows=0
+        QApplication.instance().installEventFilter(self)
+
+    @contextmanager
+    def expect(self,dialog):
+        assert self.expected is None,'Only one expected modal at a time'
+        self.expected=dialog
+        try:yield
+        finally:self.expected=None
+
+    def record(self,modal):
+        message=modal.windowTitle()+' '+getattr(modal,'text',lambda:'')()
+        if message not in self.unexpected:self.unexpected.append(message)
+
+    def eventFilter(self,obj,event):
+        if event.type()==QEvent.Type.Show and isinstance(obj,QDialog) and obj.isModal():
+            if obj is self.expected:self.expected_shows+=1
+            else:
+                self.record(obj);QTimer.singleShot(0,obj.reject)
+        return False
+
+    def inspect(self):
+        modal=QApplication.activeModalWidget()
+        if modal is not None and modal is not self.expected:self.record(modal);modal.reject()
+
+    def close(self):
+        QApplication.instance().removeEventFilter(self);self.deleteLater()
 
 
 def run(report,captures=None):
@@ -19,12 +53,10 @@ def run(report,captures=None):
     report=Path(report);captures=Path(captures) if captures else report.parent/'r3c-captures';captures.mkdir(parents=True,exist_ok=True)
     result={'synthetic_only':True,'platform':sys.platform,'native_windows_monitor_acceptance':False};checks=[]
     real_question=QMessageBox.question;real_warning=QMessageBox.warning;real_save=QFileDialog.getSaveFileName;unexpected=[]
-    def watchdog():
-        modal=QApplication.activeModalWidget()
-        if modal:unexpected.append(modal.windowTitle()+' '+getattr(modal,'text',lambda:'')());modal.reject()
-    timer=QTimer();timer.timeout.connect(watchdog);timer.start(10000)
+    guard=ModalGuard(unexpected)
+    timer=QTimer();timer.timeout.connect(guard.inspect);timer.start(10000)
     def check(condition,name):
-        assert condition,name;checks.append(name)
+        assert condition,{'check':name,'unexpected_dialogs':unexpected};checks.append(name)
     def capture(name):
         app.processEvents();QTest.qWait(30);assert w.grab().save(str(captures/(name+'.png')))
     def pdf_words(path):
@@ -92,7 +124,16 @@ def run(report,captures=None):
             if not isinstance(dialog,QDialog):return
             fields=dialog.findChildren(QLineEdit);fields[0].setText('2-3');fields[1].setText('Rotura ficticia durante evaluación')
             next(b for b in dialog.findChildren(QPushButton) if b.text()=='Registrar reimpresión…').click()
-        QTimer.singleShot(100,complete_reprint);w.native_reprint()
+        real_exec=QDialog.exec
+        def expected_reprint_exec(dialog):
+            if dialog.parent() is w and dialog.windowTitle()=='Reimpresión controlada · #'+str(first):
+                with guard.expect(dialog):return real_exec(dialog)
+            return real_exec(dialog)
+        QDialog.exec=expected_reprint_exec
+        try:
+            QTimer.singleShot(100,complete_reprint);w.native_reprint()
+        finally:QDialog.exec=real_exec
+        check(guard.expected_shows==1,'exact_expected_reprint_dialog')
         check(len(api.issues())==2 and api.issues()[0]['source_issue_id']==first,'native_controlled_reprint');capture('08-reimpresion-controlada')
         check(json.loads(api.issues()[0]['selected_indices'])==[2,3],'original_reprint_numbers')
         check(api.issue(first)['design_snapshot_json']==issue['design_snapshot_json'],'historical_snapshot_preserved')
@@ -115,9 +156,9 @@ def run(report,captures=None):
         result.update(ok=True,count=len(checks),checks=checks,resolution=resolution,captures=sorted(p.name for p in captures.glob('*.png')))
     except Exception:
         import traceback
-        result.update(ok=False,checks=checks,error=traceback.format_exc());print(result['error'])
+        result.update(ok=False,checks=checks,error=traceback.format_exc(),unexpected_dialogs=unexpected);print(result['error'])
     finally:
-        timer.stop();QMessageBox.question=real_question;QMessageBox.warning=real_warning;QFileDialog.getSaveFileName=real_save
+        timer.stop();guard.close();QMessageBox.question=real_question;QMessageBox.warning=real_warning;QFileDialog.getSaveFileName=real_save
         w.work_dirty_panel=None;w.dirty=False
         w.preview_timer.stop();w.preview_pending=False
         if w.preview_task:w.preview_task.wait(30000);app.processEvents()
