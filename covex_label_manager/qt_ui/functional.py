@@ -7,6 +7,7 @@ from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QLineEdit,
     QDialog,QDialogButtonBox,QMessageBox,QFileDialog,QInputDialog,QMenu,QCheckBox,QPushButton,QLabel)
 from .window import StudioWindow,STATE,FILTERS,label,button,vbox
+from .status_manager import StatusManagerMixin
 from .responsive import AdaptiveDialog as QDialog
 from ..contracts import METADATA_FIELDS
 from ..qt_legacy import launch_legacy
@@ -343,7 +344,7 @@ from .folder_import import FolderImportMixin
 from .catalog_exchange_ui import CatalogExchangeMixin
 from .print_control import PrintWorkflowMixin
 
-class FunctionalWindow(CatalogExchangeMixin, PrintWorkflowMixin, FolderImportMixin, CompareMixin, SettingsMixin, HistoryMixin, EmissionCentreMixin, EmissionWorkMixin, VariantsMixin, AdvancedEditorMixin, BaseFunctionalWindow):
+class FunctionalWindow(StatusManagerMixin, CatalogExchangeMixin, PrintWorkflowMixin, FolderImportMixin, CompareMixin, SettingsMixin, HistoryMixin, EmissionCentreMixin, EmissionWorkMixin, VariantsMixin, AdvancedEditorMixin, BaseFunctionalWindow):
     """Retained controllers, with an integrated responsive Qt workspace."""
     def __init__(self, session):
         from PySide6.QtWidgets import QApplication,QFormLayout
