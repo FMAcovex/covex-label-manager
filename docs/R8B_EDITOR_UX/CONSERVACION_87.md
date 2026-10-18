@@ -95,4 +95,3 @@ Las rutas E01–E15 y D08/D09/D11 se actualizan para R8B. Las restantes conserva
 | C10 | Recuentos de etiquetas/vigentes/pendientes/emisiones/materiales y accesos rápidos del Inicio 0.3.1 | Ruta Qt | Configuración → Resumen: recuentos / preaceptación / pruebas presenciales / Biblioteca. | tests/test_r3d_settings_qt.py::test_settings_is_native_without_launching_tk |
 
 Editor de estados independiente: `test_r7a_status_qt.py`, `test_r7b_status_qt.py` y nuevas regresiones R8B de geometría, selección con valores pendientes, deshacer/rehacer y guardado. Su contrato no incorpora bloqueo ni modo tipográfico avanzado; no se muestran controles inexistentes. Diagnóstico, concurrencia y limpieza segura siguen cubiertos por las pruebas R8A.
-

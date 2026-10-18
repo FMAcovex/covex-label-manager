@@ -40,6 +40,7 @@ def run(report, capture=None, *, baseline=False, svg_dir=None, source_commit=Non
             svg=Path(svg_dir)/(name+'.svg');svg.parent.mkdir(parents=True,exist_ok=True)
             gen=QSvgGenerator();gen.setFileName(str(svg));gen.setSize(widget.size());gen.setViewBox(widget.rect());gen.setTitle('SYNTHETIC ONLY · R8B '+('before' if baseline else 'after')+' · '+name)
             painter=QPainter(gen);widget.render(painter,QPoint());painter.end()
+            svg.write_text('\n'.join(line.rstrip() for line in svg.read_text(encoding='utf-8').splitlines())+'\n',encoding='utf-8')
         print('R8B CAPTURE',name,widget.width(),widget.height(),flush=True)
 
     try:
