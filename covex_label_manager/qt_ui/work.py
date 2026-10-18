@@ -98,6 +98,7 @@ class WorkPanel(QWidget):
         self.status_revision.setToolTip('Elija expresamente una revisión vigente del Gestor de estados. El maestro histórico no se sustituye automáticamente.')
         f.addRow('Revisión documental',self.status_revision)
         self.r7b_field_widgets={}
+        self.r7b_field_holders={}
         self.status_kind.currentIndexChanged.connect(self.refresh_r7b_revisions)
         self.status_revision.currentIndexChanged.connect(self.refresh_r7b_fields)
         self.status_revision.currentIndexChanged.connect(self.changed)
@@ -276,9 +277,12 @@ class WorkPanel(QWidget):
     def refresh_r7b_fields(self, saved=None):
         if not hasattr(self, "r7b_field_widgets"):
             return
-        for widget in self.r7b_field_widgets.values():
-            self.status_form.removeRow(widget)
+        for key,holder in self.r7b_field_holders.items():
+            self.status_form.removeRow(holder)
+            self.error_labels.pop("status:"+key,None)
+            self.field_widgets.pop("status:"+key,None)
         self.r7b_field_widgets={}
+        self.r7b_field_holders={}
         uid=self.status_revision.currentData()
         if not uid:
             return
@@ -299,10 +303,11 @@ class WorkPanel(QWidget):
             control.setText(values.get(key,""))
             control.setPlaceholderText(field["label"])
             control.textEdited.connect(self.changed)
+            holder=self.with_error(control,"status:"+key)
             self.status_form.addRow(
-                field["label"] + (" *" if field["required"] else ""),
-                self.with_error(control,"status:"+key))
+                field["label"] + (" *" if field["required"] else ""),holder)
             self.r7b_field_widgets[key]=control
+            self.r7b_field_holders[key]=holder
 
     def capture(self):
         w=self.window.emission_work;per=copy.deepcopy(w['per_container'])
