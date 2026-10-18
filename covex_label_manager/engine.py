@@ -266,6 +266,10 @@ def _paint_status_r7b(page, source, asset, target, material, status, test_mode):
             continue
         box = fitz.Rect(field["rect"])
         size = field["font_size"] * factor
+        if size < 6:
+            message = "Campo de estado demasiado pequeño (" + field["label"] + "): ajuste el tamaño o use emisión independiente."
+            if not test_mode:
+                raise LayoutError(message)
         font = "hebo" if field["bold"] else "helv"
         x = rect.x0 + (box.x0 - crop.x0) * factor
         y = rect.y0 + (box.y0 - crop.y0) * factor

@@ -117,7 +117,7 @@ def test_record_combined_snapshot_freezes_source_identity(context):
     store,api,catalog,v,p,values,uids=context
     store.approve(v["id"],"Calidad","APROBACION-PRINCIPAL-FICTICIA")
     version=store.version(v["id"])
-    status={"kind":"aprobado","revision_uid":uids[1],"placement":"integrada",
+    status={"kind":"aprobado","revision_uid":uids[1],"placement":"independiente",
             "fields":{"firma":"PERSONA SINTETICA"}}
     output=store.root/"emissions"/"FICTICIA_R7B.pdf"
     api.render(version,values,p,[1],1,1,output,False,status=status)
@@ -141,3 +141,29 @@ def test_archived_approved_revision_stays_verifiable_only_for_historical_snapsho
     altered={**original,"r7b_layout_sha":"0"*64}
     with pytest.raises(ValueError,match="histórica"):
         resolve_status(store,state,historical=altered)
+
+
+def test_archived_combined_reprint_keeps_exact_status_uid_after_retirement(context):
+    store,api,catalog,v,p,values,uids=context
+    store.approve(v["id"],"Calidad","APROBACION-PRINCIPAL-FICTICIA")
+    version=store.version(v["id"])
+    state={"kind":"aprobado","revision_uid":uids[1],
+           "placement":"independiente","fields":{"firma":"PERSONA FICTICIA"}}
+    output=store.root/"emissions"/"FICTICIO-HISTORICO-ORIGEN.pdf"
+    api.render(version,values,p,[1],1,1,output,False,status=state)
+    number=store.add_issue(version["id"],"Operador",1,1,[1],values,p,output,status=state)
+    frozen=json.loads(store.issue(number)["design_snapshot_json"])["status_master"]
+    catalog.retire(uids[1],"Retirada para nueva revision")
+    with pytest.raises(PermissionError):
+        resolve_status(store,state)
+    report=api.history.inspect(number)
+    assert report["reprint_allowed"], report["blocked"]
+    _,new_path,_=api.history.reproduce(
+        number,"1","Reimpresion historica justificada","Operador",
+        expected_token=report["token"],proof=False)
+    assert new_path.is_file()
+    reprint=api.issues()[0]
+    assert reprint["source_issue_id"]==number
+    current=json.loads(reprint["design_snapshot_json"])["status_master"]
+    assert current==frozen
+    assert current["r7b_uid"]==uids[1]
