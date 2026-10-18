@@ -143,11 +143,16 @@ def run(report, rounds=4):
             with catalog._connect() as db:
                 assert db.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
                 assert not db.execute('PRAGMA foreign_key_check').fetchall()
+            from ..vessels import parse_mass
+            try:parse_mass('SYNTHETIC-PRIVATE-ERROR-VALUE')
+            except ValueError as ex:diagnostic.exception('operation_error', ex)
             archive = diagnostic.export(session.root/'SYNTHETIC-diagnostic.zip')
             with zipfile.ZipFile(archive) as zip_report:
                 text = ''.join(zip_report.read(name).decode() for name in zip_report.namelist())
-                assert all(secret not in text for secret in ('SYNTHETIC-TWO', str(session.root), 'SYNTHETIC-REFERENCE'))
+                assert all(secret not in text for secret in ('SYNTHETIC-TWO', str(session.root), 'SYNTHETIC-REFERENCE', 'SYNTHETIC-PRIVATE-ERROR-VALUE'))
+                assert 'vessels.py' in text, 'Frozen diagnostics must retain safe source/line evidence'
             result['diagnostic_export_private'] = True
+            result['diagnostic_source_frames'] = True
             assert not errors, errors
             window.close();assert not window.isVisible()
             result['ok'] = True

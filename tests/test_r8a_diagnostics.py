@@ -106,3 +106,41 @@ def test_protected_data_uses_writable_local_fallback(tmp_path, monkeypatch):
         assert diag.directory.is_relative_to(tmp_path/'local')
         assert protected.name not in diag.directory.parts
     finally:diag.close()
+
+
+def test_frozen_pyz_frames_survive_export_without_source_files(tmp_path, monkeypatch):
+    from pathlib import Path
+    from covex_label_manager.vessels import parse_mass
+    diag = Diagnostics(tmp_path)
+    try:
+        try:parse_mass('SYNTHETIC PRIVATE VALUE')
+        except ValueError as ex:diag.exception('operation_error', ex)
+        monkeypatch.setattr(Path, 'rglob', lambda *a:iter(()))
+        report = diag.export(tmp_path/'frozen.zip')
+        with zipfile.ZipFile(report) as archive:
+            text = archive.read('technical.jsonl').decode()
+            assert 'vessels.py' in text and 'SYNTHETIC PRIVATE' not in text
+    finally:diag.close()
+
+
+def test_secondary_process_error_has_safe_source_without_message_or_root(tmp_path):
+    from covex_label_manager.preview_render import run_job
+    from covex_label_manager.diagnostics import process_error
+    root = tmp_path/'SYNTHETIC-CORPORATE-ROOT'
+    cache = root/'cache';cache.mkdir(parents=True)
+    output = cache/('qt-auto-proof-'+'a'*32+'.pdf')
+    job = output.with_suffix('.job.json')
+    job.write_text(json.dumps(dict(contract=1, root=str(root), uid='a'*32,
+        generation=1, token='b'*64, path=str(output), serial=1)))
+    assert run_job(job) == 1
+    payload = json.loads(job.with_suffix('.result.json').read_text())
+    assert payload['technical_error']['frames']
+    diag = Diagnostics(root)
+    try:
+        process_error(payload['technical_error'])
+        report = diag.export(tmp_path/'secondary.zip')
+        with zipfile.ZipFile(report) as archive:
+            text = archive.read('technical.jsonl').decode()
+            assert 'preview_render.py' in text and str(root) not in text
+            assert payload['error'] not in text
+    finally:diag.close()

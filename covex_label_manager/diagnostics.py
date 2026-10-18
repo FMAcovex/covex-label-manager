@@ -42,6 +42,43 @@ def error(name, exception):
         _active.exception(name, exception)
 
 
+def technical_exception(exception):
+    """Safe across the child-process contract: no message, values or paths."""
+    category = next((label for cls, label in (
+        (PermissionError, 'permission'), (OSError, 'io'),
+        (ValueError, 'validation'), (RuntimeError, 'runtime'),
+        (TypeError, 'type')) if isinstance(exception, cls)), 'other')
+    frames = []
+    package = Path(__file__).parent.resolve()
+    allowed = known_sources()
+    for frame in traceback.extract_tb(exception.__traceback__)[-12:]:
+        try:relative = Path(frame.filename).resolve().relative_to(package).as_posix()
+        except ValueError:
+            # Frozen co_filename may retain its build-time prefix or be relative.
+            filename = '/'+frame.filename.replace('\\','/')
+            relative = filename.rpartition('/covex_label_manager/')[2]
+            if not relative and filename.rsplit('/',1)[-1] == 'main_qt.py':relative='main_qt.py'
+        if relative in allowed:
+            frames.append(dict(source=relative, line=frame.lineno))
+    return dict(category=category, frames=frames)
+
+
+def known_sources():
+    # PyInstaller stores most Python modules in PYZ, not physical .py files.
+    # Already-loaded package identifiers remain available in the portable.
+    sources = {'main_qt.py'} | {p.relative_to(Path(__file__).parent).as_posix()
+        for p in Path(__file__).parent.rglob('*.py')}
+    prefix = 'covex_label_manager.'
+    sources.update(name[len(prefix):].replace('.', '/')+'.py'
+        for name in tuple(sys.modules) if name.startswith(prefix)
+        and all(part.isidentifier() for part in name.split('.')))
+    return sources
+
+
+def process_error(detail):
+    if _active is not None:_active.process_error(detail)
+
+
 def _directory(root):
     # Prefer the configured DATA folder, never the executable's resource tree.
     # If it is protected, a per-data-root opaque key isolates the local fallback.
@@ -147,22 +184,20 @@ class Diagnostics:
         self.failed_io = True
 
     def exception(self, name, exception):
-        # Class names may be user-defined too: classify using built-in categories.
-        category = next((label for cls, label in (
-            (PermissionError, 'permission'), (OSError, 'io'),
-            (ValueError, 'validation'), (RuntimeError, 'runtime'),
-            (TypeError, 'type')) if isinstance(exception, cls)), 'other')
-        frames = []
-        package = Path(__file__).parent.resolve()
-        for frame in traceback.extract_tb(exception.__traceback__)[-12:]:
-            path = Path(frame.filename)
-            # Only source identifiers in this package; never absolute paths,
-            # source lines, locals, function names, values or chained messages.
-            try:relative = path.resolve().relative_to(package).as_posix()
-            except ValueError:continue
-            if relative.endswith('.py') and all(c.isalnum() or c in '_/.' for c in relative):
-                frames.append(dict(source=relative, line=frame.lineno))
         self.record(name)
+        self.process_error(technical_exception(exception))
+
+    def process_error(self, detail):
+        if not isinstance(detail, dict):return
+        category = detail.get('category')
+        if category not in ('permission','io','validation','runtime','type','other'):category='other'
+        allowed = known_sources()
+        raw_frames = detail.get('frames', [])
+        if not isinstance(raw_frames, list):raw_frames=[]
+        frames = [dict(source=f['source'], line=f['line'])
+            for f in raw_frames[:12]
+            if isinstance(f, dict) and isinstance(f.get('source'), str)
+            and f['source'] in allowed and type(f.get('line')) is int]
         with self.lock:
             try:
                 self.logger.info(json.dumps(dict(at=int(time.time()), session=self.session,
@@ -188,8 +223,7 @@ class Diagnostics:
         # Reject symlinks to prevent accidental inclusion of a document/database.
         with self.lock:
             self.record('export')
-            allowed_sources = {p.relative_to(Path(__file__).parent).as_posix()
-                for p in Path(__file__).parent.rglob('*.py')}
+            allowed_sources = known_sources()
             tmp = destination.with_name(destination.name + '.' + uuid.uuid4().hex + '.tmp')
             try:
                 with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as archive:
@@ -226,7 +260,7 @@ class Diagnostics:
                                         clean['category'] = raw['category']
                                     clean_frames = []
                                     for frame in raw.get('frames', [])[:12] if isinstance(raw.get('frames'), list) else []:
-                                        if (isinstance(frame, dict) and frame.get('source') in allowed_sources
+                                        if (isinstance(frame, dict) and isinstance(frame.get('source'), str) and frame['source'] in allowed_sources
                                                 and type(frame.get('line')) is int):
                                             clean_frames.append(dict(source=frame['source'], line=frame['line']))
                                     if clean_frames:clean['frames'] = clean_frames

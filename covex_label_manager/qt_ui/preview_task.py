@@ -45,6 +45,9 @@ class PreviewTask(QThread):
                 raise ValueError('El resultado de vista previa pertenece a otro cálculo.')
             if process.returncode!=0 and not result.get('error'):raise ValueError('El motor de vista previa no terminó correctamente.')
             payload.update(result);payload['path']=path
+            if result.get('error'):
+                from ..diagnostics import process_error
+                process_error(result.get('technical_error'))
         except InterruptedError as ex:
             payload.update(error=str(ex),cancelled=True)
             path.unlink(missing_ok=True)

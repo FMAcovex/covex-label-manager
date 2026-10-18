@@ -87,6 +87,8 @@ Windows (fallback local equivalente en Linux). No requiere escribir en el ejecut
   operativos y cierre bloqueado. No se registran nombres ni identidades documentales.
 - Errores Python: categoría fija y archivo relativo/línea del paquete, **nunca**
   mensaje, traceback bruto, código fuente, variables locales ni excepciones encadenadas.
+  El proceso PDF transmite la misma evidencia técnica depurada; los módulos de PYZ
+  siguen identificándose en el portable aunque no existan archivos `.py` físicos.
 - ZIP: estado técnico y logs conocidos, no búsqueda recursiva de DATA; excluye
   symlinks, revalida campos al exportar, escritura temporal + reemplazo atómico.
   No incluye SQLite, documentos, lotes, clientes, operador, fuentes, historial,
