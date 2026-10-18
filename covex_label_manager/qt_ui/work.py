@@ -93,6 +93,14 @@ class WorkPanel(QWidget):
         status=QWidget();status.setObjectName('workForm');f=QFormLayout(status);self.status_kind=QComboBox();
         for title,key in [('Sin etiqueta de estado','ninguna'),('Sin analizar','sin_analizar'),('Aprobado','aprobado'),('Rechazado','rechazado')]:self.status_kind.addItem(title,key)
         self.status_kind.currentTextChanged.connect(self.changed);f.addRow('Etiqueta de estado',self.status_kind)
+        self.status_form=f
+        self.status_revision=QComboBox()
+        self.status_revision.setToolTip('Elija expresamente una revisión vigente del Gestor de estados. El maestro histórico no se sustituye automáticamente.')
+        f.addRow('Revisión documental',self.status_revision)
+        self.r7b_field_widgets={}
+        self.status_kind.currentIndexChanged.connect(self.refresh_r7b_revisions)
+        self.status_revision.currentIndexChanged.connect(self.refresh_r7b_fields)
+        self.status_revision.currentIndexChanged.connect(self.changed)
         self.placement=QComboBox();self.placement.addItem('Integrada','integrada');self.placement.addItem('Independiente','independiente');self.placement.currentTextChanged.connect(self.changed);f.addRow('Ubicación',self.placement)
         self.status_inputs={}
         for key,title in [('fecha','Fecha'),('persona','Responsable'),('caducidad_reanalisis','Caducidad / reanálisis')]:
@@ -230,6 +238,12 @@ class WorkPanel(QWidget):
             self.orientation.setCurrentIndex(max(0,self.orientation.findData(w['profile'].get('orientation','portrait'))));self.cut.setCurrentIndex(max(0,self.cut.findData(str(w['profile'].get('crop_marks',0)))))
             state=w['status'];self.status_kind.setCurrentIndex(max(0,self.status_kind.findData(state.get('kind','ninguna'))));self.placement.setCurrentIndex(max(0,self.placement.findData(state.get('placement','integrada'))))
             for k,e in self.status_inputs.items():e.setText(state.get(k,''))
+            self.refresh_r7b_revisions()
+            uid=state.get('revision_uid')
+            if uid and self.status_revision.findData(uid)<0:
+                self.status_revision.addItem('Revisión retirada/no disponible · Bloqueada',uid)
+            self.status_revision.setCurrentIndex(max(0,self.status_revision.findData(uid)))
+            self.refresh_r7b_fields(state.get('fields',{}))
             try:count=int(w['count'])
             except ValueError:count=0
             count=min(10000,max(0,count));self.containers.setRowCount(count)
@@ -240,6 +254,56 @@ class WorkPanel(QWidget):
             from .responsive import accessible_form
             accessible_form(self.common_form)
         finally:self.loading=False
+    def refresh_r7b_revisions(self, *_):
+        if not hasattr(self, "status_revision"):
+            return
+        kind=self.status_kind.currentData()
+        previous=self.status_revision.currentData()
+        self.status_revision.blockSignals(True)
+        self.status_revision.clear()
+        self.status_revision.addItem("Maestro histórico (compatibilidad)",None)
+        if kind not in (None,"ninguna"):
+            for rec in self.window.api.status_catalog.list_revisions(kind):
+                if rec["state"]=="APPROVED":
+                    self.status_revision.addItem(
+                        "Revisión " + rec["revision"] + " · autorizada externamente",
+                        rec["uid"])
+        self.status_revision.setCurrentIndex(max(0,self.status_revision.findData(previous)))
+        self.status_revision.blockSignals(False)
+        self.refresh_r7b_fields()
+        if not self.loading:self.changed()
+
+    def refresh_r7b_fields(self, saved=None):
+        if not hasattr(self, "r7b_field_widgets"):
+            return
+        for widget in self.r7b_field_widgets.values():
+            self.status_form.removeRow(widget)
+        self.r7b_field_widgets={}
+        uid=self.status_revision.currentData()
+        if not uid:
+            return
+        # A revision cannot silently swap its field contract while this work
+        # is open. The preview and issue gate verify the same UID/hash again.
+        try:
+            rec=self.window.api.status_catalog.verify(uid)
+            design=json.loads(rec["layout_json"])
+        except (ValueError,OSError,RuntimeError) as err:
+            self.status_revision.setToolTip("Revisión no válida: "+str(err))
+            return
+        values=saved if isinstance(saved,dict) else {}
+        for field in design["fields"]:
+            key=field["key"]
+            if key in ("lote","fecha","persona","caducidad_reanalisis"):
+                continue  # Existing product/status fields are the input source.
+            control=QLineEdit()
+            control.setText(values.get(key,""))
+            control.setPlaceholderText(field["label"])
+            control.textEdited.connect(self.changed)
+            self.status_form.addRow(
+                field["label"] + (" *" if field["required"] else ""),
+                self.with_error(control,"status:"+key))
+            self.r7b_field_widgets[key]=control
+
     def capture(self):
         w=self.window.emission_work;per=copy.deepcopy(w['per_container'])
         for row in range(self.containers.rowCount()):
@@ -251,7 +315,12 @@ class WorkPanel(QWidget):
             if data:per[str(row+1)]=data
             else:per.pop(str(row+1),None)
         status={'kind':self.status_kind.currentData()}
-        if status['kind']!='ninguna':status.update(placement=self.placement.currentData(),**{k:e.text() for k,e in self.status_inputs.items()})
+        if status['kind']!='ninguna':
+            status.update(placement=self.placement.currentData(),**{k:e.text() for k,e in self.status_inputs.items()})
+            uid=self.status_revision.currentData()
+            if uid:
+                status['revision_uid']=uid
+                status['fields']={k:entry.text() for k,entry in self.r7b_field_widgets.items()}
         return {'values':{k:e.text() for k,e in self.value_inputs.items()},'per_container':per,
             'profile':{**w['profile'],**{k:self.profile_value(k,e) for k,e in self.profile_inputs.items()},
                 'orientation':self.orientation.currentData(),
