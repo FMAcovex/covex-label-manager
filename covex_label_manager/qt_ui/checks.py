@@ -42,7 +42,7 @@ def exercise(w,app,captures=None):
     check('Vista' in w.canvas_zoom_label.text() and 'No indica tamaño físico' in w.canvas_zoom_label.toolTip(),'Editor zoom explicitly visual, not print scale')
     snap('R3A_Qt_Editor.png')
     snap('R3A_Qt_Guardado_Sin_Cambios.png')
-    w.editor_advanced_button.click();settle();check(w.editor_advanced.isVisible(),'Advanced tools and properties open')
+    w.editor_advanced_button.setChecked(True);w.toggle_editor_advanced();settle();check(w.editor_advanced.isVisible(),'Advanced tools and properties open')
     snap('R3A_Qt_Editor_Ajuste_Avanzado.png')
     w.editor_advanced_button.click()
     original=json.loads(w.api.version(w.current_editor_id)['fields_json'])

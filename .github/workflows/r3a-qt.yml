@@ -41,6 +41,8 @@ on:
       - 'covex_label_manager/qt_ui/**'
       - 'covex_label_manager/diagnostics.py'
       - 'tests/test_r8a*.py'
+      - 'tests/test_r8b*.py'
+      - 'scripts/r8b_editor_visual.py'
       - 'tests/test_r3a_qt.py'
       - 'tests/test_r3b1_qt.py'
       - 'tests/test_editor_layout.py'
@@ -118,6 +120,30 @@ jobs:
             if ($LASTEXITCODE -ne 0) { if (Test-Path "test-results/r8a-source-$scale.json") { Get-Content "test-results/r8a-source-$scale.json" -Raw }; throw "R8A source stability failed at $scale" }
           }
           Remove-Item Env:QT_SCALE_FACTOR
+      - name: R8B editor interaction regressions
+        timeout-minutes: 3
+        run: >-
+          python -m pytest -q -x -o faulthandler_timeout=45
+          --junitxml=test-results/r8b.xml tests/test_r8b_editor_ux_qt.py
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 042725c7f8f5ac56bbd2f2330a1a7ec1f0142b2e
+          path: .r8a-editor-baseline
+          persist-credentials: false
+      - name: R8B versus verified R8A - both viewports at all Windows scales
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            python scripts/r8b_editor_visual.py --source-root .r8a-editor-baseline --baseline --report "test-results/r8b-before-$scale.json" --capture "test-results/r8b-editor/before-$scale"
+            if ($LASTEXITCODE -ne 0) { Get-Content "test-results/r8b-before-$scale.json" -Raw; throw "R8A editor baseline failed at $scale" }
+            python scripts/r8b_editor_visual.py --report "test-results/r8b-after-$scale.json" --capture "test-results/r8b-editor/after-$scale"
+            if ($LASTEXITCODE -ne 0) { Get-Content "test-results/r8b-after-$scale.json" -Raw; throw "R8B editor source failed at $scale" }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
+      - run: Remove-Item .r8a-editor-baseline -Recurse -Force
       - name: Native emission, history and reprint on actual Qt
         shell: pwsh
         env:
@@ -348,6 +374,19 @@ jobs:
             if ($process.ExitCode -ne 0 -or !(Test-Path $report)) { if (Test-Path $report) { Get-Content $report -Raw }; throw "R8A extracted stability failed at $scale" }
             $result = Get-Content $report -Raw | ConvertFrom-Json
             if (!$result.ok -or $result.cycles -lt 8 -or !$result.sqlite_integrity -or !$result.normal_start_close -or !$result.diagnostic_export_private) { Get-Content $report -Raw; throw 'R8A extracted contract incomplete' }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
+      - name: R8B editor in the actual extracted portable at all Windows scales
+        shell: pwsh
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            $report = Join-Path $pwd "test-results/r8b-extracted-$scale.json"
+            $captures = Join-Path $pwd "test-results/r8b-editor/extracted-$scale"
+            $process = Start-Process -FilePath $executable -ArgumentList @('--editor-ux-check', $report, '--capture', $captures) -Wait -PassThru
+            if ($process.ExitCode -ne 0 -or !(Test-Path $report)) { if (Test-Path $report) { Get-Content $report -Raw }; throw "R8B extracted editor failed at $scale" }
+            $result = Get-Content $report -Raw | ConvertFrom-Json
+            if (!$result.ok -or !$result.integrity -or !$result.approved_revision_unchanged -or $result.captures.Count -ne 14) { Get-Content $report -Raw; throw 'R8B extracted contract incomplete' }
           }
           Remove-Item Env:QT_SCALE_FACTOR
       # User-facing download: application only, no screenshots or CI reports.

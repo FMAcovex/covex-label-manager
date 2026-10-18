@@ -27,6 +27,7 @@ def main():
     p.add_argument('--preview-job',type=Path)
     p.add_argument('--stability-check',type=Path)
     p.add_argument('--stability-rounds',type=int,default=4)
+    p.add_argument('--editor-ux-check',type=Path)
     p.add_argument('--verify-bridge',action='store_true');p.add_argument('--capture',type=Path);p.add_argument('--self-check',type=Path);a=p.parse_args()
     if a.import_check:
         from covex_label_manager.qt_ui.import_checks import run
@@ -41,6 +42,9 @@ def main():
     if a.stability_check:
         from covex_label_manager.qt_ui.stability_checks import run
         return run(a.stability_check, rounds=a.stability_rounds)
+    if a.editor_ux_check:
+        from covex_label_manager.qt_ui.editor_ux_checks import run
+        return run(a.editor_ux_check,a.capture)
     if a.r3e_check:
         from covex_label_manager.qt_ui.r3e_checks import run
         return run(a.r3e_check,a.capture)

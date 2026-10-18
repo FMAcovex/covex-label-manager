@@ -422,7 +422,10 @@ class StudioWindow(QMainWindow):
         self.tools_scroll=QScrollArea();self.tools_scroll.setWidgetResizable(True);self.tools_scroll.setWidget(tools)
         self.tools_scroll.setFrameShape(QFrame.Shape.NoFrame);self.tools_scroll.setMinimumWidth(180);self.tools_scroll.setMaximumWidth(240)
         split.addWidget(self.tools_scroll)
-        self.canvas=Preview();self.canvas.zoom_label=self.canvas_zoom_label;self.canvas.setDragMode(QGraphicsView.DragMode.NoDrag)
+        from .status_fields_dialog import StatusFieldsCanvas
+        self.canvas=StatusFieldsCanvas(lambda rect:self.add_field_from_canvas(rect))
+        self.canvas.setMinimumSize(0,0)
+        self.canvas.zoom_label=self.canvas_zoom_label;self.canvas.setDragMode(QGraphicsView.DragMode.NoDrag)
         self.canvas.scene().selectionChanged.connect(self.scene_selection);split.addWidget(self.canvas)
         props=box();props.setMinimumWidth(270);props.setMaximumWidth(320);pl=vbox(props,20,16)
         pl.addWidget(label('PROPIEDADES','section'));self.field_title=label('Selecciona un campo','panelTitle');pl.addWidget(self.field_title)

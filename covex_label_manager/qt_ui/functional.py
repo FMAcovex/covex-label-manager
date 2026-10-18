@@ -153,8 +153,9 @@ class BaseFunctionalWindow(StudioWindow):
             ('Abrir documento original',lambda:self.open_document(True)),('Editar metadatos con fuente',self.edit_metadata),
             ('Crear nueva revisión documental',self.clone_revision),('Registrar aprobación externa',self.approve_revision),
             ('Revisiones y variantes…',lambda:self.show_access('document'))]:
-            item=menu.addAction(title,action)
             pending=bool(self.row and self.api.version(self.row['version_id'])['state']=='PENDING')
+            if action==self.approve_revision and not pending:continue
+            item=menu.addAction(title,action)
             enabled=bool(self.row and not self.legacy_process and (pending or action!=self.approve_revision))
             item.setEnabled(enabled)
             item.setToolTip('Seleccione una revisión pendiente.' if action==self.approve_revision and not pending

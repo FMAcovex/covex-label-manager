@@ -171,9 +171,10 @@ class AdvancedEditorMixin:
         state = section('Estado y límites')
         action(state,'Zona de estado visual / mm',self.edit_status_area)
         state.addWidget(label('Prepare los datos variables y emita desde el Centro de emisión.','subtle'))
-        legacy_button=button('Editor Tkinter',lambda:self.open_legacy('editor')); legacy_button.setToolTip('Abrir Editor de la versión anterior; misma revisión y carpeta de datos.'); state.addWidget(legacy_button)
+        legacy_button=button('Editor anterior (compatibilidad)…',lambda:self.open_legacy('editor')); legacy_button.setToolTip('Abre una aplicación separada para compatibilidad. Conserva los mismos datos y bloquea la edición simultánea.'); state.addWidget(legacy_button)
+        self.editor_legacy_button=legacy_button
         self.field_action_bar=QWidget();row=QHBoxLayout(self.field_action_bar);row.setContentsMargins(0,0,0,0)
-        self.new_field_button=button('+ Nuevo campo',self.add_field,'primary')
+        self.new_field_button=button('+ Nuevo campo',self.quick_add_field,'primary')
         self.draw_field_button=button('Dibujar campo',self.draw_new_field)
         row.addWidget(self.new_field_button); row.addWidget(self.draw_field_button)
         page.layout().insertWidget(2,self.field_action_bar)
@@ -185,6 +186,7 @@ class AdvancedEditorMixin:
         self.field_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.field_list.itemSelectionChanged.connect(self.list_selection)
         self.field_list.setToolTip('Ctrl: varios campos. Mayús: intervalo. Los campos bloqueados no se transforman.')
+        action(fld,'Añadir campo especial…',self.add_field)
         self.editor_tools.layout().setAlignment(Qt.AlignmentFlag.AlignTop)
         for entry in self.spins.values(): entry.setDecimals(3)
         self.font_size.setRange(3,80)
@@ -255,6 +257,7 @@ class AdvancedEditorMixin:
         self.editor_title.setText(v['name']+'  /  '+v['version'])
         self.editor_note.setText(('Diseño pendiente' if v['state']=='PENDING' else 'Revisión vigente o retirada · Solo lectura')+
                                  f" · {v['base_w_mm']:.2f} × {v['base_h_mm']:.2f} mm de origen")
+        self.canvas.end_draw();self.draw_field_button.setText('Dibujar campo')
         scene = self.canvas.scene(); scene.clear(); self.field_items=[]
         try:
             self.api.editor_page_rect(self.current_editor_id)
@@ -277,9 +280,11 @@ class AdvancedEditorMixin:
         for i,f in enumerate(self.fields):
             item = EditorFieldItem(f,i,im.width,im.height,self.design.state['crop'],self.editable(),self.finish_graphic_gesture)
             item.feedback=lambda item=item:self.statusBar().showMessage(f"Campo: X {(item.x()+item.rect().x())/self.image_w*self.editor_version['base_w_mm']:.2f} mm · Y {(item.y()+item.rect().y()-item.offset)/self.image_h*self.editor_version['base_h_mm']:.2f} mm · Ancho {item.rect().width()/self.image_w*self.editor_version['base_w_mm']:.2f} mm · Alto {item.rect().height()/self.image_h*self.editor_version['base_h_mm']:.2f} mm")
-            scene.addItem(item); self.field_items.append(item); self.field_list.addItem(f['label'])
+            scene.addItem(item); self.field_items.append(item); self.field_list.addItem(self.field_description(f))
+            self.field_list.item(i).setToolTip(f['key']+' · '+('Posición bloqueada' if f.get('locked') else 'Posición editable'))
             text = scene.addText(f['key']); text.setDefaultTextColor(QColor('#147D71')); text.setParentItem(item); text.setPos(4,-3)
             text.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+            item.caption = text
         scene.setSceneRect(QRectF(-45,-45,im.width+90,im.height+90))
         indices = [i for i in indices if i < len(self.fields)] or ([0] if self.fields else [])
         for i in indices: self.field_list.item(i).setSelected(True); self.field_items[i].setSelected(True)
@@ -318,6 +323,7 @@ class AdvancedEditorMixin:
         self.list_selection(); self.show_properties(index)
 
     def show_properties(self, index):
+        self.commit_pending_properties()
         self.property_index=index; self.loading=True; f=self.fields[index]
         self.field_title.setText(f['label']); self.name_input.setText(f['label']); self.key_input.setText(f['key'])
         for key,entry in self.spins.items(): entry.setValue(f[key]*self.editor_version['base_w_mm' if key in ('x','w') else 'base_h_mm'])
@@ -328,14 +334,55 @@ class AdvancedEditorMixin:
         for widget in [self.name_input,self.key_input,self.font_size,self.bold,self.required,self.locked,self.draw_mode]: widget.setEnabled(enabled)
         for entry in self.spins.values(): entry.setEnabled(enabled and not f.get('locked'))
         self.loading=False
+        if hasattr(self,'delete_field_button'):
+            selected=self.selected_indices()
+            self.delete_field_button.setEnabled(enabled and bool(selected) and not any(self.fields[i].get('locked') for i in selected))
 
-    def command(self, title, candidate):
+    def commit_pending_properties(self):
+        if self.loading or not self.editable() or getattr(self,'_committing_properties',False):return
+        self._committing_properties=True
+        try:
+            for entry in (*self.spins.values(),self.font_size):entry.interpretText()
+        finally:self._committing_properties=False
+
+    @staticmethod
+    def field_description(field):
+        return field['label']+(' · obligatorio' if field.get('required') else '')+(' · bloqueado' if field.get('locked') else '')
+
+    def refresh_field_overlays(self):
+        """Property typing never tears down the scene, focus, selection or zoom."""
+        self.sync_design();self.loading=True
+        try:
+            for i, (item, field) in enumerate(zip(self.field_items,self.fields)):
+                item.field=copy.deepcopy(field)
+                item.offset=-field['font_pt']*1.06*self.image_h/(self.design.state['crop'][3]-self.design.state['crop'][1]) if field.get('draw') in ('baseline','continuation') else 0
+                height=max(field['h']*self.image_h,-item.offset*1.3) if item.offset else field['h']*self.image_h
+                item.setRect(0,0,field['w']*self.image_w,height)
+                item.setPos(field['x']*self.image_w,field['y']*self.image_h+item.offset)
+                item.original_rect=QRectF(item.rect())
+                movable=self.editable() and not field.get('locked')
+                item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable,movable)
+                if bool(item.handles)!=movable:
+                    for handle in item.handles:self.canvas.scene().removeItem(handle)
+                    item.enable_handles(movable)
+                item.position_handles();item.caption.setPlainText(field['key'])
+                self.field_list.item(i).setText(self.field_description(field))
+            if hasattr(self,'property_index') and 0<=self.property_index<len(self.fields):
+                field=self.fields[self.property_index]
+                self.field_title.setText(field['label'])
+                for entry in self.spins.values():entry.setEnabled(self.editable() and not field.get('locked'))
+        finally:self.loading=False
+        self.update_dirty()
+
+    def command(self, title, candidate, *, rebuild=True):
         if not self.editable(): return False
         try:
             validate_layout(candidate,self.api.editor_page_rect(self.current_editor_id))
             check_locked_changes(self.design.state,candidate)
             changed=self.design.push(candidate,title)
-            if changed: self.draw_editor()
+            if changed:
+                if rebuild:self.draw_editor()
+                else:self.refresh_field_overlays()
             return changed
         except (ValueError,PermissionError,OSError) as ex:
             QMessageBox.warning(self,'Cambio no realizado',str(ex)); self.draw_editor(); return False
@@ -353,30 +400,30 @@ class AdvancedEditorMixin:
         x=self.spins['x'].value()/self.editor_version['base_w_mm']; y=self.spins['y'].value()/self.editor_version['base_h_mm']
         move_field(f,x-f['x'],y-f['y'],candidate['crop'])
         f['w']=self.spins['w'].value()/self.editor_version['base_w_mm']; f['h']=self.spins['h'].value()/self.editor_version['base_h_mm']
-        self.command('Geometría en mm',candidate)
+        self.command('Geometría en mm',candidate,rebuild=False)
 
     def change_name(self,value):
         if self.loading or not self.editable() or not hasattr(self,'property_index'): return
         candidate=copy.deepcopy(self.design.state); candidate['fields'][self.property_index]['label']=value
-        self.command('Nombre del campo',candidate)
+        self.command('Nombre del campo',candidate,rebuild=False)
 
     def change_key(self,value):
         if self.loading or not self.editable() or not hasattr(self,'property_index'): return
         candidate=copy.deepcopy(self.design.state); candidate['fields'][self.property_index]['key']=value
-        self.command('Identificador del campo',candidate)
+        self.command('Identificador del campo',candidate,rebuild=False)
 
     def change_flags(self,*_):
         if self.loading or not self.editable() or not hasattr(self,'property_index'): return
         candidate=copy.deepcopy(self.design.state)
         candidate['fields'][self.property_index].update(bold=self.bold.isChecked(),required=self.required.isChecked(),locked=self.locked.isChecked(),font_pt=self.font_size.value())
-        self.command('Propiedades de texto / bloqueo',candidate)
+        self.command('Propiedades de texto / bloqueo',candidate,rebuild=False)
 
     def change_draw_mode(self,*_):
         if self.loading or not self.editable(): return
         candidate=copy.deepcopy(self.design.state); f=candidate['fields'][self.property_index]
         mode=self.draw_mode.currentData(); f['draw']=mode
         if mode=='continuation': f.setdefault('second_x',f['x']); f.setdefault('next_w',f['w']); f.setdefault('max_lines',3)
-        self.command('Modo de dibujo',candidate)
+        self.command('Modo de dibujo',candidate,rebuild=False)
 
     def moved(self,index):
         # Kept for callers of the R3A controller; graphical gestures commit on release.
@@ -409,6 +456,14 @@ class AdvancedEditorMixin:
         if self._initializing or self.design is None: return
         self.dirty=self.design.dirty; self.recheck_actions()
         self.edit_status.setText('Cambios de diseño sin guardar.' if self.dirty else ('Diseño guardado. Sin autoguardado.' if self.editable() else 'Revisión vigente o retirada: solo lectura.'))
+        self.save_button.setText('Guardar diseño')
+        if hasattr(self,'editor_document_note'):
+            state={'PENDING':'Pendiente de aprobación','APPROVED':'Vigente','RETIRED':'Retirada'}[self.editor_version['state']]
+            variant=self.api.variant(self.current_variant_id) if self.current_variant_id is not None else None
+            variant_note=(' · Variante '+variant['code']+' · '+{'DRAFT':'Borrador editable','PENDING':'Pendiente de aprobación','APPROVED':'Aprobada documentalmente','RETIRED':'Retirada'}[variant['state']]) if variant else ' · Diseño de revisión'
+            restriction='' if self.editable() else ('\nSolo lectura: cree una variante en borrador para editar.' if self.editor_version['state']=='APPROVED' else '\nSolo lectura: revisión retirada; no permite edición ni emisión.')
+            self.editor_document_note.setText('Revisión '+self.editor_version['version']+' · '+state+variant_note+restriction)
+            self.editor_document_note.setToolTip('El original Word/PDF permanece protegido. '+('Edición permitida; guardar no aprueba.' if self.editable() else 'Diseño protegido. Cree una variante en borrador desde una revisión vigente para modificar los campos.'))
 
     def recheck_actions(self):
         super().recheck_actions()
@@ -421,6 +476,10 @@ class AdvancedEditorMixin:
         self.variant_edit_button.setToolTip('Crea una copia editable de los campos sin tocar la revisión vigente. La variante requiere aprobación documental para emitir.' if can_derive else 'Solo se crean variantes de ajuste desde revisiones vigentes.')
         self.undo_button.setEnabled(enabled and bool(self.design.undo_states)); self.redo_button.setEnabled(enabled and bool(self.design.redo_states))
         for b in self.design_buttons: b.setEnabled(enabled)
+        if hasattr(self,'delete_field_button'):
+            selected=self.selected_indices()
+            self.delete_field_button.setEnabled(enabled and bool(selected) and not any(self.fields[i].get('locked') for i in selected))
+            self.delete_field_button.setToolTip('Desbloquee la posición antes de eliminar.' if any(self.fields[i].get('locked') for i in selected) else 'Eliminar los campos seleccionados; no modifica el PDF original.')
         if self.design:
             current=self.editor_record(); self.editor_version['state']=current['state']
             if not enabled: self.disable_properties()
@@ -436,6 +495,7 @@ class AdvancedEditorMixin:
         self.command('Restablecer diseño guardado',copy.deepcopy(self.design.clean))
 
     def save_work(self):
+        self.commit_pending_properties()
         if not self.editable(): return False
         try:
             self.api.save_editor_layout(self.current_editor_id,self.design.state,self.expected_layout,self.expected_source)
@@ -446,6 +506,7 @@ class AdvancedEditorMixin:
             QMessageBox.warning(self,'No guardado',str(ex)); return False
 
     def resolve_work(self):
+        if self.design is not None:self.commit_pending_properties()
         if self.design is None or not self.design.dirty: return True
         answer=QMessageBox.question(self,'Diseño sin guardar','Guardar el diseño pendiente antes de cambiar de revisión, cerrar o abrir Tkinter?',
             QMessageBox.StandardButton.Save|QMessageBox.StandardButton.Discard|QMessageBox.StandardButton.Cancel,QMessageBox.StandardButton.Cancel)
@@ -480,11 +541,29 @@ class AdvancedEditorMixin:
 
     def draw_new_field(self):
         if not self.editable(): return
-        c=self.design.state['crop']; w=c[2]-c[0]; h=c[3]-c[1]
-        dialog=RectangleDialog(self,'Dibujar campo variable',self.api.thumbnail(self.editor_version,width_px=1000),[0,0,w,h],[w*.1,h*.1,w*.5,h*.2])
-        dialog.view.setCursor(Qt.CursorShape.CrossCursor)
-        if dialog.exec()==QDialog.DialogCode.Accepted:
-            r=dialog.selection_rect; self.add_field([r[0]/w,r[1]/h,(r[2]-r[0])/w,(r[3]-r[1])/h])
+        if self.canvas.drawing:
+            self.canvas.end_draw();self.draw_field_button.setText('Dibujar campo');return
+        self.canvas.begin_draw();self.draw_field_button.setText('Cancelar dibujo')
+        self.statusBar().showMessage('Arrastre un rectángulo sobre la etiqueta. Después edite sus propiedades a la derecha.')
+
+    def add_field_from_canvas(self, region):
+        self.draw_field_button.setText('Dibujar campo')
+        if not self.editable():return
+        region=region.intersected(QRectF(0,0,self.image_w,self.image_h))
+        if region.width()<5 or region.height()<5:
+            self.statusBar().showMessage('Área demasiado pequeña. Dibuje un rectángulo dentro de la etiqueta.');return
+        self.quick_add_field([region.x()/self.image_w,region.y()/self.image_h,region.width()/self.image_w,region.height()/self.image_h])
+
+    def quick_add_field(self, rect=None):
+        if not self.editable():return
+        existing={f['key'] for f in self.fields};number=1
+        while f'campo_{number}' in existing:number+=1
+        x,y,width,height=rect if isinstance(rect,list) else [.1,.1,.4,.08]
+        candidate=copy.deepcopy(self.design.state)
+        candidate['fields'].append(dict(key=f'campo_{number}',label=f'Campo {number}',x=x,y=y,w=width,h=height,font_pt=12,bold=False,required=False,locked=False,draw='textbox'))
+        if self.command('Añadir campo',candidate):
+            self.field_list.setCurrentRow(len(self.fields)-1)
+            self.name_input.setFocus();self.name_input.selectAll()
 
     def add_field(self, rect=None):
         if not self.editable(): return
