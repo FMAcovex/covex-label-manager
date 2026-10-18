@@ -36,6 +36,79 @@ class StatusManagerMixin:
                                           self.nav["status-manager"])
         self.refresh_status_manager()
 
+    def build_library(self):
+        # Three permanent library entries, even if the documents have not yet
+        # been imported. Never invent revisions or approval status.
+        page = super().build_library()
+        from .window import box
+        group = box()
+        inner = vbox(group, 10, 5)
+        header = QHBoxLayout()
+        header.addWidget(label("ETIQUETAS DE ESTADO · BIBLIOTECA", "section"))
+        header.addStretch()
+        header.addWidget(button("Gestionar revisiones", lambda: self.navigate("status-manager")))
+        inner.addLayout(header)
+        note = label(
+            "Diseños autónomos de Sin analizar, Aprobado y Rechazado; "
+            "también disponibles sin una etiqueta de producto.", "subtle")
+        inner.addWidget(note)
+        links = QHBoxLayout()
+        self.status_library_buttons = {}
+        for kind in KINDS:
+            entry = button(NAMES[kind], lambda checked=False, kind=kind:
+                           self.open_library_status(kind))
+            entry.setMinimumHeight(42)
+            entry.setToolTip("Abrir ficha y emitir esta etiqueta de estado por separado.")
+            self.status_library_buttons[kind] = entry
+            links.addWidget(entry, 1)
+        inner.addLayout(links)
+        page.layout().insertWidget(2, group)
+        self.status_library_group = group
+        self.search.textChanged.connect(self.refresh_status_library_cards)
+        return page
+
+    def refresh_status_library_cards(self, *_):
+        if not hasattr(self, "status_library_buttons"):
+            return
+        try:
+            revisions = self.api.status_catalog.list_revisions()
+        except (OSError, ValueError, RuntimeError):
+            return
+        query = self.search.text().strip().casefold()
+        by_kind = {kind: [] for kind in KINDS}
+        for rev in revisions:
+            by_kind[rev["kind"]].append(rev)
+        for kind, entry in self.status_library_buttons.items():
+            history = by_kind[kind]
+            active = next((r for r in history if r["state"] == "APPROVED"), None)
+            chosen = active or next((r for r in history if r["state"] == "DRAFT"), None)
+            chosen = chosen or (history[0] if history else None)
+            caption = (NAMES[kind] + " · Rev. " + chosen["revision"]
+                       + " · " + STATES[chosen["state"]]
+                       if chosen else NAMES[kind] + " · Sin importar")
+            entry.setText(caption)
+            entry.setVisible(
+                (not query or query in (NAMES[kind] + " etiqueta de estado " + caption).casefold())
+                and not (self.filters.get("category") and
+                         self.filters["category"].currentData()))
+
+    def open_library_status(self, kind):
+        self.navigate("status-manager")
+        if self.stack.currentWidget() is not getattr(self, "status_manager", None):
+            return
+        revisions = self.api.status_catalog.list_revisions(kind)
+        active = next((r for r in revisions if r["state"] == "APPROVED"), None)
+        chosen = active or (revisions[0] if revisions else None)
+        if chosen:
+            for row in range(self.status_table.rowCount()):
+                item = self.status_table.item(row, 0)
+                if item and item.data(Qt.ItemDataRole.UserRole) == chosen["uid"]:
+                    self.status_table.selectRow(row)
+                    break
+        else:
+            self.status_preview.clear(
+                "Aún no se ha importado esta etiqueta. Utilice «Importar Word/PDF».")
+
     def build_status_manager(self):
         page = QWidget()
         layout = vbox(page, 16, 12)
@@ -113,6 +186,7 @@ class StatusManagerMixin:
                 target = index
         if rows:
             self.status_table.selectRow(max(0, target))
+        self.refresh_status_library_cards()
 
     def selected_status_uid(self):
         if not hasattr(self, "status_table"):
