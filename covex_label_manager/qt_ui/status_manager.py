@@ -35,6 +35,11 @@ class StatusManagerMixin:
         self.header.layout().insertWidget(self.header.layout().count() - 2,
                                           self.nav["status-manager"])
         self.refresh_status_manager()
+        if getattr(self, "history_ready", False):
+            history_bar = self.history_page.layout().itemAt(0).layout()
+            history_bar.insertWidget(
+                max(0, history_bar.count()-1),
+                button("Historial de estados", self.open_status_history))
 
     def build_library(self):
         # Three permanent library entries, even if the documents have not yet
@@ -149,6 +154,7 @@ class StatusManagerMixin:
         right_layout.addWidget(button("Preparar / PDF de prueba", lambda: self.open_status_issue(True), "primary"))
         right_layout.addWidget(button("Emitir etiqueta individual", lambda: self.open_status_issue(False)))
         right_layout.addWidget(button("Ver original", self.view_status_original))
+        right_layout.addWidget(button("Historial y reimpresiones", self.open_status_history))
         right_layout.addStretch()
         bottom.addWidget(right, 2)
         layout.addLayout(bottom, 2)
@@ -206,10 +212,26 @@ class StatusManagerMixin:
     def update_status_selection(self):
         try:
             rec = self.selected_status()
-            if self.api.status_catalog.verify(rec["uid"]):
-                self.status_preview.load(self.api.status_catalog.root / rec["pdf_path"])
+            self.api.status_catalog.verify(rec["uid"])
+            from ..status_design import render_proof
+            import uuid
+            original = self.api.status_catalog.root / rec["pdf_path"]
+            layout = json.loads(rec["layout_json"])
+            proof = self.api.output_path(
+                "cache", "status-selection-" + uuid.uuid4().hex + ".pdf")
+            render_proof(original, layout, {}, proof,
+                         width_mm=min(130, layout["size_mm"][0]))
+            self.status_preview.validator = (
+                lambda uid=rec["uid"]: self.api.status_catalog.verify(uid))
+            self.status_preview.load(
+                proof, "Recorte de " + NAMES[rec["kind"]],
+                "PRUEBA visual del recorte · Sin autorización de uso GMP.")
         except (ValueError, OSError, RuntimeError) as err:
-            self.status_preview.clear("Origen no disponible: " + str(err))
+            self.status_preview.clear("Diseño no disponible: " + str(err))
+
+    def open_status_history(self):
+        from .status_history_dialog import StatusHistoryDialog
+        StatusHistoryDialog(self.api, self).exec()
 
     def import_status_document(self):
         if self.legacy_process is not None:
