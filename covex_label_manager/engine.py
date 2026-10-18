@@ -240,7 +240,7 @@ def _paint_status_r7b(page, source, asset, target, material, status, test_mode):
     from .status_combined import field_values
     layout = asset["r7b_layout"]
     crop = fitz.Rect(layout["crop"])
-    if not target.is_finite or target.is_empty:
+    if not all(math.isfinite(v) for v in target) or target.is_empty:
         raise LayoutError("Área de etiqueta de estado inválida.")
     factor = min(target.width / crop.width, target.height / crop.height)
     if factor <= 0:
