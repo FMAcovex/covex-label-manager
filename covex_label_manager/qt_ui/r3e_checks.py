@@ -5,7 +5,7 @@ import math
 import os
 import sys
 from pathlib import Path
-from PySide6.QtCore import Qt,QPoint,QPointF
+from PySide6.QtCore import Qt,QPoint,QPointF,QCoreApplication,QEvent
 from PySide6.QtGui import QPalette,QColor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication,QDialogButtonBox
@@ -19,10 +19,12 @@ from ..engine import MM
 import fitz
 
 def run(report,captures=None):
-    app=QApplication.instance() or QApplication([]);app.setStyle('Fusion')
+    app=QApplication.instance() or QApplication([])
+    previous_style=app.style().objectName();previous_palette=app.palette()
+    app.setStyle('Fusion')
     palette=app.palette()
     for role,c in [(QPalette.ColorRole.Window,'#F4F7F8'),(QPalette.ColorRole.WindowText,'#203B40'),(QPalette.ColorRole.Base,'white'),(QPalette.ColorRole.Text,'#203B40'),(QPalette.ColorRole.Button,'white'),(QPalette.ColorRole.ButtonText,'#203B40')]:palette.setColor(role,QColor(c))
-    app.setPalette(palette);s=DemoSession();s.fictional=True;w=FunctionalWindow(s);api=s.services
+    app.setPalette(palette);s=DemoSession();s.fictional=True;w=FunctionalWindow(s);api=s.services;extras=[]
     report=Path(report);captures=Path(captures or report.parent/'r3e-captures');captures.mkdir(parents=True,exist_ok=True)
     result={'ok':False,'synthetic_only':True,'platform':sys.platform,'qt_scale_factor':os.environ.get('QT_SCALE_FACTOR','1'),'physical_monitor_acceptance':False,'checks':[],'captures':[]}
     def check(value,title):assert value,title;result['checks'].append(title)
@@ -47,7 +49,7 @@ def run(report,captures=None):
         old=copy.deepcopy(w.design.state);QTest.mousePress(w.canvas.viewport(),Qt.MouseButton.LeftButton,pos=start);QTest.mouseMove(w.canvas.viewport(),start+QPoint(12,0),delay=20);QTest.mouseRelease(w.canvas.viewport(),Qt.MouseButton.LeftButton,pos=start+QPoint(12,0));app.processEvents()
         check(w.design.state!=old,'actual_field_handle_resize');check(w.save_work(),'save_field');capture(w,'03-editor-campo-redimensionado')
         p=dict(width_mm=80,height_mm=50,margin_mm=8,gap_mm=3,orientation='portrait',start_slot=1,safety_mm=0,offset_x_mm=0,offset_y_mm=0,crop_marks=1,layout_version=1,paper='A4',layout_mode='free');p['slots']=template(p,1)
-        d=SheetDesigner(w,p,root=api._repository.root,thumbnail=api.thumbnail(w.editor_version,width_px=450),nominal=(w.editor_version['base_w_mm'],w.editor_version['base_h_mm']));capture(d,'04-A4-una-posicion');d.count.setValue(5);d.arrange();capture(d,'05-A4-cinco-posiciones');check(len(d.profile['slots'])==5,'exactly_five_positions')
+        d=SheetDesigner(w,p,root=api._repository.root,thumbnail=api.thumbnail(w.editor_version,width_px=450),nominal=(w.editor_version['base_w_mm'],w.editor_version['base_h_mm']));extras.append(d);capture(d,'04-A4-una-posicion');d.count.setValue(5);d.arrange();capture(d,'05-A4-cinco-posiciones');check(len(d.profile['slots'])==5,'exactly_five_positions')
         d.paper.setCurrentText('A3');d.arrange();capture(d,'06-A3-libre')
         # Shrink before moving/alignment to create useful free space.
         for item in d.items:item.setRect(0,0,item.rect().width()*.8,item.rect().height()*.8)
@@ -64,7 +66,7 @@ def run(report,captures=None):
             boxes=slots(d.profile);check(len(rects)==14,'no_fictitious_copies')
             for n,r in enumerate(rects):
                 b=boxes[n%5];check(max(abs(x-y) for x,y in zip([v/MM for v in r],(b.x,b.y,b.x+b.width,b.y+b.height)))<.1,'PDF_box_error_under_0.1mm_'+str(n))
-        pane=PdfPane(api);pane.load(out,'PDF real A3 · prueba marcada');capture(pane,'08-PDF-prueba-real')
+        pane=PdfPane(api);extras.append(pane);pane.load(out,'PDF real A3 · prueba marcada');capture(pane,'08-PDF-prueba-real')
         bad=copy.deepcopy(d.profile);bad['slots'][0]['x']=-5;d.push(bad,'Synthetic out of bounds');capture(d,'09-error-fuera-limites');check(not d.buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled(),'invalid_acceptance_blocked');d.undo()
         capture(d,'10-compacto-1366x768',target=(1366,768));check(d.width()*d.devicePixelRatioF()<=1366+2,'compact_logical_width')
         api.work.assert_current(work,True);issued,path,summary=api.work.issue(work['uid'],work['generation'],'Synthetic reviewer');check(summary['physical']==14,'definitive_synthetic_fourteen')
@@ -80,5 +82,12 @@ def run(report,captures=None):
         import traceback
         result['error']=traceback.format_exc()
     finally:
-        report.parent.mkdir(parents=True,exist_ok=True);report.write_text(json.dumps(result,indent=2),encoding='utf-8');w.dirty=False;w.work_dirty_panel=None;w.hide();w.legacy_timer.stop();w.poll_timer.stop();s.close()
+        report.parent.mkdir(parents=True,exist_ok=True);report.write_text(json.dumps(result,indent=2),encoding='utf-8')
+        w.dirty=False;w.work_dirty_panel=None;w.shutdown_runtime()
+        for widget in extras:widget.hide();widget.deleteLater()
+        w.hide();w.deleteLater()
+        QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
+        app.processEvents();s.close()
+        if previous_style and app.style().objectName()!=previous_style:app.setStyle(previous_style)
+        app.setPalette(previous_palette)
     return 0 if result['ok'] else 1

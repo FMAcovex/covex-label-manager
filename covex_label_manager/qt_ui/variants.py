@@ -26,6 +26,7 @@ class VariantsMixin:
         self.variant_menu_button=button('Variantes ▾',self.variant_menu);row.addWidget(self.variant_menu_button)
         layout.insertLayout(3,row)
         self.variant_note=label('Diseño heredado de la revisión','subtle');self.variant_note.setWordWrap(True)
+        self.variant_note.setParent(page)
         self.variant_note.hide()
         return page
     def build_editor(self):

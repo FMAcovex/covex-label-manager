@@ -93,7 +93,7 @@ class ControlledImportDialog(QDialog):
         self.back.setVisible(page==1);self.next.setVisible(page==0);self.next.setEnabled(bool(self.rows))
         self.go.setVisible(page==1);self.go.setEnabled(self.confirm_identity.isChecked() and not self.running and not self.processed)
         self.stop_button.setVisible(page==2);self.stop_button.setEnabled(self.running and not self.cancelled)
-        QTimer.singleShot(0,self.fit_footer)
+        QTimer.singleShot(0,self,self.fit_footer)
 
     def prepare_layout(self):
         # Only the step body scrolls. The heading and footer never enter it;

@@ -28,7 +28,12 @@ def test_create_field_by_button_draw_save_reopen_and_undo(studio,monkeypatch):
 
 def test_source_and_frozen_r3e_proof_uses_real_canvas_without_creation_modals(tmp_path,monkeypatch):
     import json
+    from PySide6.QtWidgets import QApplication
+    from shiboken6 import getCppPointer
     from covex_label_manager.qt_ui.r3e_checks import run
+    app=QApplication.instance() or QApplication([])
+    windows={getCppPointer(widget)[0] for widget in app.topLevelWidgets()}
+    style=app.style().objectName();palette=app.palette()
     monkeypatch.setattr(QDialog,'exec',lambda *_:pytest.fail('R3E proof must use direct canvas creation'))
     report=tmp_path/'synthetic-r3e-proof.json'
     assert run(report,tmp_path/'synthetic-captures')==0
@@ -37,6 +42,9 @@ def test_source_and_frozen_r3e_proof_uses_real_canvas_without_creation_modals(tm
     assert {'create_drawn_field','undo_create','actual_field_handle_resize','save_field',
             'snapshot_preserves_slots','definitive_reprint_links_original'}<=set(result['checks'])
     assert len(result['captures'])==11
+    remaining=[widget for widget in app.topLevelWidgets() if getCppPointer(widget)[0] not in windows]
+    assert not remaining,[(type(widget).__name__,widget.objectName(),getattr(widget,'text',widget.windowTitle)(),widget.isVisible()) for widget in remaining]
+    assert app.style().objectName()==style and app.palette()==palette
 
 
 def test_eight_field_handles_mouse_resize_is_single_command(studio):

@@ -244,7 +244,7 @@ class StatusFieldsDialog(AdaptiveDialog):
         for check in (self.bold,self.required):
             check.toggled.connect(self.commit_properties)
         self.draw()
-        QTimer.singleShot(0, self.fit)
+        QTimer.singleShot(0, self, self.fit)
 
     def fit(self):
         self.view.fit()
@@ -252,7 +252,7 @@ class StatusFieldsDialog(AdaptiveDialog):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if hasattr(self, "view") and not self.view.sceneRect().isEmpty():
-            QTimer.singleShot(0, self.fit)
+            QTimer.singleShot(0, self, self.fit)
 
     def draw(self, selected=None):
         if selected is None:

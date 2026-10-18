@@ -3,6 +3,7 @@ import copy
 import json
 import pytest
 pytest.importorskip('PySide6')
+from PySide6.QtCore import QCoreApplication,QEvent
 from PySide6.QtWidgets import QApplication,QMessageBox
 from covex_label_manager.qt_ui.demo import DemoSession
 from covex_label_manager.qt_ui.functional import FunctionalWindow
@@ -18,7 +19,15 @@ def studio():
     if getattr(w,'preview_task',None):
         assert w.preview_task.wait(30000)
         app.processEvents()
-    w.dirty=False;w.legacy_process=None;w.legacy_timer.stop();w.poll_timer.stop();w.hide();w.deleteLater();app.processEvents();session.close()
+    w.dirty=False;w.legacy_process=None;w.legacy_timer.stop();w.poll_timer.stop()
+    for name in ('work_timer','_gesture_redraw'):
+        timer=getattr(w,name,None)
+        if timer is not None:timer.stop()
+    w.hide();w.deleteLater()
+    # processEvents() alone does not deliver DeferredDelete without app.exec().
+    # Destroy native widgets before releasing SQLite and the synthetic session.
+    QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
+    app.processEvents();session.close()
 
 def test_filter_preference_and_hidden_summary(studio):
     w,s,app=studio

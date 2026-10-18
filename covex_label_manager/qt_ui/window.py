@@ -229,7 +229,7 @@ class StudioWindow(QMainWindow):
 
     def set_inspector(self,visible):
         self.inspector_panel.setVisible(visible);self.inspector_button.setChecked(visible)
-        QTimer.singleShot(0,self.adapt_columns)
+        QTimer.singleShot(0,self,self.adapt_columns)
     def toggle_inspector(self):
         self.set_inspector(self.inspector_button.isChecked())
     def columns_menu(self):
@@ -259,7 +259,7 @@ class StudioWindow(QMainWindow):
         c.currentIndexChanged.connect(self.refresh);self.filters[key]=c
         c.setEnabled(c.count()>1);return c
     def toggle_advanced(self):
-        self.advanced.setVisible(not self.advanced.isVisible());self.advanced_button.setChecked(self.advanced.isVisible());QTimer.singleShot(0,self.adapt_columns)
+        self.advanced.setVisible(not self.advanced.isVisible());self.advanced_button.setChecked(self.advanced.isVisible());QTimer.singleShot(0,self,self.adapt_columns)
     def set_mode(self,mode):
         self.mode=mode
         for key,b in self.view_buttons.items():b.setChecked(key==mode)
@@ -286,7 +286,7 @@ class StudioWindow(QMainWindow):
         self.table.setMaximumHeight(max(170,60+46*len(self.rows)) if few else 16777215)
         active=sum(bool(c.currentData()) for k,c in self.filters.items() if k not in ('category','origin','state'))
         self.advanced_button.setText('Más filtros'+(f' ({active})' if active else ''))
-        QTimer.singleShot(0,self.adapt_columns)
+        QTimer.singleShot(0,self,self.adapt_columns)
         if self.rows:self.select_version(selected if any(r['version_id']==selected for r in self.rows) else self.rows[0]['version_id'])
         else:self.row=None;self.inspector_panel.setEnabled(False);self.preview.scene().clear();self.doc_title.setText('Sin resultados');self.meta.clear();self.revision.clear();self.doc_note.clear();self.badge.clear()
     def sort_table(self,column):
@@ -333,7 +333,7 @@ class StudioWindow(QMainWindow):
         view.zoom_label=label('Vista 100%','subtle');controls.addWidget(view.zoom_label)
         controls.addWidget(button('Ajustar documento',view.fit));controls.addStretch();controls.addWidget(button('Cerrar',dialog.accept))
         lay.addLayout(controls);lay.addWidget(label('Proporciones conservadas · Zoom de visualización, no escala de impresión · Rueda para ampliar · Arrastra para desplazar','subtle'))
-        QTimer.singleShot(0,view.fit);dialog.exec()
+        QTimer.singleShot(0,view,view.fit);dialog.exec()
     def quick_search(self):
         self.navigate('library');self.activateWindow()
         self.search.setFocus(Qt.FocusReason.ShortcutFocusReason);self.search.selectAll()
@@ -394,7 +394,7 @@ class StudioWindow(QMainWindow):
                 self.editor_advanced_button.setText('Avanzadas' if compact else 'Ajuste avanzado')
                 self.editor_fit_button.setText('Ajustar' if compact else 'Ajustar a pantalla')
                 self.editor_reset_button.setText('Restablecer' if compact else 'Restablecer campos')
-            QTimer.singleShot(0,self.adapt_columns)
+            QTimer.singleShot(0,self,self.adapt_columns)
     def build_catalog(self):
         page=QWidget();lay=vbox(page,32);self.catalog_title=label('Funciones actuales','title');lay.addWidget(self.catalog_title)
         self.catalog_text=label('');self.catalog_text.setWordWrap(True);lay.addWidget(self.catalog_text)
@@ -465,7 +465,7 @@ class StudioWindow(QMainWindow):
         self.editor_tip.setVisible(not visible)
         self.editor_tools.setMinimumWidth(250 if visible else 170);self.editor_tools.setMaximumWidth(280 if visible else 230)
         self.tools_scroll.setMinimumWidth(260 if visible else 180);self.tools_scroll.setMaximumWidth(285 if visible else 240)
-        QTimer.singleShot(0,self.canvas.fit)
+        QTimer.singleShot(0,self.canvas,self.canvas.fit)
     def open_editor(self):
         if not self.row:return
         self.api.library.opened(self.row);vid=self.row['version_id']
@@ -486,7 +486,7 @@ class StudioWindow(QMainWindow):
             text=scene.addText(f['key']);text.setDefaultTextColor(QColor('#147D71'));text.setParentItem(item);text.setPos(4,-3)
             text.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
         scene.setSceneRect(QRectF(-45,-45,im.width+90,im.height+90));self.loading=False
-        self.field_list.setCurrentRow(0);self.select_field(0);QTimer.singleShot(0,self.canvas.fit)
+        self.field_list.setCurrentRow(0);self.select_field(0);QTimer.singleShot(0,self.canvas,self.canvas.fit)
     def scene_selection(self):
         if self.loading:return
         selected=[x for x in self.canvas.scene().selectedItems() if isinstance(x,FieldItem)]

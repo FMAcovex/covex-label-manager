@@ -128,7 +128,7 @@ class SheetDesigner(QDialog):
         self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText('Aplicar al trabajo');self.buttons.accepted.connect(self.accept_valid);self.buttons.rejected.connect(self.reject);layout.addWidget(self.buttons)
         for e in (self.paper,self.orientation,self.mode):e.currentIndexChanged.connect(self.controls_changed)
         self.view.scene().selectionChanged.connect(self.selection)
-        self.sync();self.redraw();QTimer.singleShot(0,self.view.fit)
+        self.sync();self.redraw();QTimer.singleShot(0,self.view,self.view.fit)
 
     def sync(self):
         self.busy=True;p=self.profile

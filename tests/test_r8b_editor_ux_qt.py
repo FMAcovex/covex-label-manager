@@ -17,6 +17,14 @@ from covex_label_manager.qt_ui.status_fields_dialog import StatusFieldsDialog
 SIZES=[(1366,728),(1092,574),(910,472),(1920,1040),(1536,824),(1280,680)]
 
 
+def test_studio_fixture_destroys_native_window_before_releasing_synthetic_session():
+    lifecycle=studio.__wrapped__()
+    w,s,app=next(lifecycle)
+    assert isValid(w)
+    with pytest.raises(StopIteration):next(lifecycle)
+    assert not isValid(w)
+
+
 def test_same_87_capability_ids_and_names_are_retained():
     docs=Path(__file__).resolve().parents[1]/'docs'
     def entries(relative):

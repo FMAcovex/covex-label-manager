@@ -291,7 +291,7 @@ class AdvancedEditorMixin:
         self.loading=False; self._drawing=False
         if indices: self.select_field(indices[0])
         else: self.disable_properties()
-        if fit: QTimer.singleShot(0,self.canvas.fit)
+        if fit: QTimer.singleShot(0,self.canvas,self.canvas.fit)
         self.update_dirty()
 
     def disable_properties(self):

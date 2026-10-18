@@ -138,6 +138,13 @@ declaran validación GMP. El nombre «Aprobado» no tiene privilegios documental
   creación/deshacer, redimensionamiento, guardado, todas las aserciones de PDF,
   historial/reimpresión y sus once capturas. Una regresión ejecuta el self-check
   completo y prohíbe abrir modales de creación.
+- Aislamiento Qt: la fixture procesa explícitamente `DeferredDelete` antes de
+  cerrar su sesión sintética. Diez ciclos dejaban diez ventanas nativas vivas;
+  ahora dejan cero. El self-check R3E libera también el diseñador/visor PDF y
+  restaura estilo/paleta, sin contaminar pruebas posteriores. Se comprueban estas
+  garantías. Los callbacks diferidos de layout/ajuste usan el `QObject` propietario:
+  se cancelan al destruirlo, en vez de acceder después a widgets ya liberados.
+  La nota interna de variante mantiene la misma función, ahora con padre Qt.
 - `checks.py`: abre explícitamente Herramientas para la misma comprobación visual,
   porque el grupo ya es visible por defecto; mantiene el self-check de 86 casos.
 - `main_qt.py --editor-ux-check INFORME --capture CARPETA`: prueba aislada incluida
