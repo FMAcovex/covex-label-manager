@@ -204,7 +204,7 @@ class StatusFieldsDialog(AdaptiveDialog):
     def apply_properties(self):
         index = self.items.currentRow()
         if not 0 <= index < len(self.layout["fields"]):
-            return
+            return True
         key = self.key.text().strip()
         name = self.name.text().strip()
         if (not re.fullmatch(r"[a-z][a-z0-9_]{0,39}", key)
