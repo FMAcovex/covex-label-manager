@@ -399,7 +399,20 @@ class StatusFieldsDialog(AdaptiveDialog):
                 self.crop[0]+bounding.right()*sx,
                 self.crop[1]+bounding.bottom()*sy]
         before=copy.deepcopy(self.design)
-        self.design["fields"][index]["rect"] = rect
+        candidate=copy.deepcopy(self.design)
+        candidate['fields'][index]['rect']=rect
+        try:
+            with fitz.open(self.pdf) as document:validate_layout(candidate,document)
+        except (ValueError,OSError,RuntimeError) as ex:
+            # A native item/handle release is still on the C++ stack. Restore
+            # this item in place; never redraw/delete it inside that callback.
+            r=before['fields'][index]['rect']
+            shape.setPos((r[0]-self.crop[0])/sx,(r[1]-self.crop[1])/sy)
+            shape.setRect(0,0,(r[2]-r[0])/sx,(r[3]-r[1])/sy)
+            shape.position_handles()
+            self.draw_hint.setText('Cambio no realizado: '+str(ex))
+            return
+        self.design=candidate
         self.remember(before)
         self.load_geometry(index)
         self.show_geometry(index)

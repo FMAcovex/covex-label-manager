@@ -181,6 +181,16 @@ def test_status_invalid_geometry_does_not_discard_pending_values_on_selection(st
     d.spins['w'].setValue(d.geometry_reference['w']);d.design=json.loads(d.revision['layout_json']);d.draw();d.reject()
 
 
+def test_status_invalid_drag_restores_same_native_item_and_keeps_undo_available(studio,tmp_path):
+    w,s,app=studio;d=status_dialog(studio,tmp_path);d.quick_add_field()
+    before=copy.deepcopy(d.design);shape=d.shapes[0];position=shape.pos()
+    shape.moveBy(-10000,0);shape.released()
+    assert d.design==before and shape.pos()==position and isValid(shape)
+    assert 'Cambio no realizado' in d.draw_hint.text()
+    assert d.undo_button.isEnabled();d.undo_edit();assert not d.design['fields']
+    d.reject()
+
+
 @pytest.mark.parametrize('width,height',SIZES)
 def test_status_properties_scroll_and_persistent_save(studio,tmp_path,width,height):
     w,s,app=studio;d=status_dialog(studio,tmp_path)

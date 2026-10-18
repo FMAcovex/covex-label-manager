@@ -97,6 +97,8 @@ declaran validación GMP. El nombre «Aprobado» no tiene privilegios documental
   alta/dibujo reales, foco/cursor/zoom/selección, valores numéricos pendientes,
   bloqueo/solo lectura, herramientas y compatibilidad, menú y ayuda, edición de
   estados, cambio de selección con error, deshacer/rehacer/guardar/reabrir y 87 IDs.
+  Un arrastre de estado fuera del recorte o solapado se rechaza restaurando el
+  mismo objeto nativo, sin invalidar el borrador ni inutilizar Deshacer.
 - `test_r3e_qt.py`: el escenario de creación ahora dibuja con ratón real, sin
   interceptar dos diálogos eliminados; conserva todos sus cotejos de guardado,
   reapertura y deshacer. `test_r6b_ux_qt.py` comprueba los mismos criterios de
