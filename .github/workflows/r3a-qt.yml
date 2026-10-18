@@ -113,6 +113,11 @@ jobs:
             if ($LASTEXITCODE -ne 0) { if (Test-Path "test-results/r3c-source-$scale.json") { Get-Content "test-results/r3c-source-$scale.json" -Raw }; throw "R3C native source failed at $scale" }
           }
           Remove-Item Env:QT_SCALE_FACTOR
+      - name: R7B-AC1 real Qt status library and editor acceptance (fail fast)
+        timeout-minutes: 3
+        run: >-
+          python -m pytest -q -x -o faulthandler_timeout=45
+          tests/test_r7a_status_qt.py tests/test_r7b_status_qt.py
       - name: Qt and migration-consent regression (core/Tk covered in Windows job)
         timeout-minutes: 8
         run: >-

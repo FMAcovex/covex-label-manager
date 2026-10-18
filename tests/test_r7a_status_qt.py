@@ -33,26 +33,53 @@ def add_three(catalog, path):
     return catalog.import_many(path, entries)
 
 
-def test_status_entries_are_visible_and_navigable_from_library(studio, tmp_path):
+def test_status_entries_are_rows_in_shared_library_not_overlay_buttons(studio, tmp_path):
     window, session, app = studio
-    assert set(window.status_library_buttons) == {
-        "sin_analizar", "aprobado", "rechazado"}
+    assert not hasattr(window, "status_library_buttons")
+    assert not hasattr(window, "status_library_group")
     source = synthetic_source(tmp_path)
     ids = add_three(session.services.status_catalog, source)
     window.refresh_status_manager()
-    assert "Rev. 00" in window.status_library_buttons["aprobado"].text()
+    window.navigate("library")
+
+    def markers():
+        return [
+            window.table.item(index, 0).data(__import__(
+                "PySide6.QtCore", fromlist=["Qt"]).Qt.ItemDataRole.UserRole)
+            for index in range(window.table.rowCount())
+        ]
+
+    assert all("status:" + uid in markers() for uid in ids)
+    for uid in ids:
+        row = markers().index("status:" + uid)
+        assert window.table.item(row, 3).text() == "Etiqueta de estado"
+        assert window.table.item(row, 4).text() == "00"
+    assert window.select_version("status:" + ids[2])
+    assert window.row is None  # no fabricated product identity
+    assert "Rechazado" in window.doc_title.text()
+    assert "Etiqueta de estado" in window.meta.text()
+
+    window.search.setText("Sin analizar")
+    app.processEvents()
+    assert "status:" + ids[0] in markers()
+    assert "status:" + ids[2] not in markers()
+    window.search.clear()
+
+    category = window.filters["category"]
+    index = category.findData("Etiquetas de estado")
+    assert index > 0
+    category.setCurrentIndex(index)
+    app.processEvents()
+    assert set(markers()) == {"status:" + uid for uid in ids}
+    window.reset_filters()
     window.open_library_status("rechazado")
     assert window.stack.currentWidget() is window.status_manager
     assert window.selected_status_uid() == ids[2]
-    window.navigate("library")
-    window.search.setText("Sin analizar")
-    app.processEvents()
-    assert window.status_library_buttons["sin_analizar"].isVisible()
-    assert not window.status_library_buttons["rechazado"].isVisible()
-    window.search.clear()
 
 
-def test_visual_field_editor_moves_and_saves_draft(studio, tmp_path):
+def test_visual_field_editor_mouse_draw_move_resize_save_reopen(studio, tmp_path):
+    from PySide6.QtCore import QPointF, Qt
+    from PySide6.QtTest import QTest
     window, session, app = studio
     src = synthetic_source(tmp_path)
     uid = session.services.status_catalog.import_many(
@@ -60,29 +87,68 @@ def test_visual_field_editor_moves_and_saves_draft(studio, tmp_path):
                "layout": make_layout(src, "aprobado", crop=[55, 280, 530, 465])}])[0]
     record = session.services.status_catalog.get(uid)
     editor = StatusFieldsDialog(session.services, record, window)
-    editor.layout["fields"].append({
-        "key": "lote", "label": "Lote", "rect": [120, 350, 300, 379],
-        "font_size": 10.0, "bold": False, "required": True})
-    editor.draw(0)
+    editor.show()
     app.processEvents()
-    original = editor.layout["fields"][0]["rect"][0]
+
+    # Critical UAT path: click the *real button* and draw on the actual canvas.
+    QTest.mouseClick(editor.new_field_button, Qt.MouseButton.LeftButton)
+    assert editor.view.drawing
+    start = editor.view.mapFromScene(QPointF(90, 55))
+    end = editor.view.mapFromScene(QPointF(220, 115))
+    QTest.mousePress(editor.view.viewport(), Qt.MouseButton.LeftButton, pos=start)
+    QTest.mouseMove(editor.view.viewport(), end)
+    QTest.mouseRelease(editor.view.viewport(), Qt.MouseButton.LeftButton, pos=end)
+    app.processEvents()
+    assert not editor.view.drawing
+    assert len(editor.design["fields"]) == 1
+    assert editor.items.currentRow() == 0
+
+    editor.key.setText("lote")
+    editor.name.setText("Lote de prueba")
+    editor.required.setChecked(True)
+    assert editor.apply_properties()
+    original = editor.design["fields"][0]["rect"][0]
     editor.shapes[0].moveBy(12, 0)
-    editor.shapes[0].released()  # identical callback used on real mouse release
-    assert editor.layout["fields"][0]["rect"][0] > original
-    # Resizing via one of the eight handles must reach the same release hook.
-    before_width = editor.layout["fields"][0]["rect"][2] - editor.layout["fields"][0]["rect"][0]
-    rect = editor.shapes[0].rect()
-    rect.setRight(rect.right() + 15)
-    editor.shapes[0].setRect(rect)
+    editor.shapes[0].released()
+    assert editor.design["fields"][0]["rect"][0] > original
+
+    width_before = (editor.design["fields"][0]["rect"][2]
+                    - editor.design["fields"][0]["rect"][0])
+    rectangle = editor.shapes[0].rect()
+    rectangle.setRight(rectangle.right() + 15)
+    editor.shapes[0].setRect(rectangle)
     editor.shapes[0].handles[-1].parentItem().released()
-    after_width = editor.layout["fields"][0]["rect"][2] - editor.layout["fields"][0]["rect"][0]
-    assert after_width > before_width
+    width_after = (editor.design["fields"][0]["rect"][2]
+                   - editor.design["fields"][0]["rect"][0])
+    assert width_after > width_before
     editor.save()
-    updated = session.services.status_catalog.get(uid)
-    values = json.loads(updated["layout_json"])
-    assert len(values["fields"]) == 1
-    assert values["fields"][0]["key"] == "lote"
+
+    reloaded = session.services.status_catalog.get(uid)
+    fields = json.loads(reloaded["layout_json"])["fields"]
+    assert len(fields) == 1
+    assert fields[0]["key"] == "lote"
+    assert fields[0]["label"] == "Lote de prueba"
+    assert fields[0]["required"] is True
+    another = StatusFieldsDialog(session.services, reloaded, window)
+    assert another.design["fields"] == fields
+    another.close()
     editor.close()
+
+
+def test_library_double_click_routes_to_draft_status_editor(studio, tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QDialog
+    window, session, app = studio
+    uid = add_three(session.services.status_catalog, synthetic_source(tmp_path))[0]
+    window.refresh_status_manager()
+    window.navigate("library")
+    window.select_version("status:" + uid)
+    opened = []
+    def capture(dialog):
+        opened.append(dialog.revision["uid"])
+        return QDialog.DialogCode.Rejected
+    monkeypatch.setattr(StatusFieldsDialog, "exec", capture)
+    window.open_editor()
+    assert opened == [uid]
 
 
 def test_status_issue_history_is_accessible_from_native_history(studio, tmp_path):
