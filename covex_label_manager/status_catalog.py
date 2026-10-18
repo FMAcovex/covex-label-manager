@@ -439,6 +439,30 @@ class StatusCatalogue:
                 JOIN status_revisions r ON r.uid=i.revision_uid
                 ORDER BY i.created_at DESC,i.rowid DESC""")]
 
+    def inspect_issue(self, issue_uid):
+        """Verify the exact stored PDF and historical revision identity."""
+        with self._connect() as db:
+            record = _row(db.execute(
+                """SELECT i.*,r.kind,r.revision,r.source_sha,r.pdf_sha AS master_sha,
+                          r.layout_sha FROM status_issues i
+                   JOIN status_revisions r ON r.uid=i.revision_uid
+                   WHERE i.uid=?""", (issue_uid,)).fetchone())
+        if record is None:
+            raise ValueError("Emisión independiente inexistente.")
+        path = _allowed_path(self.root, record["pdf_path"])
+        if not path.is_file() or sha256(path) != record["pdf_sha"]:
+            raise ValueError("El PDF histórico ha desaparecido o no coincide con su hash.")
+        snapshot = json.loads(record["snapshot_json"])
+        if (snapshot.get("contract") != 1
+                or snapshot.get("revision_uid") != record["revision_uid"]
+                or snapshot.get("kind") != record["kind"]
+                or snapshot.get("revision") != record["revision"]
+                or snapshot.get("source_sha") != record["source_sha"]
+                or snapshot.get("pdf_sha") != record["master_sha"]
+                or snapshot.get("layout_sha") != record["layout_sha"]):
+            raise ValueError("El snapshot histórico no corresponde a la revisión emitida.")
+        return record, path
+
     def reprint(self, issue_uid, operator, reason):
         operator = _require_note(operator, "Operador")
         reason = _require_note(reason, "Motivo de reimpresión", 5)
