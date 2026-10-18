@@ -126,13 +126,13 @@ class StatusFieldsDialog(AdaptiveDialog):
         self.catalog = api.status_catalog
         self.revision = revision
         self.pdf = self.catalog.root / revision["pdf_path"]
-        self.layout = copy.deepcopy(__import__("json").loads(revision["layout_json"]))
-        self.crop = list(self.layout["crop"])
+        self.design = copy.deepcopy(__import__("json").loads(revision["layout_json"]))
+        self.crop = list(self.design["crop"])
         with fitz.open(self.pdf) as document:
-            validated = validate_layout(self.layout, document)
-            if validated != self.layout:
+            validated = validate_layout(self.design, document)
+            if validated != self.design:
                 raise ValueError("Diseño de referencia no canónico.")
-            page = document[self.layout["page"]]
+            page = document[self.design["page"]]
             clipped = page.get_pixmap(matrix=fitz.Matrix(2, 2),
                                       clip=fitz.Rect(self.crop), alpha=False)
             self.image = Image.frombytes(
@@ -225,7 +225,7 @@ class StatusFieldsDialog(AdaptiveDialog):
         scene.setSceneRect(QRectF(0, 0, *self.image_size))
         self.shapes = []
         self.items.clear()
-        for index, field in enumerate(self.layout["fields"]):
+        for index, field in enumerate(self.design["fields"]):
             shape = StatusFieldShape(index, field, self.crop,
                                      self.image_size, self.moved)
             scene.addItem(shape)
@@ -251,12 +251,12 @@ class StatusFieldsDialog(AdaptiveDialog):
         self.busy = True
         for shape in self.shapes:
             shape.setSelected(shape.index == index)
-        valid = 0 <= index < len(self.layout["fields"])
+        valid = 0 <= index < len(self.design["fields"])
         for widget in (self.key, self.name, self.font_size,
                        self.bold, self.required):
             widget.setEnabled(valid)
         if valid:
-            field = self.layout["fields"][index]
+            field = self.design["fields"][index]
             self.key.setText(field["key"])
             self.name.setText(field["label"])
             self.font_size.setValue(field["font_size"])
@@ -270,7 +270,7 @@ class StatusFieldsDialog(AdaptiveDialog):
         self.busy = False
 
     def show_geometry(self, index):
-        r = self.layout["fields"][index]["rect"]
+        r = self.design["fields"][index]["rect"]
         mm = 25.4 / 72
         self.geometry.setText(
             f"Posición: {r[0]*mm:.2f}, {r[1]*mm:.2f} mm\n"
@@ -279,13 +279,13 @@ class StatusFieldsDialog(AdaptiveDialog):
 
     def apply_properties(self):
         index = self.items.currentRow()
-        if not 0 <= index < len(self.layout["fields"]):
+        if not 0 <= index < len(self.design["fields"]):
             return True
         key = self.key.text().strip()
         name = self.name.text().strip()
         if (not re.fullmatch(r"[a-z][a-z0-9_]{0,39}", key)
                 or any(i != index and f["key"] == key
-                       for i, f in enumerate(self.layout["fields"]))):
+                       for i, f in enumerate(self.design["fields"]))):
             QMessageBox.warning(self, "Identificador incorrecto",
                                 "Utilice letras minúsculas, números o _; clave única.")
             return False
@@ -293,7 +293,7 @@ class StatusFieldsDialog(AdaptiveDialog):
             QMessageBox.warning(self, "Nombre incorrecto",
                                 "Indique un nombre entre 1 y 80 caracteres.")
             return False
-        field = self.layout["fields"][index]
+        field = self.design["fields"][index]
         field.update(key=key, label=name,
                      font_size=self.font_size.value(),
                      bold=self.bold.isChecked(),
@@ -312,7 +312,7 @@ class StatusFieldsDialog(AdaptiveDialog):
                 self.crop[1]+bounding.top()*sy,
                 self.crop[0]+bounding.right()*sx,
                 self.crop[1]+bounding.bottom()*sy]
-        self.layout["fields"][index]["rect"] = rect
+        self.design["fields"][index]["rect"] = rect
         self.show_geometry(index)
 
     def new_field(self):
@@ -321,7 +321,7 @@ class StatusFieldsDialog(AdaptiveDialog):
             self.new_field_button.setText("Dibujar campo…")
             self.draw_hint.setText("Dibujo cancelado. El borrador no ha cambiado.")
             return
-        if len(self.layout["fields"]) >= MAX_FIELDS:
+        if len(self.design["fields"]) >= MAX_FIELDS:
             QMessageBox.warning(self, "Número de campos", "Se ha alcanzado el máximo de campos.")
             return
         self.view.begin_draw()
@@ -343,23 +343,23 @@ class StatusFieldsDialog(AdaptiveDialog):
                 "Área demasiado pequeña. Vuelva a pulsar Dibujar campo y arrastre más.")
             return
         n = 1
-        existing = {field["key"] for field in self.layout["fields"]}
+        existing = {field["key"] for field in self.design["fields"]}
         while f"campo_{n}" in existing:
             n += 1
-        self.layout["fields"].append({
+        self.design["fields"].append({
             "key": f"campo_{n}", "label": f"Campo {n}",
             "rect": rect, "font_size": 10.0, "bold": False, "required": False,
         })
-        self.draw(len(self.layout["fields"])-1)
+        self.draw(len(self.design["fields"])-1)
         self.draw_hint.setText(
             "Campo creado. Edite el nombre y las propiedades, pulse Aplicar propiedades "
             "y finalmente Guardar diseño borrador.")
 
     def remove_field(self):
         i = self.items.currentRow()
-        if not 0 <= i < len(self.layout["fields"]):
+        if not 0 <= i < len(self.design["fields"]):
             return
-        name = self.layout["fields"][i]["label"]
+        name = self.design["fields"][i]["label"]
         result = QMessageBox.question(
             self, "Eliminar campo del borrador",
             "¿Eliminar el campo variable «" + name + "»?\n"
@@ -368,7 +368,7 @@ class StatusFieldsDialog(AdaptiveDialog):
             QMessageBox.StandardButton.Cancel,
         )
         if result == QMessageBox.StandardButton.Yes:
-            self.layout["fields"].pop(i)
+            self.design["fields"].pop(i)
             self.draw(i-1)
 
     def save(self):
@@ -380,7 +380,7 @@ class StatusFieldsDialog(AdaptiveDialog):
         if not self.apply_properties():
             return
         try:
-            self.catalog.save_draft(self.revision["uid"], self.layout)
+            self.catalog.save_draft(self.revision["uid"], self.design)
             self.accept()
         except (ValueError, PermissionError, OSError, RuntimeError) as error:
             QMessageBox.warning(self, "Diseño no guardado", str(error))

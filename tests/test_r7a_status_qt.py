@@ -100,26 +100,26 @@ def test_visual_field_editor_mouse_draw_move_resize_save_reopen(studio, tmp_path
     QTest.mouseRelease(editor.view.viewport(), Qt.MouseButton.LeftButton, pos=end)
     app.processEvents()
     assert not editor.view.drawing
-    assert len(editor.layout["fields"]) == 1
+    assert len(editor.design["fields"]) == 1
     assert editor.items.currentRow() == 0
 
     editor.key.setText("lote")
     editor.name.setText("Lote de prueba")
     editor.required.setChecked(True)
     assert editor.apply_properties()
-    original = editor.layout["fields"][0]["rect"][0]
+    original = editor.design["fields"][0]["rect"][0]
     editor.shapes[0].moveBy(12, 0)
     editor.shapes[0].released()
-    assert editor.layout["fields"][0]["rect"][0] > original
+    assert editor.design["fields"][0]["rect"][0] > original
 
-    width_before = (editor.layout["fields"][0]["rect"][2]
-                    - editor.layout["fields"][0]["rect"][0])
+    width_before = (editor.design["fields"][0]["rect"][2]
+                    - editor.design["fields"][0]["rect"][0])
     rectangle = editor.shapes[0].rect()
     rectangle.setRight(rectangle.right() + 15)
     editor.shapes[0].setRect(rectangle)
     editor.shapes[0].handles[-1].parentItem().released()
-    width_after = (editor.layout["fields"][0]["rect"][2]
-                   - editor.layout["fields"][0]["rect"][0])
+    width_after = (editor.design["fields"][0]["rect"][2]
+                   - editor.design["fields"][0]["rect"][0])
     assert width_after > width_before
     editor.save()
 
@@ -130,7 +130,7 @@ def test_visual_field_editor_mouse_draw_move_resize_save_reopen(studio, tmp_path
     assert fields[0]["label"] == "Lote de prueba"
     assert fields[0]["required"] is True
     another = StatusFieldsDialog(session.services, reloaded, window)
-    assert another.layout["fields"] == fields
+    assert another.design["fields"] == fields
     another.close()
     editor.close()
 
