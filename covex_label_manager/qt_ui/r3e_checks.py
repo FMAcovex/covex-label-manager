@@ -5,14 +5,13 @@ import math
 import os
 import sys
 from pathlib import Path
-from PySide6.QtCore import Qt,QPoint
+from PySide6.QtCore import Qt,QPoint,QPointF
 from PySide6.QtGui import QPalette,QColor
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication,QDialog,QLineEdit,QDialogButtonBox
+from PySide6.QtWidgets import QApplication,QDialogButtonBox
 from .demo import DemoSession
 from .functional import FunctionalWindow
 from .sheet_designer import SheetDesigner
-from .advanced_editor import RectangleDialog
 from .pdf_view import PdfPane
 from .window import vbox
 from ..sheet_layout import template,slots,paper_size
@@ -33,14 +32,16 @@ def run(report,captures=None):
         result['captures'].append(dict(name=name,logical_width=widget.width(),logical_height=widget.height(),dpr=dpr,requested_physical_viewport=list(target)))
     try:
         w.show();app.processEvents();w.open_editor();before=copy.deepcopy(w.design.state)
-        real_exec=QDialog.exec
-        def fill(d):
-            if isinstance(d,RectangleDialog):
-                d.from_drag([40,80,140,105]);capture(d,'02-editor-dibujar-campo');return QDialog.DialogCode.Accepted
-            entries=d.findChildren(QLineEdit);entries[0].setText('synthetic_r3e');entries[1].setText('Campo sintético R3E');capture(d,'01-editor-nuevo-campo',target=(700,560));return QDialog.DialogCode.Accepted
-        QDialog.exec=fill
-        try:w.draw_new_field()
-        finally:QDialog.exec=real_exec
+        # R8B draws on the real canvas; the former two modal dialogs no longer
+        # participate in common creation. Keep every geometry/PDF assertion.
+        w.draw_field_button.click();app.processEvents()
+        capture(w,'01-editor-nuevo-campo')
+        start=w.canvas.mapFromScene(QPointF(w.image_w*.1,w.image_h*.3))
+        end=w.canvas.mapFromScene(QPointF(w.image_w*.4,w.image_h*.4))
+        QTest.mousePress(w.canvas.viewport(),Qt.MouseButton.LeftButton,pos=start)
+        QTest.mouseMove(w.canvas.viewport(),end,delay=20)
+        QTest.mouseRelease(w.canvas.viewport(),Qt.MouseButton.LeftButton,pos=end);app.processEvents()
+        capture(w,'02-editor-dibujar-campo')
         check(len(w.fields)==len(before['fields'])+1,'create_drawn_field');w.undo_edit();check(w.design.state==before,'undo_create');w.redo_edit()
         i=w.field_items[-1];i.setSelected(True);w.canvas.fit();app.processEvents();start=w.canvas.mapFromScene(i.handles[4].scenePos())
         old=copy.deepcopy(w.design.state);QTest.mousePress(w.canvas.viewport(),Qt.MouseButton.LeftButton,pos=start);QTest.mouseMove(w.canvas.viewport(),start+QPoint(12,0),delay=20);QTest.mouseRelease(w.canvas.viewport(),Qt.MouseButton.LeftButton,pos=start+QPoint(12,0));app.processEvents()

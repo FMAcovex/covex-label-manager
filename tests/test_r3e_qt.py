@@ -26,6 +26,19 @@ def test_create_field_by_button_draw_save_reopen_and_undo(studio,monkeypatch):
     w.design=None;w.current_editor_id=None;w.open_editor();assert w.design.state==after
 
 
+def test_source_and_frozen_r3e_proof_uses_real_canvas_without_creation_modals(tmp_path,monkeypatch):
+    import json
+    from covex_label_manager.qt_ui.r3e_checks import run
+    monkeypatch.setattr(QDialog,'exec',lambda *_:pytest.fail('R3E proof must use direct canvas creation'))
+    report=tmp_path/'synthetic-r3e-proof.json'
+    assert run(report,tmp_path/'synthetic-captures')==0
+    result=json.loads(report.read_text(encoding='utf-8'))
+    assert result['ok'] and result['synthetic_only']
+    assert {'create_drawn_field','undo_create','actual_field_handle_resize','save_field',
+            'snapshot_preserves_slots','definitive_reprint_links_original'}<=set(result['checks'])
+    assert len(result['captures'])==11
+
+
 def test_eight_field_handles_mouse_resize_is_single_command(studio):
     w,s,app=studio;w.open_editor();app.processEvents();before=copy.deepcopy(w.design.state)
     item=w.field_items[0];assert len(item.handles)==8

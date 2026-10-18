@@ -133,6 +133,11 @@ declaran validación GMP. El nombre «Aprobado» no tiene privilegios documental
   reapertura y deshacer. `test_r6b_ux_qt.py` comprueba los mismos criterios de
   disponibilidad por estado, ahora por presencia en el menú y ayuda en lugar de
   acciones inhabilitadas. No se relajan permisos ni aserciones de integridad.
+- `r3e_checks.py` (source y EXE): el self-check histórico también dibuja con ratón
+  real en vez de interceptar los dos modales retirados del flujo común. Conserva
+  creación/deshacer, redimensionamiento, guardado, todas las aserciones de PDF,
+  historial/reimpresión y sus once capturas. Una regresión ejecuta el self-check
+  completo y prohíbe abrir modales de creación.
 - `checks.py`: abre explícitamente Herramientas para la misma comprobación visual,
   porque el grupo ya es visible por defecto; mantiene el self-check de 86 casos.
 - `main_qt.py --editor-ux-check INFORME --capture CARPETA`: prueba aislada incluida
