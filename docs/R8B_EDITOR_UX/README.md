@@ -71,6 +71,11 @@ Propiedades por sus métricas de texto. Se corrige haciendo que las etiquetas
 largas pasen encima del control cuando no caben a su lado (`WrapLongRows`), sin
 ocultar barras ni reducir fuentes. Una regresión con texto ampliado reproduce el
 fallo original y exige acceso a todos los controles sin desplazamiento horizontal.
+El diagnóstico posterior localizó otra restricción Windows: «Gestionar variantes»
+tenía un mínimo de 269 px; con márgenes necesitaba 289 px frente a un viewport de
+276 (13 px de desbordamiento). El panel ahora reserva su mínimo real de contenido
+más el scrollbar/marco, y lo recalcula ante cambios de layout/fuente/estilo.
+Una regresión reproduce exactamente ese mínimo antes de comprobar la corrección.
 Al sustituir el aviso inferior antiguo se oculta inmediatamente antes de su
 eliminación diferida: así no queda flotando encima del lienzo durante la apertura
 o en capturas tomadas antes de procesar `DeferredDelete`.

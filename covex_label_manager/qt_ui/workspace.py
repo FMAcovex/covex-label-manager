@@ -1,7 +1,28 @@
 """Presentation of the retained Editor, with all existing controller objects."""
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QEvent
 from PySide6.QtWidgets import (QWidget, QTabWidget, QBoxLayout, QPushButton, QScrollArea,
     QComboBox, QVBoxLayout, QLabel, QFormLayout, QHBoxLayout, QFrame, QSizePolicy)
+
+
+class EditorProperties(QFrame):
+    """Reserve the actual control minimum, including native font/style metrics."""
+    def __init__(self, scroll):
+        super().__init__();self.scroll=scroll
+
+    def event(self, event):
+        result=super().event(event)
+        if event.type() in (QEvent.Type.LayoutRequest, QEvent.Type.FontChange,
+                            QEvent.Type.StyleChange, QEvent.Type.PolishRequest):
+            self.fit_width()
+        return result
+
+    def fit_width(self):
+        scroll=getattr(self,'scroll',None)
+        if scroll is None or self.layout() is None:return
+        required=max(260,self.minimumSizeHint().width()+
+                     scroll.verticalScrollBar().sizeHint().width()+2*scroll.frameWidth())
+        scroll.setMaximumWidth(max(320,required))
+        scroll.setMinimumWidth(required)
 
 
 def arrange_editor(window):
@@ -68,7 +89,7 @@ def arrange_editor(window):
     # Essential properties leave the collapsed technical sections. Keep all
     # original widgets, signals, controllers and documentary checks.
     previous_properties = w.properties_scroll.takeWidget()
-    properties = QFrame();properties.setObjectName('editorProperties')
+    properties = EditorProperties(w.properties_scroll);properties.setObjectName('editorProperties')
     pl = QVBoxLayout(properties);pl.setContentsMargins(10, 8, 10, 8);pl.setSpacing(7)
     pl.addWidget(QLabel('PROPIEDADES'))
     w.field_title.setStyleSheet('font-size:15px;font-weight:700;')
@@ -112,6 +133,7 @@ def arrange_editor(window):
     for control in properties.findChildren(QWidget):
         if isinstance(control,(QComboBox,)):
             control.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed)
+    properties.ensurePolished();properties.fit_width()
     # Durable save/status footer is outside BOTH scroll areas and work tabs.
     footer = QWidget();footer.setObjectName('editorFooter')
     fl = QHBoxLayout(footer);fl.setContentsMargins(2,2,2,2);fl.setSpacing(8)

@@ -105,6 +105,17 @@ def test_replaced_work_note_cannot_overlay_the_canvas_before_deferred_deletion(s
     assert w.editor_document_note.isVisibleTo(w)
 
 
+def test_properties_reserve_real_windows_variant_action_minimum_width(studio):
+    w,s,app=studio;w.resize(1366,728);w.open_editor()
+    # Measured Windows/offscreen minimum: 269; content margins add 20.
+    # The previous fixed panel left a 276 px viewport (13 px overflow).
+    w.editor_variant_menu_button.setMinimumWidth(269)
+    for _ in range(4):app.processEvents()
+    assert w.properties_scroll.viewport().width()>=289
+    assert w.properties_scroll.horizontalScrollBar().maximum()==0
+    assert w.canvas.width()>=200
+
+
 def test_typing_properties_preserves_items_selection_zoom_and_caret(studio):
     w,s,app=studio;w.open_editor();w.canvas.zoom(1.2);app.processEvents()
     zoom=w.canvas.transform();item=w.field_items[0]
