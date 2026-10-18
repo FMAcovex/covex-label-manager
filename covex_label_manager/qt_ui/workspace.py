@@ -118,7 +118,10 @@ def arrange_editor(window):
     w.editor_document_note = QLabel();w.editor_document_note.setWordWrap(True)
     fl.addWidget(w.editor_document_note, 2);fl.addWidget(w.edit_status, 1);fl.addWidget(w.save_button)
     last = outer.takeAt(outer.count()-1)
-    if last.widget():last.widget().deleteLater()
+    if last.widget():
+        # Removal from a layout does not hide a parented QLabel. Hide the old
+        # work note immediately; deferred deletion may wait until the event loop.
+        last.widget().hide();last.widget().deleteLater()
     outer.addWidget(footer)
     split = w.canvas.parentWidget()
     w.editor_context = QTabWidget()

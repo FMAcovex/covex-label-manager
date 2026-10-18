@@ -71,6 +71,9 @@ Propiedades por sus métricas de texto. Se corrige haciendo que las etiquetas
 largas pasen encima del control cuando no caben a su lado (`WrapLongRows`), sin
 ocultar barras ni reducir fuentes. Una regresión con texto ampliado reproduce el
 fallo original y exige acceso a todos los controles sin desplazamiento horizontal.
+Al sustituir el aviso inferior antiguo se oculta inmediatamente antes de su
+eliminación diferida: así no queda flotando encima del lienzo durante la apertura
+o en capturas tomadas antes de procesar `DeferredDelete`.
 
 ## Botones: qué cambia y dónde queda cada capacidad
 

@@ -96,6 +96,15 @@ def test_properties_adapt_to_large_label_and_numeric_font_metrics_without_horizo
         assert w.properties_scroll.viewport().rect().contains(control.mapTo(w.properties_scroll.viewport(),control.rect().center()))
 
 
+def test_replaced_work_note_cannot_overlay_the_canvas_before_deferred_deletion(studio):
+    from PySide6.QtWidgets import QLabel
+    w,s,app=studio;w.open_editor();app.processEvents()
+    old_notes=[label for label in w.editor.findChildren(QLabel)
+               if label.text().startswith('Fuente fija protegida · Diseño: guardado explícito')]
+    assert all(not label.isVisibleTo(w) for label in old_notes)
+    assert w.editor_document_note.isVisibleTo(w)
+
+
 def test_typing_properties_preserves_items_selection_zoom_and_caret(studio):
     w,s,app=studio;w.open_editor();w.canvas.zoom(1.2);app.processEvents()
     zoom=w.canvas.transform();item=w.field_items[0]
