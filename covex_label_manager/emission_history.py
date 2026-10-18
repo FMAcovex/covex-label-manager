@@ -74,7 +74,8 @@ class HistoryService:
             report,indices,profile,plan=self.prepare(issue_id,selection,reason,start_slot,acknowledge_legacy,expected_token)
             row=report['issue'];v=self.api.resolved_design(row['version_id'],row['design_variant_id'],not proof)
             values=json.loads(row['variables_json']);per=json.loads(row['per_container_json'] or '{}');status=json.loads(row['status_json'] or '{}')
-            asset=self.api.status_master(status.get('kind','ninguna')) if status.get('kind','ninguna')!='ninguna' else None
+            from .status_combined import resolve_status
+            asset=resolve_status(self.api._repository,status)
             out=self.api.output_path('cache' if proof else 'emissions',('PRUEBA_REIMP_' if proof else 'REIMP_')+str(issue_id)+'_'+uuid.uuid4().hex+'.pdf')
             result=self.api.render(v,values,profile,indices,row['count_containers'],row['copies_per_container'],out,proof,
                 per_container=per,status=status,status_master=asset,history_snapshot=report['snapshot'],
