@@ -223,13 +223,13 @@ jobs:
       - run: Remove-Item .r3d-compatibility -Recurse -Force
       - run: python scripts/check_build_destination.py dist/COVEXLabelManager_Qt
       - run: >-
-          python -m PyInstaller --noconfirm --clean --onedir --windowed
+          python -m PyInstaller --noconfirm --clean --onedir --windowed --disable-windowed-traceback
           --name COVEXLabelManager_Qt --exclude-module tkinter
           --add-data "covex_label_manager/qt_ui/chevron.svg;covex_label_manager/qt_ui"
           --exclude-module PySide6.QtQml --exclude-module PySide6.QtQuick --add-data "resources;resources" main_qt.py
       - run: python scripts/check_build_destination.py dist/COVEXLabelManager_Legacy
       - run: >-
-          python -m PyInstaller --noconfirm --clean --onedir --windowed
+          python -m PyInstaller --noconfirm --clean --onedir --windowed --disable-windowed-traceback
           --name COVEXLabelManager_Legacy --add-data "resources;resources"
           --exclude-module PySide6 legacy_qt_bridge.py
       - run: Copy-Item dist/COVEXLabelManager_Legacy dist/COVEXLabelManager_Qt/legacy -Recurse

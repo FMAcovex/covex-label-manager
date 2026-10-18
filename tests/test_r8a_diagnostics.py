@@ -166,12 +166,13 @@ def test_legacy_process_and_tk_callback_errors_are_exported_without_sensitive_va
 import legacy_qt_bridge
 def fail(*args):raise RuntimeError('SYNTHETIC PRIVATE LEGACY VALUE')
 legacy_qt_bridge.run_legacy=fail
-legacy_qt_bridge.main([])
+raise SystemExit(legacy_qt_bridge.main(['--smoke-report','SYNTHETIC-ERROR.json']))
 """
     process = subprocess.run([sys.executable,'-c',code], capture_output=True,
         env={**os.environ,'COVEX_LABEL_DATA':str(root)},
         cwd=Path(__file__).resolve().parents[1],timeout=20)
     assert process.returncode != 0
+    assert b'SYNTHETIC PRIVATE LEGACY VALUE' not in process.stderr
     assert (root/'diagnostics/technical-legacy.jsonl').is_file()
     diagnostic = Diagnostics(root)
     try:

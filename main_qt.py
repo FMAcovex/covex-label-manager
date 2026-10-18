@@ -33,7 +33,11 @@ def main():
         return run(a.import_check)
     if a.preview_job:
         from covex_label_manager.preview_render import run_job
-        return run_job(a.preview_job)
+        try:return run_job(a.preview_job)
+        except Exception:
+            # Never open a bootloader error dialog in the headless child.
+            # A failed/missing result is explicitly rejected by PreviewTask.
+            return 1
     if a.stability_check:
         from covex_label_manager.qt_ui.stability_checks import run
         return run(a.stability_check, rounds=a.stability_rounds)
@@ -60,9 +64,15 @@ def main():
         result = run_application(a, diagnostic)
         normal = True
         return result
-    except BaseException as ex:
+    except Exception as ex:
         diagnostic.exception('python_error', ex)
-        raise
+        if not (a.demo or a.self_check or a.capture) and QApplication.instance():
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.critical(None, 'Aplicación no disponible',
+                'No se ha podido iniciar o finalizar la aplicación de forma segura. '
+                'Conserve la carpeta de datos y revise el historial antes de repetir una emisión. '
+                'Reinicie y exporte el diagnóstico desde Configuración; si persiste, solicite asistencia.')
+        return 1
     finally:
         diagnostic.close(normal=normal)
         if temporary:temporary.cleanup()

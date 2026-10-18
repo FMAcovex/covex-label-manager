@@ -238,3 +238,27 @@ def test_diagnostics_track_actual_module_changes_through_all_mixins(studio, tmp_
     finally:
         window.stack.currentChanged.disconnect(notifier.record_module)
         notifier.deleteLater();diagnostic.close()
+
+
+def test_startup_failure_is_nonzero_private_and_operator_friendly(studio, tmp_path, monkeypatch):
+    import main_qt
+    root = tmp_path/'SYNTHETIC-STARTUP'
+    messages = []
+    monkeypatch.setattr(sys, 'argv', ['main_qt.py','--data-dir',str(root)])
+    monkeypatch.setenv('COVEX_LABEL_DATA', str(root))
+    def fail(*a):raise RuntimeError('SYNTHETIC PRIVATE STARTUP VALUE')
+    monkeypatch.setattr(main_qt, 'run_application', fail)
+    monkeypatch.setattr(QMessageBox, 'critical', lambda *a:messages.append(a))
+    assert main_qt.main() == 1
+    assert messages and 'No se ha podido' in messages[0][2]
+    log = (root/'diagnostics/technical.jsonl').read_text()
+    assert 'python_error' in log and 'SYNTHETIC PRIVATE STARTUP' not in log
+    assert not json.loads(next((root/'diagnostics').glob('session-*.json')).read_text())['normal_end']
+
+
+def test_invalid_headless_job_never_opens_bootloader_traceback(tmp_path):
+    job = tmp_path/'SYNTHETIC-invalid.json';job.write_text('{}')
+    process = subprocess.run([sys.executable, 'main_qt.py', '--preview-job', str(job)],
+        capture_output=True, cwd=Path(__file__).resolve().parents[1], timeout=20)
+    assert process.returncode == 1
+    assert b'Traceback' not in process.stderr and str(job).encode() not in process.stderr

@@ -24,6 +24,7 @@ por código y regresiones; no se atribuye retrospectivamente el incidente a ning
 | ST-10 | Deficiencia demostrada / alta | No había diagnóstico transversal ni indicación de sesión sin cierre normal. | Registros privados limitados, hooks, marcador, eventos de operación y exportación desde Configuración. |
 | ST-11 | Hipótesis no confirmada | Antivirus, impresora, Word, controlador gráfico, fallo del sistema/energía o interacción no cubierta. | Recoger informe técnico y contexto mínimo; no desactivar defensas ni modificar documentos por suposición. |
 | ST-12 | Defecto de guardia demostrado por inyección / alta | `QCloseEvent` nace aceptado; una excepción no prevista al guardar/cerrar podía escapar del virtual Python sin rechazar el cierre. Un error SQLite no estaba entre las excepciones del autoguardado. | Rechazo por defecto y aceptación solo tras todas las guardias; error SQLite mantiene texto pendiente y permite reintentar. Pruebas de fallo inyectado verifican ventana viva, datos en pantalla, persistencia anterior y guardado posterior correcto. |
+| ST-13 | Deficiencia demostrada / media | Los callbacks Tk usan un hook distinto de `sys.excepthook`; una excepción de arranque podía además acabar en una traza del bootloader windowed. | Hook del acompañante, canal separado, retorno no cero y mensaje comprensible; el trabajador headless nunca abre una ventana de error. PyInstaller desactiva la traza windowed sin suprimir informes/aserciones de CI. |
 
 ### Componentes revisados y decisiones de conservación
 

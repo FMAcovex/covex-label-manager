@@ -14,11 +14,19 @@ def main(argv=None):
     try:
         run_legacy(a.target,a.version_id,a.mode,a.smoke_report,a.variant_id,a.writer_protocol,a.smoke_issue,a.work_uid,a.work_generation)
         normal=True
-    except BaseException as ex:
+    except Exception as ex:
         diagnostic.exception('python_error',ex)
-        raise
+        if not a.smoke_report:
+            from tkinter import messagebox
+            try:messagebox.showerror('Compatibilidad no disponible',
+                'No se ha podido completar la operación. Conserve los datos y revise el historial antes de repetir una emisión. '
+                'Cierre esta ventana y exporte el diagnóstico desde Configuración Qt.')
+            except Exception:pass  # GUI startup itself may be unavailable.
+        return 1
     finally:diagnostic.close(normal=normal)
 
 
-if __name__=='__main__':main()
+if __name__=='__main__':
+    import sys
+    sys.exit(main())
 
