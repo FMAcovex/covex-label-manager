@@ -32,7 +32,7 @@ class StatusFieldShape(ResizableRect):
     def __init__(self, index, field, crop, image_size, released):
         super().__init__(0, 0, 1, 1)
         self.index = index
-        self.released = released
+        self._on_released = released
         self.setPen(QPen(QColor("#137C70"), 2, Qt.PenStyle.DashLine))
         self.setBrush(QBrush(QColor(20, 125, 113, 45)))
         self.setFlags(
@@ -46,9 +46,13 @@ class StatusFieldShape(ResizableRect):
         self.enable_handles(True)
         self.setZValue(10 + index)
 
+    def released(self):
+        # Used by both the parent rect drag and the eight ResizeHandle items.
+        self._on_released(self.index)
+
     def mouseReleaseEvent(self, event):
         super().mouseReleaseEvent(event)
-        self.released(self.index)
+        self.released()
 
 
 class StatusFieldsDialog(AdaptiveDialog):

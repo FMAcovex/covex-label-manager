@@ -67,8 +67,16 @@ def test_visual_field_editor_moves_and_saves_draft(studio, tmp_path):
     app.processEvents()
     original = editor.layout["fields"][0]["rect"][0]
     editor.shapes[0].moveBy(12, 0)
-    editor.moved(0)
+    editor.shapes[0].released()  # identical callback used on real mouse release
     assert editor.layout["fields"][0]["rect"][0] > original
+    # Resizing via one of the eight handles must reach the same release hook.
+    before_width = editor.layout["fields"][0]["rect"][2] - editor.layout["fields"][0]["rect"][0]
+    rect = editor.shapes[0].rect()
+    rect.setRight(rect.right() + 15)
+    editor.shapes[0].setRect(rect)
+    editor.shapes[0].handles[-1].parentItem().released()
+    after_width = editor.layout["fields"][0]["rect"][2] - editor.layout["fields"][0]["rect"][0]
+    assert after_width > before_width
     editor.save()
     updated = session.services.status_catalog.get(uid)
     values = json.loads(updated["layout_json"])
