@@ -12,16 +12,15 @@ from PySide6.QtWidgets import (
     QDialogButtonBox, QComboBox, QLabel, QMessageBox,
 )
 from .responsive import AdaptiveDialog
-from .window import label, button, vbox, pixmap
+from .window import label, button, vbox, pixmap, Preview
 from ..status_design import StatusDesignError
 
 
-class CropCanvas(QGraphicsView):
+class CropCanvas(Preview):
     """Drag a rectangle over the rasterized full PDF page."""
 
     def __init__(self, callback):
         super().__init__()
-        self.setScene(QGraphicsScene(self))
         self.setRenderHints(self.renderHints())
         self.setDragMode(QGraphicsView.DragMode.NoDrag)
         self.setMinimumSize(500, 320)
@@ -43,13 +42,11 @@ class CropCanvas(QGraphicsView):
         self._crop_item.setZValue(5)
         self._scale_x = pdf_rect.width / pil_image.width
         self._scale_y = pdf_rect.height / pil_image.height
-        self.fitInView(self.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self.fit()
         self._callback(None)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        if not self.sceneRect().isEmpty():
-            self.fitInView(self.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
     def _local(self, event):
         point = self.mapToScene(event.position().toPoint())

@@ -35,7 +35,7 @@ class VariableText(QPlainTextEdit):
 
 class WorkPanel(QWidget):
     def __init__(self,window,context='emission'):
-        super().__init__();self.window=window;self.loading=False;self.inputs={};self.profile_inputs={};self.error_labels={};self.field_widgets={}
+        super().__init__();self.controller=window;self.loading=False;self.inputs={};self.profile_inputs={};self.error_labels={};self.field_widgets={}
         layout=vbox(self,12,8);self.panel_layout=layout;self._compact=False
         top=QHBoxLayout();self.top_actions=top;self.choice=QComboBox();self.choice.setMinimumWidth(170);top.addWidget(self.choice,1)
         top.addWidget(button('Abrir',self.open_selected));layout.addLayout(top)
@@ -193,17 +193,17 @@ class WorkPanel(QWidget):
                     item=self.containers.item(error['recipient']-1,self.container_keys.index(field)+1)
                     if item:item.setBackground(QColor('#FCE9E7'));item.setToolTip(error['message'])
     def tab_changed(self,index):
-        if not self.loading and index==1 and self.window.emission_work:
-            if self.window.flush_emission_work():self.display(self.window.emission_work)
+        if not self.loading and index==1 and self.controller.emission_work:
+            if self.controller.flush_emission_work():self.display(self.controller.emission_work)
     def refresh_choices(self):
-        current=self.window.emission_work
+        current=self.controller.emission_work
         self.choice.blockSignals(True);self.choice.clear()
-        for w in self.window.api.work.list():self.choice.addItem(w['name']+' · '+PHASE[w['phase']],w['uid'])
+        for w in self.controller.api.work.list():self.choice.addItem(w['name']+' · '+PHASE[w['phase']],w['uid'])
         if current:self.choice.setCurrentIndex(self.choice.findData(current['uid']))
         self.choice.blockSignals(False)
     def open_selected(self):
         uid=self.choice.currentData()
-        if uid:self.window.load_emission_work(uid)
+        if uid:self.controller.load_emission_work(uid)
     def display(self,w):
         self.loading=True
         try:
@@ -211,7 +211,7 @@ class WorkPanel(QWidget):
             while self.common_form.rowCount():self.common_form.removeRow(0)
             self.value_inputs={}
             if not w:self.identity.setText('Sin trabajo activo');self.tabs.setEnabled(False);return
-            b=w['binding'];v=self.window.api.version(b['revision_id']);variant=self.window.api.variant(b['variant_id']) if b['variant_id'] else None
+            b=w['binding'];v=self.controller.api.version(b['revision_id']);variant=self.controller.api.variant(b['variant_id']) if b['variant_id'] else None
             self.identity.setText(f"{v['name']} · Revisión {v['version']} · "+('Variante '+variant['code'] if variant else 'Diseño heredado'));self.identity.setToolTip('Trabajo '+w['uid']+' · generación '+str(w['generation']))
             self.note.setText(PHASE[w['phase']]+' · Guardado localmente')
             # Include removed/unknown keys to prevent silent loss on document changes.
@@ -264,7 +264,7 @@ class WorkPanel(QWidget):
         self.status_revision.clear()
         self.status_revision.addItem("Maestro histórico (compatibilidad)",None)
         if kind not in (None,"ninguna"):
-            for rec in self.window.api.status_catalog.list_revisions(kind):
+            for rec in self.controller.api.status_catalog.list_revisions(kind):
                 if rec["state"]=="APPROVED":
                     self.status_revision.addItem(
                         "Revisión " + rec["revision"] + " · autorizada externamente",
@@ -289,7 +289,7 @@ class WorkPanel(QWidget):
         # A revision cannot silently swap its field contract while this work
         # is open. The preview and issue gate verify the same UID/hash again.
         try:
-            rec=self.window.api.status_catalog.verify(uid)
+            rec=self.controller.api.status_catalog.verify(uid)
             design=json.loads(rec["layout_json"])
         except (ValueError,OSError,RuntimeError) as err:
             self.status_revision.setToolTip("Revisión no válida: "+str(err))
@@ -310,7 +310,7 @@ class WorkPanel(QWidget):
             self.r7b_field_holders[key]=holder
 
     def capture(self):
-        w=self.window.emission_work;per=copy.deepcopy(w['per_container'])
+        w=self.controller.emission_work;per=copy.deepcopy(w['per_container'])
         for row in range(self.containers.rowCount()):
             data=per.get(str(row+1),{}).copy()
             for col,key in enumerate(('lote','pn','pb','conservacion'),1):
@@ -332,8 +332,8 @@ class WorkPanel(QWidget):
                 'crop_marks':w['profile'].get('crop_marks',0) if str(w['profile'].get('crop_marks',0))==self.cut.currentData() else self.cut.currentData()},
             'status':status,**{k:e.text() for k,e in self.inputs.items()}}
     def restore_size(self):
-        if not self.window.emission_work:return
-        b=self.window.emission_work['binding'];v=self.window.api.resolved_design(b['revision_id'],b['variant_id'])
+        if not self.controller.emission_work:return
+        b=self.controller.emission_work['binding'];v=self.controller.api.resolved_design(b['revision_id'],b['variant_id'])
         for k,source in [('width_mm','base_w_mm'),('height_mm','base_h_mm')]:self.profile_inputs[k].setText(f"{v[source]:.6f}".rstrip('0').rstrip('.'))
         self.changed()
     def profile_value(self,key,entry):
@@ -341,9 +341,9 @@ class WorkPanel(QWidget):
         # Untouched presentation must never round stored geometry or calibration.
         return raw if entry.text()==shown else entry.text()
     def scale_size(self,key):
-        if self.loading or not self.keep_ratio.isChecked() or not self.window.emission_work:return
+        if self.loading or not self.keep_ratio.isChecked() or not self.controller.emission_work:return
         try:
-            b=self.window.emission_work['binding'];v=self.window.api.resolved_design(b['revision_id'],b['variant_id'])
+            b=self.controller.emission_work['binding'];v=self.controller.api.resolved_design(b['revision_id'],b['variant_id'])
             other='height_mm' if key=='width_mm' else 'width_mm';ratio=v['base_h_mm']/v['base_w_mm']
             value=float(self.profile_inputs[key].text().replace(',','.'))*(ratio if key=='width_mm' else 1/ratio)
             self.profile_inputs[other].setText(f'{value:.6f}'.rstrip('0').rstrip('.'));self.changed()
@@ -355,9 +355,9 @@ class WorkPanel(QWidget):
         for col in range(1,self.containers.columnCount()):self.containers.item(row,col).setText('')
         del blocker;self.changed()
     def changed(self,*_):
-        if not self.loading:self.window.work_changed(self)
+        if not self.loading:self.controller.work_changed(self)
     def calibrate_printer(self):
-        w=self.window
+        w=self.controller
         if not w.emission_work or not w.flush_emission_work():return
         from .printer_calibration_ui import CalibrationDialog
         try:
@@ -371,7 +371,7 @@ class WorkPanel(QWidget):
             QMessageBox.warning(w,'Calibración no aplicada',str(ex))
 
     def design_sheet(self):
-        w=self.window
+        w=self.controller
         if not w.emission_work or not w.flush_emission_work():return
         from .sheet_designer import SheetDesigner
         from .pdf_view import PdfPane
@@ -398,10 +398,10 @@ class WorkPanel(QWidget):
     def apply_profile(self,*_):
         p=self.profile_choice.currentData()
         if not p:return
-        if self.window.emission_work and self.window.flush_emission_work():
-            w=self.window.emission_work
-            self.window.emission_work=self.window.api.work.save(w['uid'],w['generation'],{'profile':dict(p)})
-            self.window.refresh_work_panels();return
+        if self.controller.emission_work and self.controller.flush_emission_work():
+            w=self.controller.emission_work
+            self.controller.emission_work=self.controller.api.work.save(w['uid'],w['generation'],{'profile':dict(p)})
+            self.controller.refresh_work_panels();return
         for k,e in self.profile_inputs.items():e.setText(str(p.get(k,'')))
         self.orientation.setCurrentIndex(self.orientation.findData(p['orientation']));self.cut.setCurrentIndex(self.cut.findData(str(p['crop_marks'])));self.changed()
 

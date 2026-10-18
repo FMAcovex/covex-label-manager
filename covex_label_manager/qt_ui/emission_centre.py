@@ -74,12 +74,21 @@ class EmissionCentreMixin:
         return result
     def invalidate_work_preview(self):
         if hasattr(self,'preview_serial'):self.preview_serial+=1
+        previous=self.work_preview
         self.work_preview=None
         if hasattr(self,'emission_pdf'):self.emission_pdf.clear('Vista previa desactualizada · Se actualizará al terminar de editar.')
+        if previous:
+            path=Path(previous['path'])
+            import re
+            if (path.parent.resolve()==Path(self.api.location()).resolve()/'cache'
+                    and re.fullmatch(r'qt-auto-proof-[a-f0-9]{32}\.pdf',path.name)):
+                from .preview_task import discard_temporary
+                discard_temporary(path)
     def schedule_preview(self):
         self.preview_pending=True
         self.preview_timer.start(450)
     def automatic_preview(self):
+        if getattr(self, '_runtime_shutting_down', False):return
         if self.preview_task is not None:return # finished starts the latest request
         self.preview_pending=False
         w=self.emission_work
@@ -98,17 +107,28 @@ class EmissionCentreMixin:
         task.completed.connect(self.automatic_preview_completed)
         task.finished.connect(self.automatic_preview_finished)
         task.start()
+        from ..diagnostics import event
+        event('preview_start')
     def automatic_preview_completed(self,payload):
+        from .preview_task import discard_temporary
+        if getattr(self, '_runtime_shutting_down', False):
+            discard_temporary(payload['path'])
+            return
         w=self.emission_work
         current=(w and w['uid']==payload['uid'] and w['generation']==payload['generation']
                  and payload['serial']==self.preview_serial and not self.work_dirty_panel)
         review=self.refresh_emission_review() if current else None
         if not current or not review or review.get('token')!=payload['stamp']:
-            Path(payload['path']).unlink(missing_ok=True)
+            from ..diagnostics import event
+            event('preview_stale')
+            discard_temporary(payload['path'])
             if current:self.emission_pdf.clear('Vista previa desactualizada · La documentación cambió. Revise el vínculo documental.')
             return
         if payload.get('error'):
-            Path(payload['path']).unlink(missing_ok=True)
+            from ..diagnostics import event
+            event('preview_cancel' if payload.get('cancelled') else 'preview_error',
+                  returncode=payload.get('returncode'))
+            discard_temporary(payload['path'])
             self.emission_pdf.clear('Revise errores · '+self.operator_error(ValueError(payload['error'])))
             self.native_issue.setEnabled(False);return
         self.work_preview={k:payload[k] for k in ('uid','stamp','path','sha256','result')}
@@ -122,8 +142,11 @@ class EmissionCentreMixin:
         if payload['result']['warnings']:
             self.native_issue.setEnabled(False);self.emission_feedback.setText('Revise antes de emitir: '+' · '.join(payload['result']['warnings'][:5]))
     def automatic_preview_finished(self):
+        from ..diagnostics import event
+        event('preview_finish')
         task=self.preview_task;self.preview_task=None
         if task:task.deleteLater()
+        if getattr(self, '_runtime_shutting_down', False):return
         self.refresh_emission_review()
         if self.preview_pending:self.preview_timer.start(450)
     def recheck_actions(self):
@@ -187,6 +210,8 @@ class EmissionCentreMixin:
         if isinstance(ex,sqlite3.Error):return 'No se ha completado la operación en la base de datos. Revise el historial y recupere el trabajo antes de reintentar.'
         return str(ex).replace(self.api.location(),'la carpeta de datos')
     def emission_error(self,ex):
+        from ..diagnostics import error
+        error('operation_error', ex)
         self.invalidate_work_preview();w=self.emission_work
         if w and not self.work_dirty_panel:
             try:
@@ -338,8 +363,38 @@ class EmissionCentreMixin:
         if hasattr(self,'emission_split'):self.adapt_emission_layout()
         if hasattr(self,'nav'):self.nav['emission'].setToolTip('Emisión · Centro nativo Qt')
     def closeEvent(self,event):
+        if self.native_busy:
+            from ..diagnostics import event as diagnostic_event
+            diagnostic_event('shutdown_blocked')
+            self.statusBar().showMessage('Hay una operación en curso. Espere a que finalice y consulte el historial antes de cerrar.')
+            event.ignore();return
         if self.preview_task is not None and self.preview_task.isRunning():
             self.statusBar().showMessage('Espere a que termine la vista previa antes de cerrar. No se ha registrado ninguna emisión.')
             event.ignore();return
         self.preview_timer.stop();self.preview_pending=False
         super().closeEvent(event)
+        if not event.isAccepted() and self.emission_work:self.schedule_preview()
+
+    def shutdown_runtime(self):
+        """Also covers QApplication.quit(), not just the normal closeEvent chain.
+
+        The preview process only writes disposable test output. Its subprocess
+        timeout is 90s; never close SQLite/session while the waiter is alive.
+        No forced termination of legacy/documentary writers is permitted.
+        """
+        from ..diagnostics import event
+        self._runtime_shutting_down=True
+        for name in ('preview_timer', 'work_timer', 'legacy_timer', 'poll_timer', '_gesture_redraw'):
+            timer = getattr(self, name, None)
+            if timer is not None:timer.stop()
+        self.preview_pending=False
+        task=getattr(self, 'preview_task', None)
+        if task is not None and task.isRunning():
+            event('shutdown_wait')
+            task.requestInterruption()
+            if not task.wait(95000):
+                event('shutdown_blocked')
+                raise RuntimeError('El trabajador no ha finalizado; no se libera la sesión activa.')
+        if not self.flush_emission_work():
+            event('shutdown_blocked')
+            raise RuntimeError('Hay cambios que no se han podido guardar. Se conserva el último trabajo recuperable.')

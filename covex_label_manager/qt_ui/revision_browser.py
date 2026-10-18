@@ -8,7 +8,7 @@ from .window import vbox,label,button,STATE
 
 class RevisionBrowserDialog(AdaptiveDialog):
     def __init__(self,window):
-        super().__init__(window);self.window=window
+        super().__init__(window);self.controller=window
         self.setWindowTitle('Revisiones documentales y variantes de diseño')
         self.resize(760,530)
         layout=vbox(self)
@@ -34,7 +34,7 @@ class RevisionBrowserDialog(AdaptiveDialog):
 
     def populate(self,*_):
         from .variants import STATES
-        variants=self.window.api.variants(self.revisions.currentData())
+        variants=self.controller.api.variants(self.revisions.currentData())
         self.table.setRowCount(len(variants)+1)
         for row,values in enumerate([('Diseño de revisión','Sin variante',None,None)]+
             [(v['code'],v['name'],v['state'],v['id']) for v in variants]):
@@ -45,7 +45,7 @@ class RevisionBrowserDialog(AdaptiveDialog):
     def select(self,editor):
         row=self.table.currentRow()
         if row<0:return
-        w=self.window
+        w=self.controller
         if not w.flush_emission_work() or not w.resolve_work():return
         w.select_version(self.revisions.currentData())
         w.library_variant_id=self.table.item(row,0).data(Qt.ItemDataRole.UserRole)

@@ -292,12 +292,14 @@ class StatusCatalogue:
             db.commit()
             return uid
 
-    def save_draft(self, uid, layout):
+    def save_draft(self, uid, layout, *, expected_layout_sha=None):
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             rec = _row(db.execute("SELECT * FROM status_revisions WHERE uid=?", (uid,)).fetchone())
             if rec is None or rec["state"] != "DRAFT":
                 raise PermissionError("Solo se modifica un borrador de etiqueta de estado.")
+            if expected_layout_sha is not None and rec['layout_sha'] != expected_layout_sha:
+                raise ValueError("Otro editor cambió este borrador. Sus cambios siguen en pantalla; cierre sin sobrescribir y vuelva a abrir para cotejarlos.")
             self._verified(rec)
             with fitz.open(_allowed_path(self.root, rec["pdf_path"])) as doc:
                 layout = validate_layout(layout, doc)

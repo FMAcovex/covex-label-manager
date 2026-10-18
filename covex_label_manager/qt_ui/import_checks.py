@@ -41,7 +41,7 @@ def run(report):
             assert callable(dialog.done),'QDialog.done must not be shadowed'
             if cls is ControlledImportDialog:
                 dialog.next_page()
-                for action in dialog.actions:action.setCurrentIndex(action.findData('NEW_LABEL'))
+                for action in dialog.row_actions:action.setCurrentIndex(action.findData('NEW_LABEL'))
                 dialog.confirm_identity.setChecked(True)
             if phase!='before':
                 original=QMessageBox.question

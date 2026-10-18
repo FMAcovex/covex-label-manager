@@ -6,6 +6,14 @@ import sys
 from PySide6.QtCore import QThread, Signal
 
 
+def discard_temporary(path):
+    """Cleanup failure must not mask a result or escape a queued Qt callback."""
+    try:Path(path).unlink(missing_ok=True)
+    except OSError as ex:
+        from ..diagnostics import error
+        error('operation_error', ex)
+
+
 class PreviewTask(QThread):
     completed=Signal(object)
 
@@ -20,6 +28,7 @@ class PreviewTask(QThread):
         result_path=job_path.with_suffix('.result.json')
         payload=dict(uid=uid,generation=generation,stamp=token,path=path,serial=serial)
         try:
+            if self.isInterruptionRequested():raise InterruptedError('Vista previa cancelada; el trabajo guardado no se ha modificado.')
             atomic_json(job_path,dict(contract=1,root=str(root),uid=uid,generation=generation,
                 token=token,path=str(path),serial=serial))
             command=[sys.executable]
@@ -27,6 +36,8 @@ class PreviewTask(QThread):
             command.extend(['--preview-job',str(job_path)])
             options={'creationflags':0x08000000} if sys.platform=='win32' else {}
             process=subprocess.run(command,capture_output=True,timeout=90,**options)
+            payload['returncode']=process.returncode
+            if self.isInterruptionRequested():raise InterruptedError('Vista previa cancelada; el trabajo guardado no se ha modificado.')
             if not result_path.is_file():
                 raise ValueError(f'El motor de vista previa terminó sin informe (código {process.returncode}). Reintente la vista previa.')
             result=json.loads(result_path.read_text(encoding='utf-8'))
@@ -34,7 +45,13 @@ class PreviewTask(QThread):
                 raise ValueError('El resultado de vista previa pertenece a otro cálculo.')
             if process.returncode!=0 and not result.get('error'):raise ValueError('El motor de vista previa no terminó correctamente.')
             payload.update(result);payload['path']=path
-        except Exception as ex:payload['error']=str(ex)
+        except InterruptedError as ex:
+            payload.update(error=str(ex),cancelled=True)
+            path.unlink(missing_ok=True)
+        except Exception as ex:
+            from ..diagnostics import error
+            error('preview_error', ex)
+            payload['error']=str(ex)
         finally:
-            job_path.unlink(missing_ok=True);result_path.unlink(missing_ok=True)
+            discard_temporary(job_path);discard_temporary(result_path)
         self.completed.emit(payload)

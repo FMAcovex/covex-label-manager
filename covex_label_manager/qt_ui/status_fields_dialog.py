@@ -19,13 +19,13 @@ from PySide6.QtWidgets import (
     QGraphicsView, QGraphicsItem, QInputDialog,
 )
 
-from .window import label, button, vbox, pixmap
+from .window import label, button, vbox, pixmap, Preview
 from .responsive import AdaptiveDialog
 from .resize_item import ResizableRect
 from ..status_design import validate_layout, StatusDesignError, MAX_FIELDS
 
 
-class StatusFieldsCanvas(QGraphicsView):
+class StatusFieldsCanvas(Preview):
     """Draw new variable fields directly over the existing label PDF crop."""
 
     def __init__(self, on_draw):
@@ -34,7 +34,6 @@ class StatusFieldsCanvas(QGraphicsView):
         self.drawing = False
         self.start = None
         self.guide = None
-        self.setScene(QGraphicsScene(self))
         self.setDragMode(QGraphicsView.DragMode.NoDrag)
         self.setMinimumSize(470, 350)
 
@@ -189,9 +188,9 @@ class StatusFieldsDialog(AdaptiveDialog):
         properties.addRow("Validación", self.required)
         panel.addLayout(properties)
         panel.addWidget(button("Aplicar propiedades", self.apply_properties))
-        self.geometry = label("", "subtle")
-        self.geometry.setWordWrap(True)
-        panel.addWidget(self.geometry)
+        self.geometry_note = label("", "subtle")
+        self.geometry_note.setWordWrap(True)
+        panel.addWidget(self.geometry_note)
         panel.addStretch()
         body.addWidget(aside, 2)
         root.addLayout(body, 1)
@@ -207,8 +206,7 @@ class StatusFieldsDialog(AdaptiveDialog):
         QTimer.singleShot(0, self.fit)
 
     def fit(self):
-        self.view.fitInView(self.view.sceneRect(),
-                           Qt.AspectRatioMode.KeepAspectRatio)
+        self.view.fit()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -266,13 +264,13 @@ class StatusFieldsDialog(AdaptiveDialog):
         else:
             self.key.clear()
             self.name.clear()
-            self.geometry.setText("Dibuje un campo o seleccione uno existente.")
+            self.geometry_note.setText("Dibuje un campo o seleccione uno existente.")
         self.busy = False
 
     def show_geometry(self, index):
         r = self.design["fields"][index]["rect"]
         mm = 25.4 / 72
-        self.geometry.setText(
+        self.geometry_note.setText(
             f"Posición: {r[0]*mm:.2f}, {r[1]*mm:.2f} mm\n"
             f"Medidas: {(r[2]-r[0])*mm:.2f} × {(r[3]-r[1])*mm:.2f} mm\n"
             "Coordenadas respecto a la página fuente.")
@@ -380,7 +378,34 @@ class StatusFieldsDialog(AdaptiveDialog):
         if not self.apply_properties():
             return
         try:
-            self.catalog.save_draft(self.revision["uid"], self.design)
+            self.catalog.save_draft(self.revision["uid"], self.design,
+                                    expected_layout_sha=self.revision["layout_sha"])
+            self.revision = self.catalog.get(self.revision["uid"])
             self.accept()
         except (ValueError, PermissionError, OSError, RuntimeError) as error:
             QMessageBox.warning(self, "Diseño no guardado", str(error))
+
+    def reject(self):
+        import json
+        original = json.loads(self.revision["layout_json"])
+        index = self.items.currentRow()
+        properties_changed = False
+        if 0 <= index < len(self.design["fields"]):
+            field = self.design["fields"][index]
+            properties_changed = any((
+                self.key.text() != field["key"], self.name.text() != field["label"],
+                self.font_size.value() != field["font_size"],
+                self.bold.isChecked() != field["bold"],
+                self.required.isChecked() != field["required"]))
+        if self.design != original or properties_changed:
+            choice = QMessageBox.question(self, "Diseño sin guardar",
+                "Hay cambios sin guardar. ¿Desea guardar el borrador antes de cerrar?",
+                QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard |
+                QMessageBox.StandardButton.Cancel, QMessageBox.StandardButton.Cancel)
+            if choice == QMessageBox.StandardButton.Cancel:
+                return
+            if choice == QMessageBox.StandardButton.Save:
+                self.save()
+                return
+        self.view.end_draw()
+        super().reject()

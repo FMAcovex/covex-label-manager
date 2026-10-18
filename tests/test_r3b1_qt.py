@@ -89,7 +89,7 @@ def test_native_crop_dialog_coordinate_selection(studio,monkeypatch):
     dialog=RectangleDialog(w,'Synthetic crop',image,list(bounds),before['crop'],20)
     dialog.from_drag([5,5,427,295]); dialog.accept_valid()
     assert dialog.result()==QDialog.DialogCode.Accepted
-    assert dialog.rect==pytest.approx([5,5,427,295],abs=.002)
+    assert dialog.selection_rect==pytest.approx([5,5,427,295],abs=.002)
     dialog.from_drag([0,0,1,1]); dialog.setResult(0); dialog.accept_valid()
     assert dialog.result()!=QDialog.DialogCode.Accepted
 

@@ -25,6 +25,8 @@ def main():
     p=argparse.ArgumentParser();p.add_argument('--r3e-check',type=Path);p.add_argument('--emission-check',type=Path);p.add_argument('--work-check',type=Path);p.add_argument('--variant-check',type=Path);p.add_argument('--demo',action='store_true');p.add_argument('--data-dir',type=Path)
     p.add_argument('--import-check',type=Path)
     p.add_argument('--preview-job',type=Path)
+    p.add_argument('--stability-check',type=Path)
+    p.add_argument('--stability-rounds',type=int,default=4)
     p.add_argument('--verify-bridge',action='store_true');p.add_argument('--capture',type=Path);p.add_argument('--self-check',type=Path);a=p.parse_args()
     if a.import_check:
         from covex_label_manager.qt_ui.import_checks import run
@@ -32,6 +34,9 @@ def main():
     if a.preview_job:
         from covex_label_manager.preview_render import run_job
         return run_job(a.preview_job)
+    if a.stability_check:
+        from covex_label_manager.qt_ui.stability_checks import run
+        return run(a.stability_check, rounds=a.stability_rounds)
     if a.r3e_check:
         from covex_label_manager.qt_ui.r3e_checks import run
         return run(a.r3e_check,a.capture)
@@ -45,6 +50,25 @@ def main():
         from covex_label_manager.qt_ui.variant_checks import run
         return run(a.variant_check,a.capture,a.verify_bridge)
     if a.data_dir:os.environ['COVEX_LABEL_DATA']=str(a.data_dir.resolve())
+    from covex_label_manager.diagnostics import Diagnostics
+    from covex_label_manager.paths import data_dir
+    import tempfile
+    temporary = tempfile.TemporaryDirectory(prefix='covex_synthetic_diagnostics_') if a.demo or a.self_check or a.capture else None
+    diagnostic = Diagnostics(Path(temporary.name) if temporary else data_dir(create=False))
+    normal = False
+    try:
+        result = run_application(a, diagnostic)
+        normal = True
+        return result
+    except BaseException as ex:
+        diagnostic.exception('python_error', ex)
+        raise
+    finally:
+        diagnostic.close(normal=normal)
+        if temporary:temporary.cleanup()
+
+
+def run_application(a, diagnostic):
     app=QApplication(sys.argv[:1]);app.setStyle('Fusion')
     from covex_label_manager.qt_ui.responsive import install_translation
     install_translation(app)
@@ -68,7 +92,13 @@ def main():
         try:session=LocalSession()
         except MigrationCancelled:return 0
     try:
-        w=FunctionalWindow(session);w.show()
+        w=FunctionalWindow(session);w.diagnostics=diagnostic;w.show()
+        from covex_label_manager.qt_ui.diagnostic_ui import ErrorNotifier, install_qt_diagnostics
+        notifier=ErrorNotifier(w)
+        diagnostic.notifier=notifier.failed.emit
+        restore_qt_handler=install_qt_diagnostics(diagnostic)
+        if diagnostic.previous_unfinished:
+            w.statusBar().showMessage('Se encontró una sesión sin cierre normal; puede deberse a un corte, otra sesión o un fallo. Exporte el informe desde Configuración.')
         if a.capture or a.self_check:
             def verify():
                 try:
@@ -93,6 +123,9 @@ def main():
                 app.exit(0)
             QTimer.singleShot(250,verify)
         return app.exec()
-    finally:session.close()
+    finally:
+        if 'restore_qt_handler' in locals():restore_qt_handler()
+        if 'w' in locals():w.shutdown_runtime()
+        session.close()
 if __name__=='__main__':sys.exit(main())
 
