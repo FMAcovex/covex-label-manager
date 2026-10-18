@@ -196,23 +196,9 @@ class StatusManagerMixin:
             rec = self.selected_status()
             if rec["state"] != "DRAFT":
                 raise PermissionError("Solo se modifica un borrador; cree una nueva revisión.")
-            # Controlled JSON editor provides full field geometry, not arbitrary fixed-text editing.
-            from PySide6.QtWidgets import QPlainTextEdit
-            dialog = AdaptiveDialog(self)
-            dialog.setWindowTitle("Diseño variable · " + NAMES[rec["kind"]])
-            dialog.resize(700, 570)
-            area = vbox(dialog, 12, 9)
-            area.addWidget(label("Recorte, página y campos por etiqueta (PDF points)", "panelTitle"))
-            editor = QPlainTextEdit()
-            editor.setPlainText(json.dumps(json.loads(rec["layout_json"]), indent=2, ensure_ascii=False))
-            area.addWidget(editor, 1)
-            footer = QDialogButtonBox(
-                QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
-            footer.accepted.connect(dialog.accept)
-            footer.rejected.connect(dialog.reject)
-            area.addWidget(footer)
+            from .status_fields_dialog import StatusFieldsDialog
+            dialog = StatusFieldsDialog(self.api, rec, self)
             if dialog.exec() == QDialog.DialogCode.Accepted:
-                self.api.status_catalog.save_draft(rec["uid"], json.loads(editor.toPlainText()))
                 self.refresh_status_manager()
         except (ValueError, PermissionError, OSError, RuntimeError) as err:
             QMessageBox.warning(self, "Diseño no guardado", str(err))
