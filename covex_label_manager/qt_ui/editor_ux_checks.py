@@ -18,6 +18,21 @@ def present_viewport(widget, size, settle):
     assert widget.size()==size, ('Requested client viewport not available',size,widget.size())
 
 
+def horizontal_layout_metrics(scroll):
+    """Synthetic-check diagnostics: expose the control forcing a minimum width."""
+    from PySide6.QtWidgets import QWidget
+    content=scroll.widget()
+    def measure(widget):
+        text=getattr(widget,'text',lambda:'')()
+        return dict(type=type(widget).__name__,name=widget.objectName(),text=text[:100],
+                    width=widget.width(),minimum=widget.minimumWidth(),
+                    hint=widget.minimumSizeHint().width())
+    return dict(horizontal_max=scroll.horizontalScrollBar().maximum(),
+                viewport_width=scroll.viewport().width(),content=measure(content),
+                children=[measure(child) for child in content.findChildren(QWidget)
+                          if child.minimumSizeHint().width()>scroll.viewport().width()-30])
+
+
 def run(report, capture=None, *, baseline=False, svg_dir=None, source_commit=None):
     import fitz
     from PySide6.QtCore import QSize, QPoint, QRectF
@@ -83,7 +98,7 @@ def run(report, capture=None, *, baseline=False, svg_dir=None, source_commit=Non
                     assert w.properties_scroll.viewport().rect().contains(control.mapTo(w.properties_scroll.viewport(),control.rect().center()))
                 assert not w.properties_scroll.isAncestorOf(w.save_button)
                 assert w.save_button.isVisibleTo(w) and w.save_button.mapTo(w,w.save_button.rect().bottomRight()).y()<w.height()
-                assert w.properties_scroll.horizontalScrollBar().maximum()==0
+                assert w.properties_scroll.horizontalScrollBar().maximum()==0, horizontal_layout_metrics(w.properties_scroll)
                 snapshot(f'{width}-essential-scroll',w)
                 w.editor_advanced_button.setChecked(True);w.toggle_editor_advanced()
             w.field_list.item(1).setSelected(True);snapshot(f'{width}-multiple-selection',w)
