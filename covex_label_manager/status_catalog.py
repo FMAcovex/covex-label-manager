@@ -13,6 +13,7 @@ import shutil
 import sqlite3
 import tempfile
 import uuid
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -55,6 +56,7 @@ class StatusCatalogue:
         self.root = Path(root).resolve()
         self.db_path = self.root / "status_catalog.sqlite"
 
+    @contextmanager
     def _connect(self):
         self.root.mkdir(parents=True, exist_ok=True)
         db = sqlite3.connect(self.db_path, timeout=10)
@@ -121,7 +123,11 @@ class StatusCatalogue:
         """)
         db.execute("PRAGMA user_version=1")
         db.commit()
-        return db
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     def _audit(self, db, event, subject, detail):
         db.execute("INSERT INTO status_audit VALUES(?,?,?,?,?)",
