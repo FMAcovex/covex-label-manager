@@ -187,7 +187,7 @@ def render_proof(pdf_path, layout, values, destination, *, width_mm=None):
                            fill=(1, 0.91, 0.91), color=(0.8, 0.2, 0.2), overlay=True)
             page.insert_text((3, min(12, height * 0.25)), mark, fontsize=min(8, max(4, width/40)),
                              color=(0.7, 0.05, 0.05), overlay=True)
-            page.set_metadata({"title": "COVEX - PRUEBA de etiqueta de estado",
+            output.set_metadata({"title": "COVEX - PRUEBA de etiqueta de estado",
                                "subject": "No autorizada para uso GMP"})
             destination.parent.mkdir(parents=True, exist_ok=True)
             if destination.exists():
