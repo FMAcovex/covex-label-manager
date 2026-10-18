@@ -154,3 +154,37 @@ def test_late_callback_cannot_reopen_closed_log(tmp_path):
     diag.record('module', module='library')
     diag.process_error({'category':'runtime','frames':[]})
     assert not log.exists()
+
+
+def test_legacy_process_and_tk_callback_errors_are_exported_without_sensitive_values(tmp_path, monkeypatch):
+    import os
+    from pathlib import Path
+    import subprocess
+    from covex_label_manager.qt_legacy import report_callback_error
+    root = tmp_path/'SYNTHETIC-ROOT'
+    code = """
+import legacy_qt_bridge
+def fail(*args):raise RuntimeError('SYNTHETIC PRIVATE LEGACY VALUE')
+legacy_qt_bridge.run_legacy=fail
+legacy_qt_bridge.main([])
+"""
+    process = subprocess.run([sys.executable,'-c',code], capture_output=True,
+        env={**os.environ,'COVEX_LABEL_DATA':str(root)},
+        cwd=Path(__file__).resolve().parents[1],timeout=20)
+    assert process.returncode != 0
+    assert (root/'diagnostics/technical-legacy.jsonl').is_file()
+    diagnostic = Diagnostics(root)
+    try:
+        from types import SimpleNamespace
+        messages = []
+        app = SimpleNamespace(top_title=SimpleNamespace(configure=lambda **kw:messages.append(kw)))
+        try:raise ValueError('SYNTHETIC PRIVATE CALLBACK VALUE')
+        except ValueError as ex:report_callback_error(app,type(ex),ex,ex.__traceback__)
+        assert messages and 'Operación no completada' in messages[0]['text']
+        report = diagnostic.export(tmp_path/'legacy.zip')
+        with zipfile.ZipFile(report) as archive:
+            assert 'technical-legacy.jsonl' in archive.namelist()
+            text = ''.join(archive.read(n).decode() for n in archive.namelist())
+            assert 'python_error' in text
+            assert 'SYNTHETIC PRIVATE' not in text and str(root) not in text
+    finally:diagnostic.close()

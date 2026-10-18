@@ -78,14 +78,18 @@ Windows (fallback local equivalente en Linux). No requiere escribir en el ejecut
 
 - Identificador aleatorio de sesión; versión, fase, Python, Qt, arquitectura,
   sistema, condición frozen y commit del BUILD_MANIFEST cuando está disponible.
-- `technical.jsonl`: eventos técnicos con esquema cerrado; 256 KiB por archivo,
-  tres respaldos rotativos (aprox. 1 MiB total), hasta 16 marcadores de sesión.
+- `technical.jsonl` y `technical-legacy.jsonl`: canales Qt/Tk separados para que
+  padre y acompañante no compitan al rotar; 256 KiB por archivo, tres respaldos
+  por canal (aprox. 2 MiB total), hasta 16 marcadores de sesión.
 - Hooks de excepción principal y `threading`; fallos de PreviewTask y procesos
   reflejados por código de salida/estado; eventos Qt critical/fatal sin su texto.
 - Inicio/cierre normal y marcador de sesión no finalizada. Puede significar corte,
   cierre forzado, otra instancia o un fallo; **no se etiqueta automáticamente como crash**.
 - Navegación/editor, inicio/fin de vista previa, salida obsoleta/cancelada, errores
   operativos y cierre bloqueado. No se registran nombres ni identidades documentales.
+- El acompañante portable registra su inicio/cierre y excepciones; su hook específico
+  de callbacks Tk informa del fallo sin traceback ni cuadros emergentes repetitivos.
+  Qt incluye también ese canal en el ZIP de diagnóstico.
 - Errores Python: categoría fija y archivo relativo/línea del paquete, **nunca**
   mensaje, traceback bruto, código fuente, variables locales ni excepciones encadenadas.
   El proceso PDF transmite la misma evidencia técnica depurada; los módulos de PYZ

@@ -104,8 +104,9 @@ class Diagnostics:
     MAX_BYTES = 256 * 1024
     BACKUPS = 3
 
-    def __init__(self, root, *, install_hooks=True):
+    def __init__(self, root, *, install_hooks=True, channel='qt'):
         global _active
+        if channel not in ('qt', 'legacy'):raise ValueError('Unknown diagnostic channel')
         self.directory = _directory(root)
         self.session = uuid.uuid4().hex
         self.marker = self.directory / ('session-' + self.session + '.json')
@@ -114,7 +115,8 @@ class Diagnostics:
         self.notifier = None
         self.lock = threading.RLock()
         self.logger = logging.Logger('covex-diagnostics-' + self.session)
-        self.handler = RotatingFileHandler(self.directory / 'technical.jsonl',
+        log_name = 'technical.jsonl' if channel == 'qt' else 'technical-legacy.jsonl'
+        self.handler = RotatingFileHandler(self.directory / log_name,
             maxBytes=self.MAX_BYTES, backupCount=self.BACKUPS, encoding='utf-8')
         self.handler.setFormatter(logging.Formatter('%(message)s'))
         self.handler.handleError = self._logging_failure
@@ -122,6 +124,7 @@ class Diagnostics:
         self.environment = dict(version=__version__, python=platform.python_version(),
             system=platform.system(), architecture=platform.machine(), frozen=bool(getattr(sys, 'frozen', False)))
         self.environment['phase'] = 'R8A'
+        self.environment['channel'] = channel
         # Read only the opaque commit, never paths/packages from the manifest.
         try:
             from .paths import installation_dir
@@ -235,7 +238,9 @@ class Diagnostics:
                         diagnostic_io_failed=self.failed_io,
                         native_capture='not_guaranteed',
                         note='Una sesion sin cierre normal no demuestra un fallo.'), indent=2))
-                    for name in ['technical.jsonl'] + ['technical.jsonl.'+str(n) for n in range(1, self.BACKUPS+1)]:
+                    log_names = [base+suffix for base in ('technical.jsonl','technical-legacy.jsonl')
+                        for suffix in ['']+['.'+str(n) for n in range(1,self.BACKUPS+1)]]
+                    for name in log_names:
                         path = self.directory / name
                         if path.is_file() and not path.is_symlink():
                             # Revalidate even our own files: an operator could
