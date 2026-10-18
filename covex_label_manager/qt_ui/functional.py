@@ -110,13 +110,13 @@ class BaseFunctionalWindow(StudioWindow):
             self.save_button.setToolTip('Edición bloqueada mientras está abierta la versión anterior.' if busy else ('Revisión vigente o retirada: solo lectura.' if not editable else ('Guardar los cambios pendientes del borrador.' if self.dirty else 'Sin cambios pendientes de guardar.')))
     def open_legacy(self,target='maestro',mode='production'):
         from ..diagnostics import event
-        event('legacy_start')
         if self.legacy_process is not None:
             QMessageBox.information(self,'Versión anterior abierta','Continúe en la ventana de la versión anterior y ciérrela antes de abrir otra tarea.');return
         if not self.resolve_work():return
         vid=self.current_editor_id if target=='editor' else (self.row['version_id'] if self.row else None)
         try:
             self.legacy_process=launch_legacy(self.api,target,vid,mode)
+            event('legacy_start')
             self.set_mutations_enabled(False);self.recheck_actions()
             self.statusBar().showMessage('Versión anterior abierta · Usa los mismos datos · Edición Qt bloqueada hasta cerrarla')
         except (ValueError,OSError) as ex:QMessageBox.warning(self,'No abierto',str(ex))
@@ -137,8 +137,6 @@ class BaseFunctionalWindow(StudioWindow):
         layout=page.layout();layout.insertWidget(2,button('Abrir esta sección en la versión anterior',self.open_catalog_legacy,'primary'))
         return page
     def navigate(self,key):
-        from ..diagnostics import event
-        event('module', module=key)
         super().navigate(key);self.catalog_key=key
         if key not in ('library','editor') and hasattr(self,'catalog_text'):
             self.catalog_text.setText('Esta sección continúa en la versión Tkinter operativa. El botón abre esa aplicación con los mismos datos; no simula una función Qt migrada.')

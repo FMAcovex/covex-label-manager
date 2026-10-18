@@ -4,6 +4,7 @@ import math
 import json
 import uuid
 import unicodedata
+import sqlite3
 from PySide6.QtCore import Qt,QTimer,QSignalBlocker
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QLineEdit,QComboBox,
     QTabWidget,QTableWidget,QTableWidgetItem,QHeaderView,QScrollArea,QDockWidget,QMessageBox,QInputDialog,QPlainTextEdit,QLabel,QCheckBox,QSizePolicy)
@@ -459,8 +460,12 @@ class EmissionWorkMixin:
             # Count changes resize the table on explicit reload/tab switch, keeping
             # typing focus stable during ordinary autosaves.
             return True
-        except (ValueError,OSError,PermissionError) as ex:
-            panel.note.setText('NO GUARDADO · '+str(ex));self.statusBar().showMessage('No guardado: '+str(ex));return False
+        except (ValueError,OSError,PermissionError,sqlite3.Error) as ex:
+            from ..diagnostics import error
+            error('operation_error', ex)
+            message = ('No se pudo guardar el trabajo. Los cambios siguen en pantalla; reintente cuando termine la otra operación.'
+                       if isinstance(ex, sqlite3.Error) else str(ex))
+            panel.note.setText('NO GUARDADO · '+message);self.statusBar().showMessage('No guardado: '+message);return False
     def work_action(self,action):
         try:return action()
         except (ValueError,OSError,PermissionError) as ex:QMessageBox.warning(self,'Trabajo conservado',str(ex));return None

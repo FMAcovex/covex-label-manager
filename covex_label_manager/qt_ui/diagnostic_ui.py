@@ -24,6 +24,18 @@ class ErrorNotifier(QObject):
         self.window = window
         self.elapsed = QElapsedTimer()
         self.failed.connect(self.notify)
+        self.window.stack.currentChanged.connect(self.record_module)
+        self.record_module()
+
+    @Slot(int)
+    def record_module(self, index=0):
+        current = self.window.stack.currentWidget()
+        mapping = (('library','library'), ('editor','editor'),
+            ('emission_page','emission'), ('history_page','history'),
+            ('settings_page','settings'), ('status_manager','status-manager'))
+        module = next((name for attr, name in mapping
+            if current is getattr(self.window, attr, None)), 'other')
+        self.window.diagnostics.record('module', module=module)
 
     @Slot()
     def notify(self):

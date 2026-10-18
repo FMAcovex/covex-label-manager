@@ -363,6 +363,9 @@ class EmissionCentreMixin:
         if hasattr(self,'emission_split'):self.adapt_emission_layout()
         if hasattr(self,'nav'):self.nav['emission'].setToolTip('Emisión · Centro nativo Qt')
     def closeEvent(self,event):
+        # QCloseEvent starts accepted. An exception in a Python virtual must
+        # never accidentally authorize Qt's last-window/application shutdown.
+        event.ignore()
         if self.native_busy:
             from ..diagnostics import event as diagnostic_event
             diagnostic_event('shutdown_blocked')
@@ -372,7 +375,12 @@ class EmissionCentreMixin:
             self.statusBar().showMessage('Espere a que termine la vista previa antes de cerrar. No se ha registrado ninguna emisión.')
             event.ignore();return
         self.preview_timer.stop();self.preview_pending=False
-        super().closeEvent(event)
+        try:super().closeEvent(event)
+        except (ValueError, OSError, RuntimeError, sqlite3.Error) as ex:
+            from ..diagnostics import error
+            error('operation_error', ex)
+            event.ignore()
+            self.statusBar().showMessage('No se ha podido cerrar de forma segura. Los cambios siguen en pantalla. Revise el trabajo y exporte el diagnóstico antes de reintentar.')
         if not event.isAccepted() and self.emission_work:self.schedule_preview()
 
     def shutdown_runtime(self):

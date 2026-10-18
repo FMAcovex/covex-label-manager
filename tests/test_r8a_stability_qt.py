@@ -189,3 +189,52 @@ def test_preview_cleanup_failure_does_not_escape_callback(tmp_path, monkeypatch)
         text = (diagnostic.directory/'technical.jsonl').read_text()
         assert 'operation_error' in text and 'SYNTHETIC PRIVATE' not in text
     finally:diagnostic.close()
+
+
+def test_database_error_on_autosave_never_accepts_close_or_loses_pending_work(studio, monkeypatch):
+    import sqlite3
+    from test_r6b_acceptance_fixes_qt import prepared
+    window, api, app = prepared(studio)
+    window.preview_timer.stop()
+    panel = window.emission_panel
+    panel.value_inputs['lote'].setText('SYNTHETIC-PENDING-SAVE');panel.changed()
+    saved = api.work.save
+    def fail(*a, **kw):raise sqlite3.OperationalError('SYNTHETIC database is locked')
+    messages = []
+    monkeypatch.setattr(api.work, 'save', fail)
+    monkeypatch.setattr(QMessageBox, 'warning', lambda *a, **kw:messages.append(a))
+    window.close()
+    assert window.isVisible() and window.work_dirty_panel is panel and messages
+    assert panel.value_inputs['lote'].text() == 'SYNTHETIC-PENDING-SAVE'
+    assert 'NO GUARDADO' in panel.note.text()
+    assert api.work.get(window.emission_work['uid'])['values']['lote'] == 'SYNTHETIC-AUTO'
+    monkeypatch.setattr(api.work, 'save', saved)
+    assert window.flush_emission_work()
+    assert api.work.get(window.emission_work['uid'])['values']['lote'] == 'SYNTHETIC-PENDING-SAVE'
+    window.preview_timer.stop()
+
+
+def test_exception_inside_close_guard_cannot_authorize_qt_shutdown(studio, monkeypatch):
+    window, session, app = studio
+    def fail():raise RuntimeError('SYNTHETIC unexpected close guard failure')
+    monkeypatch.setattr(window, 'resolve_work', fail)
+    window.close()
+    assert window.isVisible()
+    assert 'cerrar de forma segura' in window.statusBar().currentMessage()
+
+
+def test_diagnostics_track_actual_module_changes_through_all_mixins(studio, tmp_path):
+    from covex_label_manager.diagnostics import Diagnostics
+    from covex_label_manager.qt_ui.diagnostic_ui import ErrorNotifier
+    window, session, app = studio
+    diagnostic = Diagnostics(tmp_path);window.diagnostics=diagnostic
+    notifier = ErrorNotifier(window)
+    try:
+        for module in ('editor','emission','history','settings','status-manager','library'):
+            window.navigate(module)
+        events = [json.loads(line) for line in (diagnostic.directory/'technical.jsonl').read_text().splitlines()]
+        seen = {event.get('module') for event in events if event['event']=='module'}
+        assert seen == {'editor','emission','history','settings','status-manager','library'}
+    finally:
+        window.stack.currentChanged.disconnect(notifier.record_module)
+        notifier.deleteLater();diagnostic.close()

@@ -46,6 +46,9 @@ def run(report, rounds=4):
     api = session.services
     diagnostic = Diagnostics(api.location())
     window = FunctionalWindow(session);window.diagnostics = diagnostic
+    from .diagnostic_ui import ErrorNotifier
+    notifier = ErrorNotifier(window)
+    diagnostic.notifier = notifier.failed.emit
     result = dict(ok=False, synthetic_only=True, cycles=0,
                   scale=__import__('os').environ.get('QT_SCALE_FACTOR', '1'))
     errors = []

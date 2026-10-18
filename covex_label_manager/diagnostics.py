@@ -163,6 +163,7 @@ class Diagnostics:
         os.replace(tmp, self.marker)
 
     def record(self, name, **fields):
+        if self.closed:return
         if name not in EVENTS:
             raise ValueError('Unknown technical event')
         record = dict(at=int(time.time()), session=self.session, event=name)
@@ -188,6 +189,7 @@ class Diagnostics:
         self.process_error(technical_exception(exception))
 
     def process_error(self, detail):
+        if self.closed:return
         if not isinstance(detail, dict):return
         category = detail.get('category')
         if category not in ('permission','io','validation','runtime','type','other'):category='other'

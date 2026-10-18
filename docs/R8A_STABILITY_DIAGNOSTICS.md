@@ -23,6 +23,7 @@ por código y regresiones; no se atribuye retrospectivamente el incidente a ning
 | ST-09 | Deficiencia demostrada / media | Fallo de borrado de temporales puede ocultar el resultado del trabajador o escapar de un callback Qt. Vistas previas automáticas invalidadas acumulaban PDF temporales. | Limpieza tolerante a OSError con registro técnico; descartar exclusivamente el PDF automático propio en cache, nunca un maestro/emisión/exportación. |
 | ST-10 | Deficiencia demostrada / alta | No había diagnóstico transversal ni indicación de sesión sin cierre normal. | Registros privados limitados, hooks, marcador, eventos de operación y exportación desde Configuración. |
 | ST-11 | Hipótesis no confirmada | Antivirus, impresora, Word, controlador gráfico, fallo del sistema/energía o interacción no cubierta. | Recoger informe técnico y contexto mínimo; no desactivar defensas ni modificar documentos por suposición. |
+| ST-12 | Defecto de guardia demostrado por inyección / alta | `QCloseEvent` nace aceptado; una excepción no prevista al guardar/cerrar podía escapar del virtual Python sin rechazar el cierre. Un error SQLite no estaba entre las excepciones del autoguardado. | Rechazo por defecto y aceptación solo tras todas las guardias; error SQLite mantiene texto pendiente y permite reintentar. Pruebas de fallo inyectado verifican ventana viva, datos en pantalla, persistencia anterior y guardado posterior correcto. |
 
 ### Componentes revisados y decisiones de conservación
 

@@ -144,3 +144,13 @@ def test_secondary_process_error_has_safe_source_without_message_or_root(tmp_pat
             assert 'preview_render.py' in text and str(root) not in text
             assert payload['error'] not in text
     finally:diag.close()
+
+
+def test_late_callback_cannot_reopen_closed_log(tmp_path):
+    diag = Diagnostics(tmp_path)
+    diag.close()
+    log = diag.directory/'technical.jsonl'
+    log.unlink()
+    diag.record('module', module='library')
+    diag.process_error({'category':'runtime','frames':[]})
+    assert not log.exists()
