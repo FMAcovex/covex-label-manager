@@ -4,13 +4,14 @@ import hashlib
 import json
 import math
 import os
+import sys
 from pathlib import Path
 import traceback
 
 
 def present_viewport(widget, size, settle):
-    """Windows normalizes initial show to its small hosted desktop. Resize AFTER
-    native show, then require the exact client viewport (never accept a clamp).
+    """Show and final sizing are separate. Require the exact client viewport;
+    a native desktop clamp must fail, not masquerade as the requested size.
     """
     widget.show();settle()
     widget.resize(size);settle()
@@ -37,7 +38,8 @@ def run(report, capture=None, *, baseline=False, svg_dir=None, source_commit=Non
     out.mkdir(parents=True,exist_ok=True)
     session=DemoSession();session.fictional=True;w=FunctionalWindow(session);api=session.services
     w.poll_timer.stop();w.legacy_timer.stop();records=[];dialogs=[]
-    result=dict(ok=False,synthetic_only=True,baseline=baseline,source_commit=source_commit,scale=float(os.environ.get('QT_SCALE_FACTOR','1')),captures=records)
+    result=dict(ok=False,synthetic_only=True,baseline=baseline,source_commit=source_commit,scale=float(os.environ.get('QT_SCALE_FACTOR','1')),captures=records,
+                qt_platform=app.platformName(),os=sys.platform)
 
     def settle():
         for _ in range(4):app.processEvents()

@@ -54,12 +54,17 @@ Se incluyen multiselección, revisión protegida, variante borrador, menú, prop
 desplazadas y Editor de estados, en ambas resoluciones. El escritorio reserva 40
 píxeles lógicos para marco/barra; la resolución física se representa por viewport y
 escala de Qt, no se afirma cambio físico de monitor/DPI en mitad de la sesión.
-La primera ejecución Windows evidenció que el `show` nativo puede reducir la
-ventana al pequeño escritorio alojado del runner. La captura ahora redimensiona
-**después** de mostrar y exige igualdad exacta de tamaño, también para Estados;
-un recorte residual hace fallar la prueba. No se acepta una captura más pequeña
-como prueba de 1920×1080 ni se reduce el mínimo de lienzo. El mismo chequeo se
-ejecuta en el EXE extraído y mantiene las verificaciones nativas anteriores.
+Las primeras ejecuciones Windows evidenciaron un límite persistente de Win32:
+ventanas de 1280 px se reducen a 1028, incluso redimensionando después de mostrar.
+Las capturas de gran formato usan el backend **offscreen de Qt en Windows**,
+con fuentes/estilo Windows y factores Qt. Se exige igualdad exacta de tamaño,
+también para Estados; un recorte residual hace fallar la prueba. No se acepta una
+captura más pequeña como prueba de 1920×1080 ni se reduce el mínimo de lienzo.
+Cada informe identifica `os` y `qt_platform`. El mismo chequeo se ejecuta en el EXE
+extraído. Las pruebas de interacción R8B y todos los self-checks y regresiones
+nativos anteriores siguen usando el backend `windows`; no se sustituyen ni se
+eliminan. La combinación prueba el layout exacto y los eventos nativos, pero **no
+equivale a validar físicamente seis monitores/configuraciones Win10/11**.
 
 ## Botones: qué cambia y dónde queda cada capacidad
 

@@ -134,6 +134,10 @@ jobs:
         shell: pwsh
         env:
           PYTHONIOENCODING: utf-8
+          # Win32 hosted desktop caps top-level windows at about 1028 px.
+          # Exact large viewports use Windows Qt offscreen rendering; all
+          # native interaction/self-check steps remain on the windows backend.
+          QT_QPA_PLATFORM: offscreen
         run: |
           foreach ($scale in @('1', '1.25', '1.5')) {
             $env:QT_SCALE_FACTOR = $scale
@@ -379,6 +383,8 @@ jobs:
           Remove-Item Env:QT_SCALE_FACTOR
       - name: R8B editor in the actual extracted portable at all Windows scales
         shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
           $executable = $env:R8B_EXTRACTED_EXE
           if (!$executable -or !(Test-Path $executable)) { throw 'Extracted acceptance executable missing' }
@@ -389,7 +395,7 @@ jobs:
             $process = Start-Process -FilePath $executable -ArgumentList @('--editor-ux-check', $report, '--capture', $captures) -Wait -PassThru
             if ($process.ExitCode -ne 0 -or !(Test-Path $report)) { if (Test-Path $report) { Get-Content $report -Raw }; throw "R8B extracted editor failed at $scale" }
             $result = Get-Content $report -Raw | ConvertFrom-Json
-            if (!$result.ok -or !$result.integrity -or !$result.exact_viewports -or !$result.approved_revision_unchanged -or $result.captures.Count -ne 14) { Get-Content $report -Raw; throw 'R8B extracted contract incomplete' }
+            if (!$result.ok -or !$result.integrity -or !$result.exact_viewports -or $result.os -ne 'win32' -or $result.qt_platform -ne 'offscreen' -or !$result.approved_revision_unchanged -or $result.captures.Count -ne 14) { Get-Content $report -Raw; throw 'R8B extracted contract incomplete' }
           }
           Remove-Item Env:QT_SCALE_FACTOR
       # User-facing download: application only, no screenshots or CI reports.
