@@ -239,6 +239,16 @@ def test_status_invalid_drag_restores_same_native_item_and_keeps_undo_available(
     d.reject()
 
 
+def test_status_properties_reserve_native_action_minimum_width(studio,tmp_path):
+    w,s,app=studio;d=status_dialog(studio,tmp_path);d.show();app.processEvents()
+    action=next(b for b in d.findChildren(QPushButton) if b.text()=='Aplicar propiedades')
+    action.setMinimumWidth(269)
+    for _ in range(4):app.processEvents()
+    assert d.properties_scroll.horizontalScrollBar().maximum()==0
+    assert d.properties_scroll.viewport().width()>=285
+    d.reject()
+
+
 @pytest.mark.parametrize('width,height',SIZES)
 def test_status_properties_scroll_and_persistent_save(studio,tmp_path,width,height):
     w,s,app=studio;d=status_dialog(studio,tmp_path)

@@ -176,7 +176,9 @@ class StatusFieldsDialog(AdaptiveDialog):
         self.view.setMinimumSize(160,140)
         self.view.scene().selectionChanged.connect(self.scene_selected)
         body.addWidget(self.view)
-        aside = QWidget()
+        from .workspace import EditorProperties
+        self.properties_scroll=QScrollArea();self.properties_scroll.setWidgetResizable(True)
+        aside = EditorProperties(self.properties_scroll,minimum=245,maximum=310)
         panel = vbox(aside, 8, 6)
         panel.addWidget(label('PROPIEDADES','section'))
         self.draw_hint = label(
@@ -212,9 +214,8 @@ class StatusFieldsDialog(AdaptiveDialog):
         panel.addWidget(self.geometry_note)
         panel.addWidget(self.draw_hint)
         panel.addStretch()
-        self.properties_scroll=QScrollArea();self.properties_scroll.setWidgetResizable(True)
-        self.properties_scroll.setMinimumWidth(245);self.properties_scroll.setMaximumWidth(310)
         self.properties_scroll.setWidget(aside);body.addWidget(self.properties_scroll)
+        aside.ensurePolished();aside.fit_width()
         body.setSizes([170,600,270]);body.setStretchFactor(1,1)
         tools=QHBoxLayout()
         self.undo_button=button('Deshacer',self.undo_edit);self.redo_button=button('Rehacer',self.redo_edit)

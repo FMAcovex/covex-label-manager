@@ -6,8 +6,9 @@ from PySide6.QtWidgets import (QWidget, QTabWidget, QBoxLayout, QPushButton, QSc
 
 class EditorProperties(QFrame):
     """Reserve the actual control minimum, including native font/style metrics."""
-    def __init__(self, scroll):
+    def __init__(self, scroll, minimum=260, maximum=320):
         super().__init__();self.scroll=scroll
+        self.minimum_panel_width=minimum;self.maximum_panel_width=maximum
 
     def event(self, event):
         result=super().event(event)
@@ -19,9 +20,9 @@ class EditorProperties(QFrame):
     def fit_width(self):
         scroll=getattr(self,'scroll',None)
         if scroll is None or self.layout() is None:return
-        required=max(260,self.minimumSizeHint().width()+
+        required=max(self.minimum_panel_width,self.minimumSizeHint().width()+
                      scroll.verticalScrollBar().sizeHint().width()+2*scroll.frameWidth())
-        scroll.setMaximumWidth(max(320,required))
+        scroll.setMaximumWidth(max(self.maximum_panel_width,required))
         scroll.setMinimumWidth(required)
 
 

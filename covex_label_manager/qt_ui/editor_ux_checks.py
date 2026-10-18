@@ -129,6 +129,10 @@ def run(report, capture=None, *, baseline=False, svg_dir=None, source_commit=Non
                 assert footer.mapTo(dialog,footer.rect().bottomRight()).y()<dialog.height()
             snapshot(f'{width}-status',dialog)
             if not baseline:
+                for control in (dialog.key,dialog.name,*dialog.spins.values(),dialog.font_size,dialog.bold,dialog.required):
+                    dialog.properties_scroll.ensureWidgetVisible(control);settle()
+                    assert dialog.properties_scroll.viewport().rect().contains(control.mapTo(dialog.properties_scroll.viewport(),control.rect().center()))
+                assert dialog.properties_scroll.horizontalScrollBar().maximum()==0, horizontal_layout_metrics(dialog.properties_scroll)
                 dialog.spins['w'].setValue(dialog.spins['w'].value()*.9)
                 assert dialog.apply_properties();changed=copy.deepcopy(dialog.design)
                 dialog.undo_edit();assert dialog.design!=changed

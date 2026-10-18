@@ -76,6 +76,10 @@ tenía un mínimo de 269 px; con márgenes necesitaba 289 px frente a un viewpor
 276 (13 px de desbordamiento). El panel ahora reserva su mínimo real de contenido
 más el scrollbar/marco, y lo recalcula ante cambios de layout/fuente/estilo.
 Una regresión reproduce exactamente ese mínimo antes de comprobar la corrección.
+Estados reutiliza este componente de presentación, sin unificar controladores:
+al forzar un mínimo equivalente en «Aplicar propiedades» se reprodujeron 26 px de
+desbordamiento y se corrigieron con la misma reserva de anchura. La prueba del EXE
+también exige acceso a cada propiedad de Estado y ausencia de scroll horizontal.
 Al sustituir el aviso inferior antiguo se oculta inmediatamente antes de su
 eliminación diferida: así no queda flotando encima del lienzo durante la apertura
 o en capturas tomadas antes de procesar `DeferredDelete`.
