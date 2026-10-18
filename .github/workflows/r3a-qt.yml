@@ -69,7 +69,9 @@ permissions:
 jobs:
   visual-proof:
     runs-on: windows-2022
-    timeout-minutes: 20
+    # R8B adds native interactions, six before/after comparisons and checks of
+    # the extracted ZIP. Budget for the extra work; per-step limits stay intact.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:

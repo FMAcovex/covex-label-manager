@@ -146,6 +146,9 @@ declaran validación GMP. El nombre «Aprobado» no tiene privilegios documental
 - Se mantienen suite completa, tres CI, regresiones R8A, 86 self-checks por escala,
   importador, Qt/Tk, compatibilidad histórica, emisión automática antes de manual y
   prueba del ZIP **realmente extraído**, manifiesto/CRC/inventario/SHA por archivo.
+  El presupuesto global del job pasa de 20 a 25 minutos por las comprobaciones
+  añadidas de R8B. No se amplían límites por paso (suite general: ocho minutos),
+  ni se relajan aserciones, integridad, tamaños, permisos o criterios de aceptación.
 
 ## Portable y riesgos residuales
 
