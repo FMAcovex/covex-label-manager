@@ -389,7 +389,7 @@ jobs:
             $process = Start-Process -FilePath $executable -ArgumentList @('--editor-ux-check', $report, '--capture', $captures) -Wait -PassThru
             if ($process.ExitCode -ne 0 -or !(Test-Path $report)) { if (Test-Path $report) { Get-Content $report -Raw }; throw "R8B extracted editor failed at $scale" }
             $result = Get-Content $report -Raw | ConvertFrom-Json
-            if (!$result.ok -or !$result.integrity -or !$result.approved_revision_unchanged -or $result.captures.Count -ne 14) { Get-Content $report -Raw; throw 'R8B extracted contract incomplete' }
+            if (!$result.ok -or !$result.integrity -or !$result.exact_viewports -or !$result.approved_revision_unchanged -or $result.captures.Count -ne 14) { Get-Content $report -Raw; throw 'R8B extracted contract incomplete' }
           }
           Remove-Item Env:QT_SCALE_FACTOR
       # User-facing download: application only, no screenshots or CI reports.

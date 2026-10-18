@@ -26,6 +26,19 @@ def test_same_87_capability_ids_and_names_are_retained():
     assert entries('R8B_EDITOR_UX/CONSERVACION_87.md')==historical
 
 
+def test_capture_resizes_after_windows_initial_show_and_rejects_any_remaining_clamp(studio,monkeypatch):
+    from covex_label_manager.qt_ui.editor_ux_checks import present_viewport
+    w,s,app=studio;w.open_editor()
+    # Deterministically reproduce initial native desktop normalization.
+    monkeypatch.setattr(w,'show',lambda:w.resize(820,450))
+    target=QSize(1280,680)
+    present_viewport(w,target,app.processEvents)
+    assert w.size()==target and w.canvas.height()>=target.height()*.45
+    w.setMaximumSize(820,450)
+    with pytest.raises(AssertionError,match='Requested client viewport not available'):
+        present_viewport(w,target,app.processEvents)
+
+
 @pytest.mark.parametrize('width,height',SIZES)
 def test_essential_properties_reachable_without_advanced_and_save_outside_scroll(studio,width,height):
     w,s,app=studio;w.resize(width,height);w.open_editor();app.processEvents()

@@ -8,6 +8,15 @@ from pathlib import Path
 import traceback
 
 
+def present_viewport(widget, size, settle):
+    """Windows normalizes initial show to its small hosted desktop. Resize AFTER
+    native show, then require the exact client viewport (never accept a clamp).
+    """
+    widget.show();settle()
+    widget.resize(size);settle()
+    assert widget.size()==size, ('Requested client viewport not available',size,widget.size())
+
+
 def run(report, capture=None, *, baseline=False, svg_dir=None, source_commit=None):
     import fitz
     from PySide6.QtCore import QSize, QPoint, QRectF
@@ -58,8 +67,9 @@ def run(report, capture=None, *, baseline=False, svg_dir=None, source_commit=Non
         uid=api.status_catalog.import_many(source,[dict(kind='aprobado',revision='00',layout=layout)])[0]
         for width,height in ((1366,768),(1920,1080)):
             logical=QSize(math.floor(width/result['scale']),math.floor(height/result['scale'])-40)
-            w.resize(logical);w.show();w.select_version(initial);w.open_editor();settle()
-            assert w.width()<=logical.width() and w.height()<=logical.height()
+            present_viewport(w,logical,settle)
+            w.select_version(initial);w.open_editor();settle()
+            assert w.size()==logical
             assert w.canvas.width()>=200 and w.canvas.height()>=logical.height()*.45
             w.editor_context.setCurrentIndex(0);w.properties_scroll.verticalScrollBar().setValue(0)
             snapshot(f'{width}-editor',w)
@@ -95,8 +105,9 @@ def run(report, capture=None, *, baseline=False, svg_dir=None, source_commit=Non
                 assert saved==w.design.state
             assert dict(api.version(approved))==original
             dialog=StatusFieldsDialog(api,api.status_catalog.get(uid),w);dialogs.append(dialog)
-            dialog.show();dialog.fit_available(logical-QSize(24,24));settle()
-            assert dialog.width()<=logical.width() and dialog.height()<=logical.height()
+            dialog_size=QSize(min(1150,logical.width()-24),min(760,logical.height()-24))
+            present_viewport(dialog,dialog_size,settle)
+            assert dialog.size()==dialog_size
             for footer in dialog.footer_widgets:
                 assert footer.mapTo(dialog,footer.rect().bottomRight()).y()<dialog.height()
             snapshot(f'{width}-status',dialog)
@@ -114,7 +125,7 @@ def run(report, capture=None, *, baseline=False, svg_dir=None, source_commit=Non
         with api.status_catalog._connect() as db:
             assert db.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
             assert not db.execute('PRAGMA foreign_key_check').fetchall()
-        result.update(ok=True,sqlite_v4=True,integrity=True,issues=0,approved_revision_unchanged=True)
+        result.update(ok=True,sqlite_v4=True,integrity=True,issues=0,approved_revision_unchanged=True,exact_viewports=True)
     except Exception:
         result['error']=traceback.format_exc()  # synthetic fixture only
         print(result['error'],flush=True)
