@@ -75,6 +75,9 @@ def arrange_editor(window):
     pl.addWidget(w.field_title)
     form = QFormLayout();form.setSpacing(5)
     form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+    # Windows font metrics and enlarged text must wrap labels above controls,
+    # rather than force the narrow properties panel to scroll horizontally.
+    form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
     form.addRow('Nombre visible', w.name_input)
     w.key_label = QLabel('Identificador');form.addRow(w.key_label, w.key_input)
     for key, text in [('x','Posición X'),('y','Posición Y'),('w','Anchura'),('h','Altura')]:

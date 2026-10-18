@@ -86,6 +86,16 @@ def test_add_and_draw_use_real_canvas_without_modal_and_keep_undo(studio,monkeyp
     assert json.loads(s.services.version(w.current_editor_id)['fields_json'])==w.fields
 
 
+def test_properties_adapt_to_large_label_and_numeric_font_metrics_without_horizontal_scroll(studio):
+    w,s,app=studio;w.resize(1366,728);w.open_editor()
+    w.properties_scroll.widget().setStyleSheet('QLabel, QDoubleSpinBox { font-size:20px; }')
+    app.processEvents()
+    assert w.properties_scroll.horizontalScrollBar().maximum()==0
+    for control in w.spins.values():
+        w.properties_scroll.ensureWidgetVisible(control);app.processEvents()
+        assert w.properties_scroll.viewport().rect().contains(control.mapTo(w.properties_scroll.viewport(),control.rect().center()))
+
+
 def test_typing_properties_preserves_items_selection_zoom_and_caret(studio):
     w,s,app=studio;w.open_editor();w.canvas.zoom(1.2);app.processEvents()
     zoom=w.canvas.transform();item=w.field_items[0]

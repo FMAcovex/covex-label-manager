@@ -66,6 +66,12 @@ nativos anteriores siguen usando el backend `windows`; no se sustituyen ni se
 eliminan. La combinación prueba el layout exacto y los eventos nativos, pero **no
 equivale a validar físicamente seis monitores/configuraciones Win10/11**.
 
+El chequeo Windows también detectó desbordamiento horizontal del formulario de
+Propiedades por sus métricas de texto. Se corrige haciendo que las etiquetas
+largas pasen encima del control cuando no caben a su lado (`WrapLongRows`), sin
+ocultar barras ni reducir fuentes. Una regresión con texto ampliado reproduce el
+fallo original y exige acceso a todos los controles sin desplazamiento horizontal.
+
 ## Botones: qué cambia y dónde queda cada capacidad
 
 | Antes | Ahora / ubicación | Controlador conservado |
