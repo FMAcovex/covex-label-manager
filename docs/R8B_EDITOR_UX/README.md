@@ -147,6 +147,14 @@ declaran validación GMP. El nombre «Aprobado» no tiene privilegios documental
   La nota interna de variante mantiene la misma función, ahora con padre Qt.
   La fixture utiliza Fusion, igual que `main_qt.py`, sin repolish global redundante;
   en Windows conserva el backend `windows` y sus eventos nativos.
+- Preparación de datos GUI: se genera y cierra una biblioteca sintética completa
+  una vez por proceso; cada caso recibe una **copia de archivos y SQLite propia**,
+  no conexiones compartidas, hard links ni servicios simulados. Así no se repiten
+  esquema v3/migración v4 y doce importaciones por cada aserción de widgets. Una
+  regresión compara los volcados SQL completos, integridad/FK/v4, los doce
+  productos, aislamiento de escrituras y corrupción, y ausencia de migración al
+  abrir la copia ya preparada. Constructor/migración y self-checks source/EXE
+  siguen usando datos frescos y la implementación real. No se reduce la suite.
 - `checks.py`: abre explícitamente Herramientas para la misma comprobación visual,
   porque el grupo ya es visible por defecto; mantiene el self-check de 86 casos.
 - `main_qt.py --editor-ux-check INFORME --capture CARPETA`: prueba aislada incluida

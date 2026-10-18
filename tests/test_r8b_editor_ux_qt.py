@@ -32,6 +32,37 @@ def test_studio_fixture_destroys_native_window_before_releasing_synthetic_sessio
     assert not isValid(w)
 
 
+def test_prepared_gui_data_is_complete_and_files_and_sqlite_are_not_shared(monkeypatch):
+    from test_r3a_qt import IsolatedDemoSession,_prepared_demo
+    from covex_label_manager.storage import sha256
+    seed=_prepared_demo();seed_db=seed.root/'demo-data'/'storage_v4'/'labels.sqlite'
+    from covex_label_manager import migration_v4
+    monkeypatch.setattr(migration_v4,'migrate',lambda *args,**kwargs:pytest.fail('Prepared GUI data must already be v4'))
+    before=sha256(seed_db);first=IsolatedDemoSession();second=IsolatedDemoSession()
+    try:
+        assert first.root!=second.root and first.root!=seed.root
+        original=dict(second.services.version(second.initial_id))
+        assert dict(first.services.version(first.initial_id))==original
+        assert len(first.services.labels())==len(second.services.labels())==12
+        assert list(first.services._repository.db.iterdump())==list(second.services._repository.db.iterdump())
+        for session in (first,second):
+            db=session.services._repository.db
+            assert db.execute('PRAGMA user_version').fetchone()[0]==4
+            assert db.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
+            assert not db.execute('PRAGMA foreign_key_check').fetchall()
+            assert session.services.eligibility(session.initial_id,False)[0]
+            assert not session.services.issues() and not session.services.work.list()
+        fields=json.loads(original['fields_json']);fields[0]['label']='SYNTHETIC isolated edit'
+        first.services.replace_pending_fields(first.initial_id,fields)
+        assert dict(second.services.version(second.initial_id))==original
+        asset=first.services.asset_path(original['master_pdf'])
+        other=second.services.asset_path(original['master_pdf'])
+        digest=sha256(other);asset.write_bytes(b'SYNTHETIC corrupted copy only')
+        assert sha256(other)==digest and second.services.eligibility(second.initial_id,False)[0]
+        assert sha256(seed_db)==before
+    finally:first.close();second.close()
+
+
 def test_same_87_capability_ids_and_names_are_retained():
     docs=Path(__file__).resolve().parents[1]/'docs'
     def entries(relative):
