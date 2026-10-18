@@ -27,6 +27,8 @@ def resolve_status(store, status, *, historical=None):
         return None
     uid = status.get("revision_uid")
     if not uid:
+        if historical is not None:
+            raise ValueError("No se admite histórico de estado R7A sin identidad.")
         return store.status_master(kind)
     if not isinstance(uid, str) or len(uid) != 32 or any(c not in "0123456789abcdef" for c in uid):
         raise ValueError("Identidad de revisión de estado inválida.")
@@ -35,7 +37,10 @@ def resolve_status(store, status, *, historical=None):
     if rec["kind"] != kind:
         raise ValueError("La revisión seleccionada pertenece a otro tipo de etiqueta de estado.")
     if rec["state"] != "APPROVED":
-        raise PermissionError("La revisión de estado no está vigente: emisión combinada bloqueada.")
+        if historical is None or rec["state"] != "RETIRED":
+            raise PermissionError("La revisión de estado no está vigente: emisión combinada bloqueada.")
+    if not rec["approved_at"] or not rec["approval_ref"]:
+        raise PermissionError("No existe aprobación documental externa registrada.")
     layout = json.loads(rec["layout_json"])
     vals = status.get("fields", {})
     if not isinstance(vals, dict):
@@ -44,9 +49,9 @@ def resolve_status(store, status, *, historical=None):
     # after per-container values (e.g. lote) have been merged.
     if set(vals) - {f["key"] for f in layout["fields"]}:
         raise ValueError("Existen datos de estado ajenos al diseño aprobado.")
-    return {
+    asset = {
         "kind": rec["kind"], "name": rec["kind"], "version": rec["revision"],
-        "state": rec["state"], "master_pdf": rec["pdf_path"],
+        "state": "APPROVED", "master_pdf": rec["pdf_path"],
         "original_file": rec["source_path"], "pdf_sha256": rec["pdf_sha"],
         "source_sha256": rec["source_sha"], "crop_json": json.dumps(layout["crop"]),
         "approved_by": rec["approved_by"], "approval_ref": rec["approval_ref"],
@@ -54,6 +59,12 @@ def resolve_status(store, status, *, historical=None):
         "r7b_layout": layout, "r7b_layout_sha": rec["layout_sha"],
         "r7b_source_sha": rec["source_sha"],
     }
+    if historical is not None:
+        # Historic approvals can survive retirement but never be replaced.
+        # Evidence comes from an immutable, hash-verified issue snapshot.
+        if not isinstance(historical, dict) or asset != historical:
+            raise ValueError("La fuente histórica de estado ya no coincide.")
+    return asset
 
 
 def status_fingerprint(store, status):

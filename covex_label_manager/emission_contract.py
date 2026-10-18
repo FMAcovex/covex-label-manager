@@ -9,11 +9,11 @@ from .integrity import verify_documents
 from .status_combined import resolve_status
 
 
-def snapshot(store,revision_id,variant_id,profile,status,asset):
+def snapshot(store,revision_id,variant_id,profile,status,asset,*,historical_status=None):
     effective,design,variant=store.variants.resolve(revision_id,variant_id,True)
     state=dict(asset) if asset is not None else None
     if status.get('kind','ninguna')!='ninguna':
-        current=resolve_status(store,status)
+        current=resolve_status(store,status,historical=historical_status)
         if current is None or current['state']!='APPROVED':raise PermissionError('Maestro de estado no aprobado.')
         verify_documents(current,store.root)
         state=dict(current)
@@ -46,10 +46,11 @@ def render(api,version,values,profile,indices,count,copies,destination,test_mode
     store._render_receipts.pop(str(path),None)
     if not test_mode and path.exists():raise FileExistsError('No sobrescriba un PDF existente; elija un nombre nuevo.')
     if status.get('kind','ninguna')!='ninguna':
-        current_asset=resolve_status(store,status)
+        current_asset=resolve_status(store,status,historical=history_snapshot.get('status_master') if history_snapshot and status.get('revision_uid') else None)
         if status_master is not None and dict(status_master)!=dict(current_asset):raise ValueError('El maestro de estado cambió.')
         status_master=current_asset
-    snap=None if test_mode else snapshot(store,version['id'],variant_id,profile,status,status_master)
+    snap=None if test_mode else snapshot(store,version['id'],variant_id,profile,status,status_master,
+                                        historical_status=history_snapshot.get('status_master') if history_snapshot and status.get('revision_uid') else None)
     if history_snapshot and snap:
         snap['design']=history_snapshot['design'];snap['design_sha256']=history_snapshot['design_sha256']
     if snap and work_context:snap['work']=dict(work_context)
@@ -64,7 +65,8 @@ def render(api,version,values,profile,indices,count,copies,destination,test_mode
         render_containers={str(n):{unicodedata.normalize('NFC',k):v for k,v in data.items()} for n,data in (per_container or {}).items()}
         result=render_emission(effective,store.root,render_values,profile,indices,count,copies,path,test_mode,render_containers,status,status_master)
         if snap:
-            current=snapshot(store,version['id'],variant_id,profile,status,status_master)
+            current=snapshot(store,version['id'],variant_id,profile,status,status_master,
+                             historical_status=history_snapshot.get('status_master') if history_snapshot and status.get('revision_uid') else None)
             if digest({k:v for k,v in current.items() if k not in ('design','design_sha256','work')})!=digest({k:v for k,v in snap.items() if k not in ('design','design_sha256','work')}):raise ValueError('El estado documental cambió durante el render.')
             store._render_receipts[str(path)]={'snapshot':snap,'pdf_sha256':sha256(path),'data_hash':digest([values,profile,indices,count,copies,per_container or {},status]),'reprint':reprint_context}
         return result
@@ -86,7 +88,9 @@ def record_issue(store,version_id,operator,count,copies,indices,values,profile,p
     snap=receipt['snapshot'];variant_id=snap['variant_id']
     with store.txn() as db:
         db.execute('BEGIN IMMEDIATE')
-        current=snapshot(store,version_id,variant_id,dict(profile),status or {},resolve_status(store,status or {}))
+        current=snapshot(store,version_id,variant_id,dict(profile),status or {},resolve_status(store,status or {},
+            historical=snap['status_master'] if source_issue_id is not None and receipt.get('reprint') and (status or {}).get('revision_uid') else None),
+            historical_status=snap['status_master'] if source_issue_id is not None and receipt.get('reprint') and (status or {}).get('revision_uid') else None)
         # For reprints the saved design can predate a mutable inherited pending
         # layout; approved revision layouts cannot be edited by application routes.
         if digest(current)!=digest({k:v for k,v in snap.items() if k!='work'}):raise ValueError('Revisión, variante o estado cambió antes de registrar la emisión.')

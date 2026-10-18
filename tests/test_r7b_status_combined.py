@@ -128,3 +128,16 @@ def test_record_combined_snapshot_freezes_source_identity(context):
     assert snap["status"]["revision_uid"] == uids[1]
     with fitz.open(output) as doc:
         assert "OPERADOR" not in doc[0].get_text() or "PERSONA SINTETICA" in doc[0].get_text()
+
+
+def test_archived_approved_revision_stays_verifiable_only_for_historical_snapshot(context):
+    store,api,catalog,v,p,values,uids=context
+    state={"kind":"aprobado","revision_uid":uids[1]}
+    original=resolve_status(store,state)
+    catalog.retire(uids[1],"Version sustituida")
+    with pytest.raises(PermissionError,match="no está vigente"):
+        resolve_status(store,state)
+    assert resolve_status(store,state,historical=original)==original
+    altered={**original,"r7b_layout_sha":"0"*64}
+    with pytest.raises(ValueError,match="histórica"):
+        resolve_status(store,state,historical=altered)

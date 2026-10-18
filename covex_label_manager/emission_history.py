@@ -33,7 +33,8 @@ def reprint_document(api,row,snap):
         current_variant=api.variant(row['design_variant_id']) if row['design_variant_id'] else None
         if snap['revision_uid']!=v['uid'] or snap['source']!=source_identity(v) or snap['variant_uid']!=(current_variant['uid'] if current_variant else None):raise ValueError('La identidad documental ya no corresponde al snapshot histórico.')
         from .emission_contract import snapshot
-        current=snapshot(api._repository,v['id'],row['design_variant_id'],snap['profile'],snap['status'],None)
+        current=snapshot(api._repository,v['id'],row['design_variant_id'],snap['profile'],snap['status'],None,
+                         historical_status=snap.get('status_master') if snap['status'].get('revision_uid') else None)
         # Approved designs/evidence cannot be substituted under an old identity.
         if any(digest(current[k])!=digest(snap[k]) for k in ('design','design_sha256','revision_approval','variant_approval','generation','status_master')):raise ValueError('El diseño o su aprobación documental cambió. Reimpresión bloqueada.')
     return v
@@ -49,7 +50,8 @@ class HistoryService:
         try:
             v=reprint_document(self.api,row,snap)
             from .emission_contract import snapshot
-            document_token=digest(snapshot(self.api._repository,v['id'],row['design_variant_id'],json.loads(row['profile_json']),json.loads(row['status_json'] or '{}'),None))
+            document_token=digest(snapshot(self.api._repository,v['id'],row['design_variant_id'],json.loads(row['profile_json']),json.loads(row['status_json'] or '{}'),None,
+                     historical_status=snap.get('status_master') if snap and snap['status'].get('revision_uid') else None))
         except (ValueError,OSError,KeyError,TypeError) as ex:blocked=str(ex);document_token=None
         return {'issue':row,'path':path,'snapshot':snap,'warnings':warnings,'reprint_allowed':blocked is None,
             'blocked':blocked,'token':digest([fingerprint,document_token])}
@@ -75,7 +77,8 @@ class HistoryService:
             row=report['issue'];v=self.api.resolved_design(row['version_id'],row['design_variant_id'],not proof)
             values=json.loads(row['variables_json']);per=json.loads(row['per_container_json'] or '{}');status=json.loads(row['status_json'] or '{}')
             from .status_combined import resolve_status
-            asset=resolve_status(self.api._repository,status)
+            asset=resolve_status(self.api._repository,status,
+                historical=report['snapshot'].get('status_master') if report['snapshot'] and status.get('revision_uid') else None)
             out=self.api.output_path('cache' if proof else 'emissions',('PRUEBA_REIMP_' if proof else 'REIMP_')+str(issue_id)+'_'+uuid.uuid4().hex+'.pdf')
             result=self.api.render(v,values,profile,indices,row['count_containers'],row['copies_per_container'],out,proof,
                 per_container=per,status=status,status_master=asset,history_snapshot=report['snapshot'],
