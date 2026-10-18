@@ -55,17 +55,33 @@ class StatusCatalogue:
     def __init__(self, root):
         self.root = Path(root).resolve()
         self.db_path = self.root / "status_catalog.sqlite"
+        self._schema_stamp = None
 
     @contextmanager
     def _connect(self):
         self.root.mkdir(parents=True, exist_ok=True)
         db = sqlite3.connect(self.db_path, timeout=10)
+        try:
+            self._prepare_connection(db)
+            with db:
+                yield db
+        finally:
+            # Includes initialization/DDL failures and process interruption,
+            # not only errors raised by the caller after yield.
+            db.close()
+
+    def _prepare_connection(self, db):
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys=ON")
         db.execute("PRAGMA busy_timeout=10000")
-        if db.execute("PRAGMA user_version").fetchone()[0] not in (0, 1):
-            db.close()
+        version = db.execute("PRAGMA user_version").fetchone()[0]
+        if version not in (0, 1):
             raise ValueError("Catálogo de estados de una versión incompatible.")
+        stat = self.db_path.stat()
+        stamp = (stat.st_dev, stat.st_ino,
+                 db.execute("PRAGMA schema_version").fetchone()[0])
+        if version == 1 and stamp == self._schema_stamp:
+            return
         db.executescript("""
         CREATE TABLE IF NOT EXISTS status_revisions(
           uid TEXT PRIMARY KEY CHECK(length(uid)=32),
@@ -123,11 +139,8 @@ class StatusCatalogue:
         """)
         db.execute("PRAGMA user_version=1")
         db.commit()
-        try:
-            with db:
-                yield db
-        finally:
-            db.close()
+        self._schema_stamp = (stat.st_dev, stat.st_ino,
+                              db.execute("PRAGMA schema_version").fetchone()[0])
 
     def _audit(self, db, event, subject, detail):
         db.execute("INSERT INTO status_audit VALUES(?,?,?,?,?)",

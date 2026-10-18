@@ -9,6 +9,41 @@ import pytest
 from covex_label_manager.diagnostics import Diagnostics
 
 
+def test_status_catalog_initializes_once_but_rechecks_version_and_schema(tmp_path,monkeypatch):
+    import sqlite3
+    from covex_label_manager.status_catalog import StatusCatalogue
+    original=sqlite3.connect;statements=[]
+    def traced(*args,**kwargs):
+        db=original(*args,**kwargs);db.set_trace_callback(statements.append);return db
+    monkeypatch.setattr(sqlite3,'connect',traced)
+    catalog=StatusCatalogue(tmp_path/'synthetic-catalog')
+    assert catalog.list_revisions()==[]
+    initial=sum('CREATE TABLE' in sql.upper() for sql in statements)
+    assert initial>0
+    for _ in range(10):assert catalog.list_revisions()==[]
+    assert sum('CREATE TABLE' in sql.upper() for sql in statements)==initial
+    with original(catalog.db_path) as db:db.execute('CREATE TABLE synthetic_schema_change(x)')
+    assert catalog.list_revisions()==[]
+    assert sum('CREATE TABLE' in sql.upper() for sql in statements)>initial
+    with original(catalog.db_path) as db:db.execute('PRAGMA user_version=99')
+    with pytest.raises(ValueError,match='incompatible'):catalog.list_revisions()
+
+
+def test_status_catalog_closes_connection_when_initialization_is_interrupted(tmp_path,monkeypatch):
+    import sqlite3
+    from covex_label_manager.status_catalog import StatusCatalogue
+    catalog=StatusCatalogue(tmp_path/'synthetic-catalog');connections=[];original=sqlite3.connect
+    def capture(*args,**kwargs):
+        db=original(*args,**kwargs);connections.append(db);return db
+    def interrupted(db):raise KeyboardInterrupt('SYNTHETIC interrupted initialization')
+    monkeypatch.setattr(sqlite3,'connect',capture)
+    monkeypatch.setattr(catalog,'_prepare_connection',interrupted)
+    with pytest.raises(KeyboardInterrupt):catalog.list_revisions()
+    with pytest.raises(sqlite3.ProgrammingError,match='closed'):connections[0].execute('SELECT 1')
+    # Proves real Windows file sharing no longer prevents removing this fixture.
+    catalog.db_path.unlink()
+
+
 def test_lifecycle_hooks_and_normal_marker(tmp_path):
     old = sys.excepthook
     diag = Diagnostics(tmp_path)

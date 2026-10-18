@@ -137,7 +137,7 @@ jobs:
       - name: Qt and migration-consent regression (core/Tk covered in Windows job)
         timeout-minutes: 8
         run: >-
-          python -m pytest -q -o faulthandler_timeout=60 --junitxml=test-results/qt.xml
+          python -m pytest -vv --durations=15 -o faulthandler_timeout=60 --junitxml=test-results/qt.xml
           tests/test_r3a_qt.py tests/test_r3b1_qt.py tests/test_emission_work_qt.py
           tests/test_r3c_emission_qt.py tests/test_r3c_history_qt.py tests/test_r3d_settings_qt.py
           tests/test_migration_consent.py tests/test_r3e_layout.py tests/test_r3e_qt.py tests/test_r3f_qt.py

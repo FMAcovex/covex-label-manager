@@ -181,3 +181,15 @@ debe impedir el resultado `cancelled` ni escapar del trabajador. La regresión
 `test_preview_cancel_with_locked_pdf_still_reports_and_cleans_job` simula el
 bloqueo: conserva el PDF bloqueado, limpia el trabajo y registra el fallo sin
 contenido documental. No fuerza el borrado ni interrumpe escritores.
+
+La repetición Windows de esta base agotó el límite existente de ocho minutos
+mientras avanzaba por la suite Qt (sin fallo de aserción anterior al corte).
+La interrupción dentro de la inicialización del catálogo dejó una conexión fuera
+del `finally` y produjo WinError 32 en la limpieza sintética. La conexión se cierra
+ahora también si falla/interrumpe su preparación. Las comprobaciones DDL repetidas
+se omiten solo para el mismo archivo y `schema_version` ya preparado por esa
+instancia; `user_version`, claves foráneas y transacciones se verifican/conservan
+en cada conexión. Si cambia el archivo o esquema se prepara de nuevo. No se cambia
+ninguna tabla ni versión, aprobación o regla documental. Dos regresiones comprueban
+invalidación del sello y cierre real tras interrupción. CI muestra cada test y sus
+duraciones, conservando el límite y todas las comprobaciones anteriores.
