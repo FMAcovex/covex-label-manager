@@ -24,6 +24,7 @@ STATES = {"DRAFT": "Borrador", "PENDING": "Pendiente", "APPROVED": "Vigente",
 class StatusManagerMixin:
     def __init__(self, session):
         self.status_manager_ready = False
+        self._active_status_uid = None
         super().__init__(session)
         self.status_manager = self.build_status_manager()
         self.stack.addWidget(self.status_manager)
@@ -61,60 +62,241 @@ class StatusManagerMixin:
         return page
 
     def build_library(self):
-        # Three permanent library entries, even if the documents have not yet
-        # been imported. Never invent revisions or approval status.
-        page = super().build_library()
-        from .window import box
-        group = box()
-        inner = vbox(group, 10, 5)
-        header = QHBoxLayout()
-        header.addWidget(label("ETIQUETAS DE ESTADO · BIBLIOTECA", "section"))
-        header.addStretch()
-        header.addWidget(button("Gestionar revisiones", lambda: self.navigate("status-manager")))
-        inner.addLayout(header)
-        note = label(
-            "Diseños autónomos de Sin analizar, Aprobado y Rechazado; "
-            "también disponibles sin una etiqueta de producto.", "subtle")
-        inner.addWidget(note)
-        links = QHBoxLayout()
-        self.status_library_buttons = {}
-        for kind in KINDS:
-            entry = button(NAMES[kind], lambda checked=False, kind=kind:
-                           self.open_library_status(kind))
-            entry.setMinimumHeight(42)
-            entry.setToolTip("Abrir ficha y emitir esta etiqueta de estado por separado.")
-            self.status_library_buttons[kind] = entry
-            links.addWidget(entry, 1)
-        inner.addLayout(links)
-        page.layout().insertWidget(2, group)
-        self.status_library_group = group
-        self.search.textChanged.connect(self.refresh_status_library_cards)
-        return page
+        # AC1: no second banner above the table. Registered status revisions
+        # are rendered as ordinary rows in the same QTableWidget.
+        return super().build_library()
 
-    def refresh_status_library_cards(self, *_):
-        if not hasattr(self, "status_library_buttons"):
-            return
-        try:
-            revisions = self.api.status_catalog.list_revisions()
-        except (OSError, ValueError, RuntimeError):
-            return
+    def make_filter(self, key):
+        combo = super().make_filter(key)
+        self._add_status_filter_options(key, combo)
+        return combo
+
+    @staticmethod
+    def _add_status_filter_options(key, combo):
+        extras = {
+            "category": [("Etiquetas de estado", "Etiquetas de estado")],
+            "type": [("Etiqueta de estado", "Etiqueta de estado")],
+            "state": [("Borrador", "DRAFT")],
+        }
+        for title, code in extras.get(key, []):
+            if combo.findData(code) < 0:
+                combo.addItem(title, code)
+        if combo.count() > 1:
+            combo.setEnabled(True)
+
+    def refresh_facets(self):
+        super().refresh_facets()
+        for key in ("category", "type", "state"):
+            if key in self.filters:
+                self._add_status_filter_options(key, self.filters[key])
+
+    def _visible_status_revisions(self):
+        filters = {key: control.currentData() for key, control in self.filters.items()}
         query = self.search.text().strip().casefold()
-        by_kind = {kind: [] for kind in KINDS}
-        for rev in revisions:
-            by_kind[rev["kind"]].append(rev)
-        for kind, entry in self.status_library_buttons.items():
-            history = by_kind[kind]
-            active = next((r for r in history if r["state"] == "APPROVED"), None)
-            chosen = active or next((r for r in history if r["state"] == "DRAFT"), None)
-            chosen = chosen or (history[0] if history else None)
-            caption = (NAMES[kind] + " · Rev. " + chosen["revision"]
-                       + " · " + STATES[chosen["state"]]
-                       if chosen else NAMES[kind] + " · Sin importar")
-            entry.setText(caption)
-            entry.setVisible(
-                (not query or query in (NAMES[kind] + " etiqueta de estado " + caption).casefold())
-                and not (self.filters.get("category") and
-                         self.filters["category"].currentData()))
+        if self.mode == "favorites":
+            return []
+        if filters.get("category") not in ("", None, "Etiquetas de estado"):
+            return []
+        if filters.get("type") not in ("", None, "Etiqueta de estado"):
+            return []
+        if filters.get("origin") not in ("", None, "COVEX"):
+            return []
+        if any(filters.get(key) for key in ("family", "customer", "country", "language", "acquisition")):
+            return []
+        results = []
+        for revision in self.api.status_catalog.list_revisions():
+            if filters.get("state") and filters["state"] != revision["state"]:
+                continue
+            if filters.get("version") and filters["version"] != revision["revision"]:
+                continue
+            kind = revision["kind"]
+            searchable = " ".join((
+                NAMES[kind], kind, "etiqueta de estado",
+                revision["revision"], STATES[revision["state"]],
+                revision["approval_ref"] or "",
+            )).casefold()
+            if query and query not in searchable:
+                continue
+            results.append(revision)
+        return results
+
+    def refresh(self, *_):
+        # The base Library refresh owns product rows. Append status records,
+        # never fake product-version IDs or mutate the validated product store.
+        selected_status = getattr(self, "_active_status_uid", None)
+        super().refresh(*_)
+        if not getattr(self, "status_manager_ready", False):
+            return
+        revisions = self._visible_status_revisions()
+        from PySide6.QtGui import QColor
+        table = self.table
+        previous = table.blockSignals(True)
+        try:
+            initial = table.rowCount()
+            table.setRowCount(initial + len(revisions))
+            for offset, rec in enumerate(revisions):
+                kind = rec["kind"]
+                state = rec["state"]
+                values = [
+                    "☆", "EST-" + kind.upper().replace("_", "-"),
+                    NAMES[kind], "Etiqueta de estado", rec["revision"],
+                    "COVEX", "", "", STATES[state],
+                ]
+                marker = "status:" + rec["uid"]
+                for column, value in enumerate(values):
+                    cell = QTableWidgetItem(value)
+                    cell.setData(Qt.ItemDataRole.UserRole, marker)
+                    cell.setToolTip(value)
+                    table.setItem(initial + offset, column, cell)
+                colors = {
+                    "APPROVED": "#247454", "PENDING": "#90651D",
+                    "DRAFT": "#4B6478", "RETIRED": "#986066",
+                    "CANCELLED": "#986066",
+                }
+                table.item(initial + offset, 8).setForeground(QColor(colors.get(state, "#4B6478")))
+            self.count.setText(f"{table.rowCount()} revisiones")
+            few = 0 < table.rowCount() <= 5
+            self.selection_help.setVisible(few)
+            table.setMaximumHeight(max(170, 60 + 46 * table.rowCount()) if few else 16777215)
+        finally:
+            table.blockSignals(previous)
+        if selected_status:
+            self.select_version("status:" + selected_status)
+        elif not self.rows and revisions:
+            self.select_version("status:" + revisions[0]["uid"])
+
+    def _library_status_uid(self):
+        item = self.table.item(self.table.currentRow(), 0) if self.table.currentRow() >= 0 else None
+        marker = item.data(Qt.ItemDataRole.UserRole) if item else None
+        if isinstance(marker, str) and marker.startswith("status:"):
+            return marker.split(":", 1)[1]
+        return None
+
+    def select_version(self, vid):
+        if isinstance(vid, str) and vid.startswith("status:"):
+            for index in range(self.table.rowCount()):
+                item = self.table.item(index, 0)
+                if item and item.data(Qt.ItemDataRole.UserRole) == vid:
+                    self.table.selectRow(index)
+                    self.selected()
+                    return True
+            return False
+        return super().select_version(vid)
+
+    def selected(self):
+        uid = self._library_status_uid() if hasattr(self, "table") else None
+        if uid is None:
+            self._active_status_uid = None
+            if hasattr(self, "favorite_button"):
+                self.favorite_button.setEnabled(True)
+            return super().selected()
+        try:
+            rec = self.api.status_catalog.verify(uid)
+            self._active_status_uid = uid
+            self.row = None  # Product-specific actions cannot target a status.
+            self.inspector_panel.setEnabled(True)
+            self.doc_title.setText(NAMES[rec["kind"]])
+            self.badge.setText(STATES[rec["state"]])
+            color = "#247454" if rec["state"] == "APPROVED" else "#90651D"
+            self.badge.setStyleSheet("color:" + color + ";")
+            from PIL import Image
+            import fitz
+            design = json.loads(rec["layout_json"])
+            path = self.api.status_catalog.root / rec["pdf_path"]
+            with fitz.open(path) as pdf:
+                pix = pdf[design["page"]].get_pixmap(
+                    matrix=fitz.Matrix(1.8, 1.8),
+                    clip=fitz.Rect(design["crop"]), alpha=False)
+                clipped = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+            self.preview.set_image(clipped)
+            details = [
+                ("Tipo", "Etiqueta de estado"),
+                ("Etiqueta", NAMES[rec["kind"]]),
+                ("Revisión", rec["revision"]),
+                ("Estado documental", STATES[rec["state"]]),
+                ("Dimensiones", "{:.2f} × {:.2f} mm".format(*design["size_mm"])),
+                ("Aprobación externa", rec["approval_ref"] or "No registrada"),
+            ]
+            self.meta.setText("\n\n".join(a + "   " + b for a, b in details))
+            self.selection_summary.setText(
+                NAMES[rec["kind"]] + " · Rev. " + rec["revision"])
+            self.revision.blockSignals(True)
+            try:
+                self.revision.clear()
+                for item in self.api.status_catalog.list_revisions(rec["kind"]):
+                    self.revision.addItem(
+                        "Revisión " + item["revision"] + " · " + STATES[item["state"]],
+                        "status:" + item["uid"])
+                self.revision.setCurrentIndex(
+                    self.revision.findData("status:" + uid))
+            finally:
+                self.revision.blockSignals(False)
+            self.doc_note.setText(
+                ("Aprobación externa: " + rec["approval_ref"] if rec["approval_ref"]
+                 else "Borrador/pendiente: emitir únicamente PDF de prueba."))
+            self.favorite_button.setEnabled(False)
+            self.recheck_actions()
+        except (ValueError, OSError, RuntimeError) as err:
+            self._active_status_uid = uid
+            self.row = None
+            self.preview.scene().clear()
+            self.doc_note.setText("Etiqueta de estado no disponible: " + str(err))
+            self.recheck_actions()
+
+    def revision_changed(self, index):
+        marker = self.revision.itemData(index)
+        if isinstance(marker, str) and marker.startswith("status:"):
+            if not self.select_version(marker):
+                QMessageBox.information(
+                    self, "Revisión fuera de filtro",
+                    "Quite los filtros para mostrar esta revisión de estado.")
+            return
+        return super().revision_changed(index)
+
+    def open_editor(self):
+        uid = self._library_status_uid() if hasattr(self, "table") else None
+        if uid:
+            rec = self.api.status_catalog.get(uid)
+            if rec["state"] == "DRAFT":
+                from .status_fields_dialog import StatusFieldsDialog
+                if StatusFieldsDialog(self.api, rec, self).exec() == QDialog.DialogCode.Accepted:
+                    self.refresh_status_manager()
+                    self.select_version("status:" + uid)
+            else:
+                QMessageBox.information(
+                    self, "Diseño protegido",
+                    "Solo puede editar una revisión en Borrador.\n"
+                    "En Estados → Nueva revisión podrá crear un borrador independiente.")
+            return
+        return super().open_editor()
+
+    def favorite(self):
+        if getattr(self, "_active_status_uid", None):
+            return  # No favorites are written into a fictitious product record.
+        return super().favorite()
+
+    def enlarge(self):
+        if getattr(self, "_active_status_uid", None):
+            self.open_library_status(self.api.status_catalog.get(self._active_status_uid)["kind"])
+            return
+        return super().enlarge()
+
+    def document_details(self):
+        if getattr(self, "_active_status_uid", None):
+            rec = self.api.status_catalog.get(self._active_status_uid)
+            self.open_library_status(rec["kind"])
+            return
+        return super().document_details()
+
+    def document_menu(self):
+        if getattr(self, "_active_status_uid", None):
+            from PySide6.QtWidgets import QMenu
+            menu = QMenu(self)
+            menu.addAction("Abrir ficha de estado", self.document_details)
+            menu.addAction("Editar campos del borrador", self.open_editor)
+            menu.addAction("Gestionar revisiones", lambda: self.navigate("status-manager"))
+            return menu
+        return super().document_menu()
 
     def open_library_status(self, kind):
         self.navigate("status-manager")
@@ -212,7 +394,7 @@ class StatusManagerMixin:
                 target = index
         if rows:
             self.status_table.selectRow(max(0, target))
-        self.refresh_status_library_cards()
+        self.refresh()
 
     def selected_status_uid(self):
         if not hasattr(self, "status_table"):
