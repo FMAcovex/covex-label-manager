@@ -122,3 +122,15 @@ def test_single_state_independent_of_catalogue_materials(catalogue, combined_pdf
     # Status issues are not fictional product issues in the legacy SQLite v4.
     assert (catalogue.root / "status_catalog.sqlite").is_file()
     assert not (catalogue.root / "storage_v4" / "labels.sqlite").exists()
+
+
+def test_catalogue_closes_sqlite_handles_for_windows_cleanup(catalogue, combined_pdf):
+    """The application must release sidecar handles when a Qt demo closes."""
+    catalogue.import_many(combined_pdf, [_entries(combined_pdf)[0]])
+    catalogue.list_revisions()
+    catalogue.current("sin_analizar")
+    import os
+    relocated = catalogue.db_path.with_suffix(".relocated")
+    os.replace(catalogue.db_path, relocated)
+    os.replace(relocated, catalogue.db_path)
+    assert catalogue.db_path.is_file()
