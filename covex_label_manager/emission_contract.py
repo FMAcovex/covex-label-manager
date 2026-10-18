@@ -6,13 +6,14 @@ from .canonical import canonical,digest,json_digest
 from .editor_layout import source_identity,version_with_layout
 from .storage import now,sha256
 from .integrity import verify_documents
+from .status_combined import resolve_status
 
 
 def snapshot(store,revision_id,variant_id,profile,status,asset):
     effective,design,variant=store.variants.resolve(revision_id,variant_id,True)
     state=dict(asset) if asset is not None else None
     if status.get('kind','ninguna')!='ninguna':
-        current=store.status_master(status['kind'])
+        current=resolve_status(store,status)
         if current is None or current['state']!='APPROVED':raise PermissionError('Maestro de estado no aprobado.')
         verify_documents(current,store.root)
         state=dict(current)
@@ -45,7 +46,7 @@ def render(api,version,values,profile,indices,count,copies,destination,test_mode
     store._render_receipts.pop(str(path),None)
     if not test_mode and path.exists():raise FileExistsError('No sobrescriba un PDF existente; elija un nombre nuevo.')
     if status.get('kind','ninguna')!='ninguna':
-        current_asset=store.status_master(status['kind'])
+        current_asset=resolve_status(store,status)
         if status_master is not None and dict(status_master)!=dict(current_asset):raise ValueError('El maestro de estado cambió.')
         status_master=current_asset
     snap=None if test_mode else snapshot(store,version['id'],variant_id,profile,status,status_master)
@@ -85,7 +86,7 @@ def record_issue(store,version_id,operator,count,copies,indices,values,profile,p
     snap=receipt['snapshot'];variant_id=snap['variant_id']
     with store.txn() as db:
         db.execute('BEGIN IMMEDIATE')
-        current=snapshot(store,version_id,variant_id,dict(profile),status or {},store.status_master((status or {}).get('kind','ninguna')))
+        current=snapshot(store,version_id,variant_id,dict(profile),status or {},resolve_status(store,status or {}))
         # For reprints the saved design can predate a mutable inherited pending
         # layout; approved revision layouts cannot be edited by application routes.
         if digest(current)!=digest({k:v for k,v in snap.items() if k!='work'}):raise ValueError('Revisión, variante o estado cambió antes de registrar la emisión.')
