@@ -229,7 +229,7 @@ class StatusFieldsDialog(AdaptiveDialog):
         if not 0 <= index < len(self.shapes):
             return
         shape = self.shapes[index]
-        bounding = shape.mapRectToScene(shape.rect()).boundingRect()
+        bounding = shape.mapRectToScene(shape.rect())
         sx = (self.crop[2]-self.crop[0]) / self.image_size[0]
         sy = (self.crop[3]-self.crop[1]) / self.image_size[1]
         rect = [self.crop[0]+bounding.left()*sx,
