@@ -13,8 +13,10 @@ parser.add_argument('--capture',type=Path,required=True)
 parser.add_argument('--svg-dir',type=Path)
 args=parser.parse_args();sys.path.insert(0,str(args.source_root.resolve()))
 commit=subprocess.run(['git','-C',str(args.source_root),'rev-parse','HEAD'],text=True,capture_output=True)
+top=subprocess.run(['git','-C',str(args.source_root),'rev-parse','--show-toplevel'],text=True,capture_output=True)
+source_commit=commit.stdout.strip() if commit.returncode==0 and top.returncode==0 and Path(top.stdout.strip()).resolve()==args.source_root.resolve() else None
 path=Path(__file__).resolve().parents[1]/'covex_label_manager/qt_ui/editor_ux_checks.py'
 spec=importlib.util.spec_from_file_location('_editor_ux_checks',path)
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 sys.exit(module.run(args.report,args.capture,baseline=args.baseline,svg_dir=args.svg_dir,
-                    source_commit=commit.stdout.strip() if commit.returncode==0 else None))
+                    source_commit=source_commit))

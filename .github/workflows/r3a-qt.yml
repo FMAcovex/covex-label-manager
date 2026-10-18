@@ -127,7 +127,7 @@ jobs:
           --junitxml=test-results/r8b.xml tests/test_r8b_editor_ux_qt.py
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: 042725c7f8f5ac56bbd2f2330a1a7ec1f0142b2e
+          ref: 1885e235aeaf0792834403618531bad392874a3a
           path: .r8a-editor-baseline
           persist-credentials: false
       - name: R8B versus verified R8A - both viewports at all Windows scales
@@ -367,6 +367,7 @@ jobs:
           $extracted = Join-Path $env:RUNNER_TEMP ('r8a-extracted-' + [guid]::NewGuid().ToString('N'))
           Expand-Archive -Path COVEXLabelManager_Qt.zip -DestinationPath $extracted
           $executable = Join-Path $extracted 'COVEXLabelManager_Qt/COVEXLabelManager_Qt.exe'
+          "R8B_EXTRACTED_EXE=$executable" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           foreach ($scale in @('1', '1.25', '1.5')) {
             $env:QT_SCALE_FACTOR = $scale
             $report = Join-Path $pwd "test-results/r8a-extracted-$scale.json"
@@ -379,6 +380,8 @@ jobs:
       - name: R8B editor in the actual extracted portable at all Windows scales
         shell: pwsh
         run: |
+          $executable = $env:R8B_EXTRACTED_EXE
+          if (!$executable -or !(Test-Path $executable)) { throw 'Extracted acceptance executable missing' }
           foreach ($scale in @('1', '1.25', '1.5')) {
             $env:QT_SCALE_FACTOR = $scale
             $report = Join-Path $pwd "test-results/r8b-extracted-$scale.json"

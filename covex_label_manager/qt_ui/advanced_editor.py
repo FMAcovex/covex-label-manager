@@ -326,6 +326,7 @@ class AdvancedEditorMixin:
         self.commit_pending_properties()
         self.property_index=index; self.loading=True; f=self.fields[index]
         self.field_title.setText(f['label']); self.name_input.setText(f['label']); self.key_input.setText(f['key'])
+        self.field_title.setToolTip('Propiedades del campo '+f['label']+'. Con selección múltiple, estas propiedades solo cambian el campo activo; Composición actúa sobre toda la selección.')
         for key,entry in self.spins.items(): entry.setValue(f[key]*self.editor_version['base_w_mm' if key in ('x','w') else 'base_h_mm'])
         self.font_size.setValue(f['font_pt']); self.bold.setChecked(f.get('bold',False))
         self.required.setChecked(f.get('required',False)); self.locked.setChecked(f.get('locked',False))

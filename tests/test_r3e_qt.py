@@ -2,7 +2,7 @@
 import copy
 import pytest
 pytest.importorskip('PySide6')
-from PySide6.QtCore import Qt,QPoint
+from PySide6.QtCore import Qt,QPoint,QPointF
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QDialog,QLineEdit,QDialogButtonBox,QMessageBox
 from test_r3a_qt import studio
@@ -13,12 +13,14 @@ from covex_label_manager.qt_ui.advanced_editor import RectangleDialog
 
 def test_create_field_by_button_draw_save_reopen_and_undo(studio,monkeypatch):
     w,s,app=studio;w.open_editor();before=copy.deepcopy(w.design.state)
-    def fill(d):
-        if isinstance(d,RectangleDialog):
-            d.from_drag([40,80,140,105]);return QDialog.DialogCode.Accepted
-        entries=d.findChildren(QLineEdit);entries[0].setText('synthetic_extra');entries[1].setText('Synthetic extra');return QDialog.DialogCode.Accepted
-    monkeypatch.setattr(QDialog,'exec',fill)
-    w.draw_field_button.click();assert len(w.fields)==len(before['fields'])+1
+    monkeypatch.setattr(QDialog,'exec',lambda *_:pytest.fail('R8B drawing is on the canvas, not a modal'))
+    w.draw_field_button.click();app.processEvents();assert w.canvas.drawing
+    start=w.canvas.mapFromScene(QPointF(w.image_w*.1,w.image_h*.3))
+    end=w.canvas.mapFromScene(QPointF(w.image_w*.4,w.image_h*.4))
+    QTest.mousePress(w.canvas.viewport(),Qt.MouseButton.LeftButton,pos=start)
+    QTest.mouseMove(w.canvas.viewport(),end)
+    QTest.mouseRelease(w.canvas.viewport(),Qt.MouseButton.LeftButton,pos=end);app.processEvents()
+    assert not w.canvas.drawing and len(w.fields)==len(before['fields'])+1
     after=copy.deepcopy(w.design.state);w.undo_edit();assert w.design.state==before
     w.redo_edit();assert w.design.state==after;assert w.save_work()
     w.design=None;w.current_editor_id=None;w.open_editor();assert w.design.state==after

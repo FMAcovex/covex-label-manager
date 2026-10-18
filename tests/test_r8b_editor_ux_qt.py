@@ -1,6 +1,8 @@
 """R8B real Qt interactions; disposable synthetic data, no GMP acceptance."""
 import copy
 import json
+from pathlib import Path
+import re
 import pytest
 pytest.importorskip('PySide6')
 from PySide6.QtCore import Qt, QPointF, QSize, QTimer
@@ -13,6 +15,15 @@ from covex_label_manager.qt_ui.status_fields_dialog import StatusFieldsDialog
 
 
 SIZES=[(1366,728),(1092,574),(910,472),(1920,1040),(1536,824),(1280,680)]
+
+
+def test_same_87_capability_ids_and_names_are_retained():
+    docs=Path(__file__).resolve().parents[1]/'docs'
+    def entries(relative):
+        return re.findall(r'^\| ([A-Z][0-9]{2}) \| ([^|]+)\|',(docs/relative).read_text(encoding='utf-8'),re.M)
+    historical=entries('R6B_UX_INTEGRATED/CONSERVACION_87.md')
+    assert len(historical)==87
+    assert entries('R8B_EDITOR_UX/CONSERVACION_87.md')==historical
 
 
 @pytest.mark.parametrize('width,height',SIZES)
