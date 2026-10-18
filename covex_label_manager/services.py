@@ -172,6 +172,13 @@ class LocalServices:
             snapshot=Path(temp)/'snapshot.sqlite'
             with closing(sqlite3.connect(snapshot)) as db:self._repository.db.backup(db)
             root=self._repository.root
+            # The independent state catalogue may have live WAL frames. Snapshot
+            # it through SQLite instead of copying a live database file to ZIP.
+            status_database=root/'status_catalog.sqlite'
+            status_snapshot=Path(temp)/'status_catalog_snapshot.sqlite'
+            if status_database.is_file():
+                with closing(sqlite3.connect(status_database.resolve().as_uri()+'?mode=ro',uri=True)) as src:
+                    with closing(sqlite3.connect(status_snapshot)) as dst:src.backup(dst)
             # Capture every durable file, including approval evidence and the
             # legacy barrier. Exclude both the live v4 DB/WAL and old backups.
             files={}
@@ -179,13 +186,17 @@ class LocalServices:
                 rel=f.relative_to(root)
                 if {'backups','cache'} & set(rel.parts) or f.name.endswith('.lock') or f.name.endswith('.tmp'):continue
                 if f.is_symlink():raise ValueError('No se incluyen enlaces en una copia controlada.')
-                if f.is_file() and f not in (self._repository.db_file,Path(str(self._repository.db_file)+'-wal'),Path(str(self._repository.db_file)+'-shm')):
+                if f.is_file() and f not in (self._repository.db_file,Path(str(self._repository.db_file)+'-wal'),Path(str(self._repository.db_file)+'-shm'),
+                                              status_database,Path(str(status_database)+'-wal'),Path(str(status_database)+'-shm')):
                     files[rel.as_posix()]=sha256(f)
             database=self._repository.db_file.relative_to(root).as_posix();files[database]=sha256(snapshot)
+            if status_snapshot.is_file():files['status_catalog.sqlite']=sha256(status_snapshot)
             with zipfile.ZipFile(target,'x',compression=zipfile.ZIP_DEFLATED) as archive:
                 archive.write(snapshot,database)
                 for rel in files:
-                    if rel!=database:archive.write(root/rel,rel)
+                    if rel==database:continue
+                    if rel=='status_catalog.sqlite':archive.write(status_snapshot,rel)
+                    else:archive.write(root/rel,rel)
                 archive.writestr('backup-manifest.json',canonical({'contract':1,'files':files}))
             verify_backup(target)
         self.audit('BACKUP','ZIP',target.name)
