@@ -118,6 +118,9 @@ def test_status_catalogue_is_in_consistent_verified_backup(studio, tmp_path):
 
 def test_status_links_are_exposed_from_native_emission(studio):
     window, session, app = studio
-    from PySide6.QtWidgets import QPushButton
-    texts = [b.text() for b in window.emission_page.findChildren(QPushButton)]
-    assert all(name in texts for name in ("Sin analizar", "Aprobado", "Rechazado"))
+    assert window.status_emission_button.text() == "Estados ▾"
+    texts = [action.text() for action in window.status_emission_menu.actions()]
+    assert texts == ["Sin analizar", "Aprobado", "Rechazado"]
+    # A compact header shortcut must not add a vertical row to the emission
+    # page: the shared PDF preview needs sufficient height at laptop DPI.
+    assert window.emission_page.layout().itemAt(1).widget() is window.emission_document
