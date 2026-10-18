@@ -172,7 +172,8 @@ R8D: asistentes básicos. No se desarrollan aquí.
    reabrir, exportar y comunicar hora aproximada/módulo/acción, sin documentos reales.
 
 PR en borrador, sin merge ni squash; aceptación del propietario pendiente.
-# Seguimiento de cancelación previo a R8B
+
+## Seguimiento de cancelación previo a R8B
 
 La cancelación de `PreviewTask` utiliza también `discard_temporary` para el PDF,
 no solo para los JSON de control. Una infracción de compartición de Windows no
@@ -180,4 +181,3 @@ debe impedir el resultado `cancelled` ni escapar del trabajador. La regresión
 `test_preview_cancel_with_locked_pdf_still_reports_and_cleans_job` simula el
 bloqueo: conserva el PDF bloqueado, limpia el trabajo y registra el fallo sin
 contenido documental. No fuerza el borrado ni interrumpe escritores.
-
