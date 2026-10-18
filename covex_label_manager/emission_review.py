@@ -4,6 +4,7 @@ import math
 import unicodedata
 from .emission_work import parameters
 from .engine import validate_fields,_status_settings
+from .status_combined import resolve_status
 from .vessels import validate_vessel_masses,parse_mass
 
 
@@ -75,11 +76,11 @@ def review(api,uid,generation):
     state=w['status'];kind=state.get('kind','ninguna')
     if kind!='ninguna':
         try:
-            document,_,_=_status_settings(state,api.status_master(kind),api._repository.root,version,False)
+            document,_,_=_status_settings(state,resolve_status(api._repository,state),api._repository.root,version,False)
             if document:document.close()
         except (ValueError,OSError) as ex:error('status:fecha' if 'fecha' in str(ex).lower() else 'status',ex)
     from .canonical import digest
-    result['token']=digest([w,dict(api.status_master(kind)) if kind!='ninguna' and api.status_master(kind) is not None else None])
+    result['token']=digest([w,dict(resolve_status(api._repository,state)) if kind!='ninguna' and resolve_status(api._repository,state) is not None else None])
     result['production_allowed']=not result['errors']
     if not any(f['key']=='numero' for f in fields) and len(indices)>1:
         result['warnings'].append('La plantilla no tiene numeración: varios recipientes producirán etiquetas con el mismo aspecto.')

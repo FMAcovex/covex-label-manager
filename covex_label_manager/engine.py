@@ -235,8 +235,59 @@ def _overlay_field(page,field,values,number,total,view_rect,font_regular,font_bo
         raise LayoutError(msg)
 
 
+def _paint_status_r7b(page, source, asset, target, material, status, test_mode):
+    """Render a verified R7A revision with its own page/crop/field positions."""
+    from .status_combined import field_values
+    layout = asset["r7b_layout"]
+    crop = fitz.Rect(layout["crop"])
+    if not all(math.isfinite(v) for v in target) or target.is_empty:
+        raise LayoutError("Área de etiqueta de estado inválida.")
+    factor = min(target.width / crop.width, target.height / crop.height)
+    if factor <= 0:
+        raise LayoutError("La etiqueta de estado no cabe en su zona.")
+    width, height = crop.width * factor, crop.height * factor
+    rect = fitz.Rect(
+        target.x0 + (target.width - width) / 2,
+        target.y0 + (target.height - height) / 2,
+        target.x0 + (target.width + width) / 2,
+        target.y0 + (target.height + height) / 2,
+    )
+    try:
+        data = field_values(layout, material, status, strict=not test_mode)
+    except ValueError as err:
+        raise LayoutError(str(err)) from err
+    # Never erase printed content or invent fixed text. Preserve original
+    # vector artwork and exact source crop selected in R7A.
+    page.show_pdf_page(rect, source, layout["page"], clip=crop, overlay=True,
+                       keep_proportion=True)
+    for field in layout["fields"]:
+        text = data[field["key"]]
+        if not text:
+            continue
+        box = fitz.Rect(field["rect"])
+        size = field["font_size"] * factor
+        if size < 6:
+            message = "Campo de estado demasiado pequeño (" + field["label"] + "): ajuste el tamaño o use emisión independiente."
+            if not test_mode:
+                raise LayoutError(message)
+        font = "hebo" if field["bold"] else "helv"
+        x = rect.x0 + (box.x0 - crop.x0) * factor
+        y = rect.y0 + (box.y0 - crop.y0) * factor
+        allowed = box.width * factor
+        if size * 1.2 > box.height * factor or fitz.get_text_length(
+                text, fontname=font, fontsize=size) > allowed - 2:
+            raise LayoutError("El dato de estado excede el campo " + field["label"] + ".")
+        # Color is a provisional default; approval of fields/layout remains
+        # external. No replacement of the existing artwork takes place.
+        color = (1, 1, 1) if asset["kind"] == "rechazado" else (0, 0, 0)
+        page.insert_text((x + 1, y + size * 1.1), text, fontname=font,
+                         fontsize=size, color=color, overlay=True)
+
+
 def _paint_status(page,status_source,status_master,view_rect,values,status,font_regular,font_bold,warnings,test_mode):
     """Vector-copy the EXACT three colored Word designs, then fill variable spaces."""
+    if isinstance(status_master, dict) and status_master.get("r7b_uid"):
+        return _paint_status_r7b(page,status_source,status_master,view_rect,values,status,test_mode)
     from .geometry import STATUS_COLORS
     kind=status['kind'];source_crop=fitz.Rect(*_loaded_json(status_master['crop_json'],[]))
     # Keep the natural aspect ratio to avoid silently deforming an approved design.
@@ -322,7 +373,7 @@ def _status_settings(status,status_master,root,version,test_mode):
             if parsed.strftime('%d/%m/%Y')!=fecha:raise ValueError()
         except ValueError:
             raise LayoutError('Fecha de estado inválida. Utilice DD/MM/AAAA y una fecha real.') from None
-    if not test_mode and not str(status.get('fecha','')).strip():
+    if not test_mode and not (isinstance(status_master,dict) and status_master.get('r7b_uid')) and not str(status.get('fecha','')).strip():
         raise LayoutError('La fecha de la etiqueta de estado es obligatoria.')
     return fitz.open(pdf),area,placement
 
