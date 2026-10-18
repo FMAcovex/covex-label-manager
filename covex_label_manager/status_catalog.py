@@ -258,6 +258,40 @@ class StatusCatalogue:
                     raise
             return uids
 
+    def new_revision(self, base_uid, revision, reason):
+        """Clone a documented revision as a new independent DRAFT.
+
+        The existing source PDF and its bytes are referenced, never replaced.
+        A cloned layout never inherits approval or claims documentary vigencia.
+        """
+        revision = _require_note(revision, "Nueva revisión", 1)
+        reason = _require_note(reason, "Motivo de nueva revisión", 5)
+        if len(revision) > 40 or "/" in revision or "\\" in revision:
+            raise ValueError("Código de revisión inválido.")
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            original = _row(db.execute(
+                "SELECT * FROM status_revisions WHERE uid=?", (base_uid,)).fetchone())
+            if not original or original["state"] == "CANCELLED":
+                raise ValueError("Revisión original inexistente o anulada.")
+            self._verified(original)
+            if db.execute("SELECT 1 FROM status_revisions WHERE kind=? AND revision=?",
+                          (original["kind"], revision)).fetchone():
+                raise ValueError("La nueva revisión ya existe para este estado.")
+            uid = uuid.uuid4().hex
+            db.execute("""INSERT INTO status_revisions(
+                    uid,kind,revision,state,source_path,source_sha,pdf_path,pdf_sha,
+                    layout_json,layout_sha,created_at,modified_at)
+                    VALUES(?,?,?,'DRAFT',?,?,?,?,?,?,?,?)""",
+                       (uid, original["kind"], revision,
+                        original["source_path"], original["source_sha"],
+                        original["pdf_path"], original["pdf_sha"],
+                        original["layout_json"], original["layout_sha"], _now(), _now()))
+            self._audit(db, "CLONE_STATUS_REVISION", uid,
+                        {"source_uid": base_uid, "reason": reason})
+            db.commit()
+            return uid
+
     def save_draft(self, uid, layout):
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")

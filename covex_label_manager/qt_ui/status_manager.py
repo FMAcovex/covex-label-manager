@@ -41,6 +41,18 @@ class StatusManagerMixin:
                 max(0, history_bar.count()-1),
                 button("Historial de estados", self.open_status_history))
 
+    def build_emission_page(self):
+        page = super().build_emission_page()
+        row = QHBoxLayout()
+        row.addWidget(label("Emisión independiente de estado", "subtle"))
+        for kind in KINDS:
+            row.addWidget(button(NAMES[kind],
+                                 lambda checked=False, kind=kind:
+                                 self.open_library_status(kind)))
+        row.addStretch()
+        page.layout().insertLayout(1, row)
+        return page
+
     def build_library(self):
         # Three permanent library entries, even if the documents have not yet
         # been imported. Never invent revisions or approval status.
@@ -129,6 +141,7 @@ class StatusManagerMixin:
         for caption, handler in (
             ("Importar Word/PDF", self.import_status_document),
             ("Revisiones", self.refresh_status_manager),
+            ("Nueva revisión", self.clone_status_revision),
             ("Configurar recorte y campos", self.edit_status_draft),
             ("Presentar para revisión", self.submit_status_revision),
             ("Registrar aprobación externa", self.approve_status_revision),
@@ -286,6 +299,30 @@ class StatusManagerMixin:
                         self.refresh_status_manager()
         except (ValueError, OSError, RuntimeError) as err:
             QMessageBox.warning(self, "Importación no realizada", str(err))
+
+    def clone_status_revision(self):
+        try:
+            base = self.selected_status()
+            revision, ok = QInputDialog.getText(
+                self, "Nueva revisión", "Código de la nueva revisión de " +
+                NAMES[base["kind"]] + ":")
+            if not ok:
+                return
+            reason, ok = QInputDialog.getText(
+                self, "Justificación documental",
+                "Motivo de crear una nueva revisión:")
+            if not ok:
+                return
+            uid = self.api.status_catalog.new_revision(
+                base["uid"], revision.strip(), reason.strip())
+            self.refresh_status_manager()
+            for row in range(self.status_table.rowCount()):
+                item = self.status_table.item(row, 0)
+                if item and item.data(Qt.ItemDataRole.UserRole) == uid:
+                    self.status_table.selectRow(row)
+                    break
+        except (ValueError, OSError, PermissionError) as err:
+            QMessageBox.warning(self, "Revisión no creada", str(err))
 
     def edit_status_draft(self):
         try:

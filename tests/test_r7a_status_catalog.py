@@ -134,3 +134,20 @@ def test_catalogue_closes_sqlite_handles_for_windows_cleanup(catalogue, combined
     os.replace(catalogue.db_path, relocated)
     os.replace(relocated, catalogue.db_path)
     assert catalogue.db_path.is_file()
+
+
+def test_clone_creates_new_draft_without_mutating_original(catalogue, combined_pdf):
+    uid = catalogue.import_many(combined_pdf, [_entries(combined_pdf)[1]])[0]
+    catalogue.submit(uid)
+    catalogue.approve(uid, "Revisor", "EVIDENCIA-REV00", confirmation=True)
+    old = catalogue.get(uid)
+    new_uid = catalogue.new_revision(uid, "01", "Nueva geometria propuesta")
+    fresh = catalogue.get(new_uid)
+    assert fresh["state"] == "DRAFT" and fresh["kind"] == "aprobado"
+    assert fresh["source_sha"] == old["source_sha"]
+    assert fresh["layout_sha"] == old["layout_sha"]
+    assert fresh["approval_ref"] is None
+    assert catalogue.current("aprobado")["uid"] == uid
+    assert catalogue.get(uid) == old
+    with pytest.raises(ValueError):
+        catalogue.new_revision(uid, "01", "Intento duplicado")

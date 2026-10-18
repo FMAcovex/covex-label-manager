@@ -114,3 +114,10 @@ def test_status_catalogue_is_in_consistent_verified_backup(studio, tmp_path):
     from covex_label_manager.migration_v4 import verify_backup
     manifest = verify_backup(zipped)
     assert "status_catalog.sqlite" in manifest["files"]
+
+
+def test_status_links_are_exposed_from_native_emission(studio):
+    window, session, app = studio
+    from PySide6.QtWidgets import QPushButton
+    texts = [b.text() for b in window.emission_page.findChildren(QPushButton)]
+    assert all(name in texts for name in ("Sin analizar", "Aprobado", "Rechazado"))
