@@ -11,7 +11,7 @@ from pathlib import Path
 
 import fitz
 from PIL import Image
-from PySide6.QtCore import Qt, QRectF, QTimer
+from PySide6.QtCore import Qt, QRectF, QTimer, QPointF
 from PySide6.QtGui import QColor, QPen, QBrush
 from PySide6.QtWidgets import (
     QDialogButtonBox, QWidget, QHBoxLayout, QFormLayout, QLineEdit,
@@ -22,8 +22,68 @@ from PySide6.QtWidgets import (
 from .window import label, button, vbox, pixmap
 from .responsive import AdaptiveDialog
 from .resize_item import ResizableRect
-from .advanced_editor import RectangleDialog
 from ..status_design import validate_layout, StatusDesignError, MAX_FIELDS
+
+
+class StatusFieldsCanvas(QGraphicsView):
+    """Draw new variable fields directly over the existing label PDF crop."""
+
+    def __init__(self, on_draw):
+        super().__init__()
+        self.on_draw = on_draw
+        self.drawing = False
+        self.start = None
+        self.guide = None
+        self.setScene(QGraphicsScene(self))
+        self.setDragMode(QGraphicsView.DragMode.NoDrag)
+        self.setMinimumSize(470, 350)
+
+    def begin_draw(self):
+        self.drawing = True
+        self.start = None
+        self.viewport().setCursor(Qt.CursorShape.CrossCursor)
+
+    def end_draw(self):
+        self.drawing = False
+        self.start = None
+        self.viewport().unsetCursor()
+        if self.guide is not None:
+            self.scene().removeItem(self.guide)
+            self.guide = None
+
+    def _point(self, event):
+        p = self.mapToScene(event.position().toPoint())
+        rect = self.scene().sceneRect()
+        return QPointF(max(rect.left(), min(rect.right(), p.x())),
+                       max(rect.top(), min(rect.bottom(), p.y())))
+
+    def mousePressEvent(self, event):
+        if self.drawing and event.button() == Qt.MouseButton.LeftButton:
+            self.start = self._point(event)
+            self.guide = self.scene().addRect(
+                QRectF(self.start, self.start), QPen(QColor("#147D71"), 2),
+                QBrush(QColor(20, 125, 113, 40)))
+            self.guide.setZValue(200)
+            self.guide.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self.drawing and self.start is not None:
+            self.guide.setRect(QRectF(self.start, self._point(event)).normalized())
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if self.drawing and self.start is not None and event.button() == Qt.MouseButton.LeftButton:
+            rect = QRectF(self.start, self._point(event)).normalized()
+            self.end_draw()
+            self.on_draw(rect)
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
 
 class StatusFieldShape(ResizableRect):
@@ -95,10 +155,8 @@ class StatusFieldsDialog(AdaptiveDialog):
         help_text.setWordWrap(True)
         root.addWidget(help_text)
         body = QHBoxLayout()
-        self.view = QGraphicsView()
-        self.view.setScene(QGraphicsScene(self.view))
-        self.view.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
-        self.view.setMinimumSize(470, 350)
+        self.view = StatusFieldsCanvas(self.add_field_from_drag)
+        self.view.scene().selectionChanged.connect(self.scene_selected)
         body.addWidget(self.view, 3)
         aside = QWidget()
         panel = vbox(aside, 9, 9)
@@ -107,9 +165,15 @@ class StatusFieldsDialog(AdaptiveDialog):
         self.items.currentRowChanged.connect(self.select_field)
         panel.addWidget(self.items, 2)
         actions = QHBoxLayout()
-        actions.addWidget(button("Dibujar campo…", self.new_field))
+        self.new_field_button = button("Dibujar campo…", self.new_field)
+        actions.addWidget(self.new_field_button)
         actions.addWidget(button("Eliminar", self.remove_field))
         panel.addLayout(actions)
+        self.draw_hint = label(
+            "Pulse «Dibujar campo» y arrastre un rectángulo directamente sobre la etiqueta.",
+            "subtle")
+        self.draw_hint.setWordWrap(True)
+        panel.addWidget(self.draw_hint)
         properties = QFormLayout()
         self.key = QLineEdit()
         self.name = QLineEdit()
@@ -172,6 +236,14 @@ class StatusFieldsDialog(AdaptiveDialog):
             self.items.setCurrentRow(max(0, min(selected, len(self.shapes)-1)))
         else:
             self.select_field(-1)
+
+    def scene_selected(self):
+        if self.busy:
+            return
+        for shape in self.shapes:
+            if shape.isSelected() and self.items.currentRow() != shape.index:
+                self.items.setCurrentRow(shape.index)
+                return
 
     def select_field(self, index):
         if self.busy:
@@ -244,29 +316,44 @@ class StatusFieldsDialog(AdaptiveDialog):
         self.show_geometry(index)
 
     def new_field(self):
-        if len(self.layout["fields"]) >= MAX_FIELDS:
-            QMessageBox.warning(self, "Número de campos", "Máximo de 32 campos.")
+        if self.view.drawing:
+            self.view.end_draw()
+            self.new_field_button.setText("Dibujar campo…")
+            self.draw_hint.setText("Dibujo cancelado. El borrador no ha cambiado.")
             return
-        default = list(self.crop)
-        default[0] += (default[2]-default[0])*0.1
-        default[2] = default[0] + (self.crop[2]-self.crop[0])*0.3
-        default[1] += (default[3]-default[1])*0.2
-        default[3] = default[1] + (self.crop[3]-self.crop[1])*0.15
-        dialog = RectangleDialog(
-            self, "Dibujar campo variable", self.image, self.crop, default, 5)
-        if dialog.exec() != dialog.DialogCode.Accepted:
+        if len(self.layout["fields"]) >= MAX_FIELDS:
+            QMessageBox.warning(self, "Número de campos", "Se ha alcanzado el máximo de campos.")
+            return
+        self.view.begin_draw()
+        self.new_field_button.setText("Cancelar dibujo")
+        self.draw_hint.setText(
+            "Arrastre con el botón izquierdo sobre la etiqueta para crear el campo. "
+            "Después puede moverlo o redimensionarlo con sus asas.")
+
+    def add_field_from_drag(self, region):
+        sx = (self.crop[2] - self.crop[0]) / self.image_size[0]
+        sy = (self.crop[3] - self.crop[1]) / self.image_size[1]
+        rect = [self.crop[0] + region.left() * sx,
+                self.crop[1] + region.top() * sy,
+                self.crop[0] + region.right() * sx,
+                self.crop[1] + region.bottom() * sy]
+        self.new_field_button.setText("Dibujar campo…")
+        if min(rect[2] - rect[0], rect[3] - rect[1]) < 5:
+            self.draw_hint.setText(
+                "Área demasiado pequeña. Vuelva a pulsar Dibujar campo y arrastre más.")
             return
         n = 1
         existing = {field["key"] for field in self.layout["fields"]}
         while f"campo_{n}" in existing:
             n += 1
-        field = {
+        self.layout["fields"].append({
             "key": f"campo_{n}", "label": f"Campo {n}",
-            "rect": list(dialog.rect), "font_size": 10.0,
-            "bold": False, "required": False,
-        }
-        self.layout["fields"].append(field)
+            "rect": rect, "font_size": 10.0, "bold": False, "required": False,
+        })
         self.draw(len(self.layout["fields"])-1)
+        self.draw_hint.setText(
+            "Campo creado. Edite el nombre y las propiedades, pulse Aplicar propiedades "
+            "y finalmente Guardar diseño borrador.")
 
     def remove_field(self):
         i = self.items.currentRow()
@@ -285,6 +372,11 @@ class StatusFieldsDialog(AdaptiveDialog):
             self.draw(i-1)
 
     def save(self):
+        if self.view.drawing:
+            QMessageBox.warning(
+                self, "Campo sin terminar",
+                "Termine de dibujar el campo o cancele el dibujo antes de guardar.")
+            return
         if not self.apply_properties():
             return
         try:
