@@ -96,6 +96,38 @@ def test_preview_cancel_before_start_never_opens_child(studio, tmp_path, monkeyp
     assert payloads[0]['cancelled'] and not path.exists()
 
 
+def test_preview_cancel_with_locked_pdf_still_reports_and_cleans_job(studio, tmp_path, monkeypatch):
+    from covex_label_manager.qt_ui.preview_task import PreviewTask
+    from covex_label_manager.diagnostics import Diagnostics
+    from types import SimpleNamespace
+    window, session, app = studio
+    path = tmp_path/'proof.pdf'
+    task = PreviewTask(window, tmp_path, '0'*32, 1, '0'*64, path, 1)
+    interrupted = False
+    def render(*args, **kwargs):
+        nonlocal interrupted
+        path.write_bytes(b'SYNTHETIC locked temporary proof')
+        interrupted = True
+        return SimpleNamespace(returncode=0)
+    original = Path.unlink
+    def locked(candidate, *args, **kwargs):
+        if candidate == path:raise PermissionError('SYNTHETIC Windows sharing violation')
+        return original(candidate, *args, **kwargs)
+    monkeypatch.setattr(task, 'isInterruptionRequested', lambda:interrupted)
+    monkeypatch.setattr('covex_label_manager.qt_ui.preview_task.subprocess.run', render)
+    monkeypatch.setattr(Path, 'unlink', locked)
+    payloads = [];task.completed.connect(payloads.append)
+    diagnostic = Diagnostics(tmp_path/'diagnostic-root', install_hooks=False)
+    try:
+        task.run()
+        assert len(payloads) == 1 and payloads[0]['cancelled']
+        assert 'cancelada' in payloads[0]['error'] and path.is_file()
+        assert not path.with_suffix('.job.json').exists()
+        assert not path.with_suffix('.job.result.json').exists()
+        assert 'operation_error' in (diagnostic.directory/'technical.jsonl').read_text(encoding='utf-8')
+    finally:diagnostic.close()
+
+
 def test_shutdown_waits_for_worker_before_session_release(studio, monkeypatch):
     from test_r6b_acceptance_fixes_qt import prepared
     from covex_label_manager.qt_ui.preview_task import PreviewTask

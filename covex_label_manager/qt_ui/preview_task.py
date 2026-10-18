@@ -50,7 +50,7 @@ class PreviewTask(QThread):
                 process_error(result.get('technical_error'))
         except InterruptedError as ex:
             payload.update(error=str(ex),cancelled=True)
-            path.unlink(missing_ok=True)
+            discard_temporary(path)
         except Exception as ex:
             from ..diagnostics import error
             error('preview_error', ex)
