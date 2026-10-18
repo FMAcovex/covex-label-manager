@@ -42,15 +42,22 @@ class StatusManagerMixin:
                 button("Historial de estados", self.open_status_history))
 
     def build_emission_page(self):
+        # No extra vertical row: the compact 1366x768 emission acceptance
+        # depends on retaining minimum PDF preview height.
+        from PySide6.QtWidgets import QMenu
         page = super().build_emission_page()
-        row = QHBoxLayout()
-        row.addWidget(label("Emisión independiente de estado", "subtle"))
+        header = page.layout().itemAt(0).layout()
+        menu_button = button("Estados ▾", lambda: None)
+        menu_button.setToolTip("Emitir Sin analizar, Aprobado o Rechazado por separado.")
+        menu = QMenu(menu_button)
         for kind in KINDS:
-            row.addWidget(button(NAMES[kind],
-                                 lambda checked=False, kind=kind:
-                                 self.open_library_status(kind)))
-        row.addStretch()
-        page.layout().insertLayout(1, row)
+            menu.addAction(NAMES[kind],
+                           lambda checked=False, kind=kind:
+                           self.open_library_status(kind))
+        menu_button.setMenu(menu)
+        self.status_emission_menu = menu
+        self.status_emission_button = menu_button
+        header.insertWidget(max(0, header.count()-1), menu_button)
         return page
 
     def build_library(self):
