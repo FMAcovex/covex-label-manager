@@ -313,6 +313,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Qt archive integrity failed' }
           Get-FileHash COVEXLabelManager_Qt.zip -Algorithm SHA256 | Format-List | Out-File test-results/qt-ZIP_SHA256.txt
           Get-ChildItem dist/COVEXLabelManager_Qt -Recurse -File | Measure-Object -Property Length -Sum | Format-List | Out-File test-results/qt-package-size.txt
+      # User-facing download: application only, no screenshots or CI reports.
+      # The full artifact below retains all evidence separately.
+      - name: Publish lightweight Qt portable without test evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: success()
+        with:
+          name: COVEX-Label-Manager-Qt-PORTABLE-${{ github.sha }}
+          path: COVEXLabelManager_Qt.zip
+          retention-days: 14
+          if-no-files-found: error
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
