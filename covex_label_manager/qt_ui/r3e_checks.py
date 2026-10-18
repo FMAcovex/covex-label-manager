@@ -21,7 +21,7 @@ import fitz
 def run(report,captures=None):
     app=QApplication.instance() or QApplication([])
     previous_style=app.style().objectName();previous_palette=app.palette()
-    app.setStyle('Fusion')
+    if previous_style.lower()!='fusion':app.setStyle('Fusion')
     palette=app.palette()
     for role,c in [(QPalette.ColorRole.Window,'#F4F7F8'),(QPalette.ColorRole.WindowText,'#203B40'),(QPalette.ColorRole.Base,'white'),(QPalette.ColorRole.Text,'#203B40'),(QPalette.ColorRole.Button,'white'),(QPalette.ColorRole.ButtonText,'#203B40')]:palette.setColor(role,QColor(c))
     app.setPalette(palette);s=DemoSession();s.fictional=True;w=FunctionalWindow(s);api=s.services;extras=[]

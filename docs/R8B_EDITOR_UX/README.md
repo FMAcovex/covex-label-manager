@@ -145,6 +145,8 @@ declaran validación GMP. El nombre «Aprobado» no tiene privilegios documental
   garantías. Los callbacks diferidos de layout/ajuste usan el `QObject` propietario:
   se cancelan al destruirlo, en vez de acceder después a widgets ya liberados.
   La nota interna de variante mantiene la misma función, ahora con padre Qt.
+  La fixture utiliza Fusion, igual que `main_qt.py`, sin repolish global redundante;
+  en Windows conserva el backend `windows` y sus eventos nativos.
 - `checks.py`: abre explícitamente Herramientas para la misma comprobación visual,
   porque el grupo ya es visible por defecto; mantiene el self-check de 86 casos.
 - `main_qt.py --editor-ux-check INFORME --capture CARPETA`: prueba aislada incluida

@@ -12,6 +12,9 @@ from covex_label_manager.qt_legacy import launch_legacy
 @pytest.fixture
 def studio():
     app=QApplication.instance() or QApplication([])
+    # Match main_qt.py, including on Windows: native platform events, Fusion UI.
+    # Changing the global style midway through a suite repolishes live widgets.
+    if app.style().objectName().lower()!='fusion':app.setStyle('Fusion')
     session=DemoSession();session.fictional=True
     w=FunctionalWindow(session);w.show();app.processEvents()
     yield w,session,app

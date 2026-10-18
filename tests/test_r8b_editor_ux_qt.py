@@ -18,10 +18,17 @@ SIZES=[(1366,728),(1092,574),(910,472),(1920,1040),(1536,824),(1280,680)]
 
 
 def test_studio_fixture_destroys_native_window_before_releasing_synthetic_session():
+    from PySide6.QtWidgets import QApplication
+    app=QApplication.instance() or QApplication([])
+    original_style=app.style().objectName();app.setStyle('Windows')
     lifecycle=studio.__wrapped__()
     w,s,app=next(lifecycle)
-    assert isValid(w)
-    with pytest.raises(StopIteration):next(lifecycle)
+    try:
+        assert isValid(w)
+        assert app.style().objectName().lower()=='fusion'
+    finally:
+        with pytest.raises(StopIteration):next(lifecycle)
+        app.setStyle(original_style)
     assert not isValid(w)
 
 
