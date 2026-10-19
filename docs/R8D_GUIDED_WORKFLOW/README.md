@@ -19,6 +19,8 @@ SQLite v4 **sin cambio de esquema**, contratos R8C intactos, sin catálogo ni mo
 
 Mensajes operativos evitan excepciones/rutas/UUID técnicos, dan siguiente acción y conservación de datos; detalles en diagnóstico privado R8A. Cambiar el mensaje no elimina errores de autorización o integridad. La confirmación definitiva ahora muestra lote e identidad completa, sin depender del encabezado elidido.
 
+La identidad distingue estado documental de revisión/variante y «Trabajo: Borrador». Guardar un trabajo pendiente de emisión no rebaja una revisión aprobada ni otorga aprobación a un diseño pendiente.
+
 ## Navegación y cambios visuales
 
 | R8C | R8D | Conservación |

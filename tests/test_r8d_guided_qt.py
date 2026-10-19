@@ -68,6 +68,7 @@ def render(w):
 def test_four_steps_back_values_quantities_and_same_advanced_work(studio):
     w,s,app=studio;work=select_design(w);saved=enter(w,count='2',copies='2')
     g=w.guided;click(g.next_button);assert g.step==2,g.feedback.text()
+    assert '(Vigente)' in g.identity.toolTip() and 'Trabajo: Borrador' in g.identity.toolTip()
     render(w);assert g.pdf.path
     with fitz.open(g.pdf.path) as doc:
         assert 'PRUEBA' in doc[0].get_text() and 'SYN-R8D' in doc[0].get_text()
@@ -87,6 +88,7 @@ def test_pending_proof_allowed_but_definitive_blocked(studio,tmp_path):
     w,s,app=studio;select_design(w,'PENDING');enter(w);g=w.guided
     click(g.next_button);render(w);click(g.next_button)
     assert g.step==3 and not g.issue_button.isEnabled() and g.proof_button.isEnabled()
+    assert '(Pendiente)' in g.identity.toolTip() and 'Trabajo: Borrador' in g.identity.toolTip()
     from covex_label_manager.engine import LayoutError
     with pytest.raises(LayoutError,match='pendiente de aprobación o retirada'):w.api.work.issue(w.emission_work['uid'],w.emission_work['generation'],'SYN')
     assert not w.api.issues()

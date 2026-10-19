@@ -281,8 +281,9 @@ class GuidedWorkflow:
         w=self.controller;work=w.emission_work
         if not work or self.step==0:return
         b=work['binding'];version=self.api.version(b['revision_id']);variant=self.api.variant(b['variant_id']) if b['variant_id'] else None
-        identity=version['name']+' · Revisión '+version['version']+' · '+('Variante '+variant['code'] if variant else 'Diseño de revisión')
-        self.show_identity(identity+' · '+PHASE[work['phase']])
+        states={'APPROVED':'Vigente','PENDING':'Pendiente','RETIRED':'Retirada','DRAFT':'Borrador'}
+        identity=version['name']+' · Revisión '+version['version']+' ('+states[version['state']]+') · '+('Variante '+variant['code']+' ('+states[variant['state']]+')' if variant else 'Diseño de revisión')
+        self.show_identity(identity+' · Trabajo: '+PHASE[work['phase']])
         review=review or w.work_review
         if not review:return
         s=review.get('summary');profile=work['profile'];state=work['status']
