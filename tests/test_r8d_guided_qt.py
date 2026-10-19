@@ -11,6 +11,26 @@ from PySide6.QtTest import QTest
 from test_r3a_qt import studio
 
 
+@pytest.fixture(autouse=True)
+def deterministic_documentary_fixture(studio,tmp_path):
+    """New exact-text assertions use the R8C embedded font contract, not
+    Windows historical Arial (whose hyphen ToUnicode is U+00AD). Never alter
+    historical rendering or normalize extracted text to pass an assertion.
+    """
+    from datetime import date
+    from covex_label_manager.typography import DEFAULT
+    w,s,app=studio
+    approved=next(v['id'] for v in w.api.versions(w.row['id']) if v['state']=='APPROVED')
+    variant=w.api.create_variant(approved,'SYN-EMBEDDED','SYN R8D embedded','SYNTHETIC isolated font fixture','SYN')
+    design=json.loads(variant['design_json'])
+    for field in design['layout']['fields']:field['typography']=dict(DEFAULT)
+    variant=w.api.save_variant(variant['id'],variant['generation'],design,'SYN')
+    variant=w.api.transition_variant(variant['id'],variant['generation'],'PENDING','SYN')
+    evidence=tmp_path/'SYNTHETIC-EXTERNAL.txt';evidence.write_text('SYNTHETIC TEST ONLY: external approval fixture',encoding='utf-8')
+    variant=w.api.approve_variant(variant['id'],variant['generation'],'SYN QA','SYN EXTERNAL',date.today().isoformat(),evidence,'SYN')
+    w.r8d_fixture_variant=variant['id']
+
+
 def click(widget):
     assert widget.isEnabled(),widget.text()
     QTest.mouseClick(widget,Qt.MouseButton.LeftButton)
@@ -18,7 +38,8 @@ def click(widget):
 
 def select_design(w,state='APPROVED'):
     g=w.guided;assert g.begin()
-    index=next(i for i,(r,v) in enumerate(g.choices) if r['state']==state and v is None and r['id']==w.row['id'])
+    variant_id=w.r8d_fixture_variant if state=='APPROVED' else None
+    index=next(i for i,(r,v) in enumerate(g.choices) if r['state']==state and (v['id'] if v else None)==variant_id and r['id']==w.row['id'])
     g.results.selectRow(index);click(g.next_button)
     assert g.step==1 and w.emission_work
     w.preview_timer.stop();return w.emission_work
@@ -50,10 +71,11 @@ def test_four_steps_back_values_quantities_and_same_advanced_work(studio):
     render(w);assert g.pdf.path
     with fitz.open(g.pdf.path) as doc:
         assert 'PRUEBA' in doc[0].get_text() and 'SYN-R8D' in doc[0].get_text()
+        assert any(font[4].startswith('R8C_') for font in doc[0].get_fonts())
     click(g.back_button);assert g.step==1
     assert g.panel.value_inputs['lote'].text()=='SYN-R8D'
     click(g.back_button);assert g.step==0
-    index=next(i for i,(r,v) in enumerate(g.choices) if r['version_id']==work['binding']['revision_id'] and v is None)
+    index=next(i for i,(r,v) in enumerate(g.choices) if r['version_id']==work['binding']['revision_id'] and (v['id'] if v else None)==work['binding']['variant_id'])
     g.results.selectRow(index);click(g.next_button)
     assert w.emission_work['uid']==saved['uid'] and w.emission_work['values']==saved['values']
     click(g.advanced_button);assert w.stack.currentWidget() is w.emission_page

@@ -73,7 +73,7 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
     def task_work(name,values=None):
         # Benchmark begins with an explicitly bound, blank work in data view.
         # Binding/search itself is exercised/captured separately below.
-        work=api.work.create(approved,name='SYNTHETIC-R8D-'+name)
+        work=api.work.create(approved,variant_id,name='SYNTHETIC-R8D-'+name)
         if values:work=api.work.save(work['uid'],work['generation'],{'values':values})
         w.emission_work=work;w.refresh_work_panels()
         if baseline:w.navigate('emission')
@@ -83,6 +83,19 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
     try:
         approved=next(v['id'] for v in api.versions(w.row['id']) if v['state']=='APPROVED')
         original=dict(api.version(approved));g=None if baseline else w.guided
+        # Identical approved synthetic variant in BEFORE/AFTER. Preserve exact
+        # hyphen assertions with deterministic embedded fonts, not a normalized
+        # legacy Arial extraction. Original revision remains untouched.
+        from datetime import date
+        from ..typography import DEFAULT
+        variant=api.create_variant(approved,'SYN-EMBEDDED','SYN R8D embedded','SYNTHETIC isolated font fixture','SYN')
+        design=json.loads(variant['design_json'])
+        for field in design['layout']['fields']:field['typography']=dict(DEFAULT)
+        variant=api.save_variant(variant['id'],variant['generation'],design,'SYN')
+        variant=api.transition_variant(variant['id'],variant['generation'],'PENDING','SYN')
+        evidence=session.root/'SYNTHETIC-EXTERNAL.txt';evidence.write_text('SYNTHETIC TEST ONLY: external approval fixture',encoding='utf-8')
+        variant=api.approve_variant(variant['id'],variant['generation'],'SYN QA','SYN EXTERNAL',date.today().isoformat(),evidence,'SYN')
+        variant_id=variant['id']
         from ..status_design import make_layout
         source=session.root/'SYNTHETIC-R8D-state.pdf'
         with fitz.open() as doc:
@@ -99,10 +112,10 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
             else:
                 w.navigate('home');snapshot(f'{viewport}-home');click(g.new_button,'Nueva emisión')
                 snapshot(f'{viewport}-select')
-                index=next(i for i,(row,var) in enumerate(g.choices) if row['version_id']==approved and var is None)
+                index=next(i for i,(row,var) in enumerate(g.choices) if row['version_id']==approved and var and var['id']==variant_id)
                 item=g.results.item(index,0);g.results.scrollToItem(item);settle()
                 QTest.mouseClick(g.results.viewport(),Qt.MouseButton.LeftButton,pos=g.results.visualItemRect(item).center())
-                assert g.selection()==(approved,None)
+                assert g.selection()==(approved,variant_id)
                 click(g.next_button,'Continuar con etiqueta');assert g.step==1
                 assert w.emission_work['binding']['revision_id']==approved
             panel=task_work('single')
@@ -119,6 +132,7 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
             proof=out/f'{viewport}-registered.pdf';proof.write_bytes(saved)
             with fitz.open(proof) as doc:
                 assert 'SYN-R8D' in doc[0].get_text() and 'PRUEBA' not in doc[0].get_text()
+                assert any(font[4].startswith('R8C_') for font in doc[0].get_fonts())
                 pdfs.append(dict(name=proof.name,sha256=hashlib.sha256(saved).hexdigest(),pages=len(doc)))
             # Multiple containers, values particular to the second vessel.
             panel=task_work('multiple',{'lote':'SYN-COMMON','pn':'350 g','pb':'500000 mg'})

@@ -61,6 +61,8 @@ Resultados finales, commit, tres CI y enlaces se registrarán en la PR al termin
 
 ## Incidencias resueltas y límites
 
+Primera CI Qt (`39266168063`): los bloques históricos R8A/B y 70 R8C pasaron; la nueva aserción literal `SYN-R8D` encontró `SYN\u00adR8D` con Arial histórica Windows. Se conserva íntegra esa ruta y sus métricas. Las aserciones nuevas ahora usan una variante sintética con fuentes embebidas R8C, aprobada sólo en fixture aislado, idéntica antes/después; se exige el texto exacto **y** recurso PDF `R8C_`. No se normalizan caracteres ni se relajan criterios. Las comparaciones históricas R8C siguen verificando la ruta anterior.
+
 Se evita recrear trabajo al retroceder, se comparte CAS entre tres paneles, se conserva el error PDF en la presentación guiada, se cancela el temporizador al cerrar y se bloquean ambas presentaciones durante operaciones críticas. La prueba no aumenta copias ni transforma trial en producción.
 
 No hay OCR/búsqueda semántica ni metadata inventada. Fuente fija en selección, PDF variable en revisión. Estados individuales usan gestor existente. Opciones físicas/estado conservan complejidad controlada en pestañas. Reducción de carga cognitiva, Word real, Windows físico, impresora y lotes grandes requieren aceptación conjunta posterior. Permanecen límites conservadores de recorte/fuentes/contraste R8C. No se atribuye validación documental a un test UI, ni aceptación funcional/GMP a esta entrega.
