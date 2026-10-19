@@ -174,6 +174,18 @@ def _overlay_field(page,field,values,number,total,view_rect,font_regular,font_bo
         xx,yy,ww,hh=map(float,field['erase'])
         mask=fitz.Rect(view_rect.x0+xx*w,view_rect.y0+yy*h,view_rect.x0+(xx+ww)*w,view_rect.y0+(yy+hh)*h)
         page.draw_rect(mask,fill=(1,1,1),color=None,overlay=True)
+    if 'typography' in field:
+        from .typography import paint
+        continuation=None
+        if field.get('draw')=='continuation':
+            continuation=(view_rect.x0+field['second_x']*w,field['next_w']*w,int(field.get('max_lines',3)))
+        try:
+            warnings.extend(paint(page,txt,fitz.Rect(x,y,x+maxw,y+maxh),size,
+                field.get('bold',False),field['typography'],strict=not test_mode,
+                baseline=field.get('draw') in ('baseline','continuation'),continuation=continuation))
+        except ValueError as exc:
+            raise LayoutError(field.get('label',key)+': '+str(exc)) from exc
+        return
     if field.get('draw')=='baseline':
         try:
             width=_font(fontpath,txt,size)
@@ -235,10 +247,20 @@ def _overlay_field(page,field,values,number,total,view_rect,font_regular,font_bo
         raise LayoutError(msg)
 
 
-def _paint_status_r7b(page, source, asset, target, material, status, test_mode):
+def _paint_status_r7b(page, source, asset, target, material, status, test_mode, warnings):
     """Render a verified R7A revision with its own page/crop/field positions."""
     from .status_combined import field_values
     layout = asset["r7b_layout"]
+    if status.get('composition') is not None or layout['contract']==2:
+        from .status_scaling import paint, describe
+        data=field_values(layout,material,status,strict=not test_mode)
+        try:
+            report=paint(page,source,layout,data,target,settings=status.get('composition'),
+                         strict=not test_mode,default_color=(1,1,1) if asset['kind']=='rechazado' else (0,0,0))
+        except ValueError as exc:raise LayoutError(str(exc)) from exc
+        warnings.extend(report['warnings'])
+        material.setdefault('_composition_reports',[]).append(report)
+        return
     crop = fitz.Rect(layout["crop"])
     if not all(math.isfinite(v) for v in target) or target.is_empty:
         raise LayoutError("Área de etiqueta de estado inválida.")
@@ -287,7 +309,20 @@ def _paint_status_r7b(page, source, asset, target, material, status, test_mode):
 def _paint_status(page,status_source,status_master,view_rect,values,status,font_regular,font_bold,warnings,test_mode):
     """Vector-copy the EXACT three colored Word designs, then fill variable spaces."""
     if isinstance(status_master, dict) and status_master.get("r7b_uid"):
-        return _paint_status_r7b(page,status_source,status_master,view_rect,values,status,test_mode)
+        return _paint_status_r7b(page,status_source,status_master,view_rect,values,status,test_mode,warnings)
+    if status.get('composition') is not None:
+        from .status_scaling import geometry, critical_losses
+        crop=fitz.Rect(_loaded_json(status_master['crop_json'],[]))
+        report=geometry(crop,view_rect,status['composition'])
+        with fitz.open() as composed:
+            layer=composed.new_page(width=status_source[0].rect.width,height=status_source[0].rect.height)
+            original=dict(status);original.pop('composition')
+            _paint_status(layer,status_source,status_master,crop,values,original,font_regular,font_bold,warnings,test_mode)
+            if report['mode']=='fill' and critical_losses(layer,{'crop':list(crop),'fields':[]},report['source_clip']):
+                raise LayoutError('Relleno bloqueado: recorta texto o límites del maestro histórico. Use Ajustar o prepare una revisión de estado.')
+            page.show_pdf_page(fitz.Rect(report['placed']),composed,0,clip=fitz.Rect(report['source_clip']),keep_proportion=True)
+        values.setdefault('_composition_reports',[]).append(report)
+        return
     from .geometry import STATUS_COLORS
     kind=status['kind'];source_crop=fitz.Rect(*_loaded_json(status_master['crop_json'],[]))
     # Keep the natural aspect ratio to avoid silently deforming an approved design.
@@ -408,6 +443,11 @@ def render_emission(version,root,values,profile,indices,count_containers,copies_
     """
     from .storage import sha256
     if not indices:raise LayoutError('No se han seleccionado recipientes.')
+    if profile.get('trial_appearance') is not None:
+        if not test_mode:
+            raise LayoutError('Ajustes temporales de PRUEBA: restaure el diseño o cree una variante documental antes de emitir.')
+        from .typography import apply_trial
+        version=apply_trial(version,profile['trial_appearance'])
     if any(not isinstance(i,int) or i<1 or i>count_containers for i in indices):
         raise LayoutError('Numeración fuera del intervalo definido.')
     if copies_per_container not in (1,2):raise LayoutError('Solo se permiten una o dos etiquetas por recipiente.')
@@ -448,7 +488,7 @@ def render_emission(version,root,values,profile,indices,count_containers,copies_
     aspect=base_crop.width/base_crop.height
     from .sheet_layout import slots, physical_placements
     boxes=slots(profile,plan.cols,plan.rows)
-    issues=[]
+    issues=[];composition_reports=[]
     for (page_index,slot),number in zip(physical_placements(profile,plan.capacity,len(physical)),physical):
         if page_index>=len(out):
             page=out.new_page(width=plan.paper_w_mm*MM,height=plan.paper_h_mm*MM)
@@ -492,20 +532,33 @@ def render_emission(version,root,values,profile,indices,count_containers,copies_
             issues.extend(warn)
             before_spans=span_count(page)
             for f in fields:
+                if 'typography' in f:
+                    from .typography import contrast_warning
+                    x=crop.x0+f['x']*crop.width;y=crop.y0+f['y']*crop.height
+                    # Baseline fields have no ordinary box above the anchor;
+                    # decline a contrast claim rather than sample the wrong area.
+                    if f.get('draw') not in ('baseline','continuation'):
+                        message=contrast_warning(orig[0],fitz.Rect(x,y,x+f['w']*crop.width,y+f['h']*crop.height),f['typography']['color'])
+                        if message:
+                            if not test_mode:raise LayoutError(f['label']+': '+message)
+                            issues.append(f['label']+': '+message)
                 _overlay_field(page,f,item,number,count_containers,view,rootfont,boldfont,issues,test_mode)
             check_rendered_bounds(page,view,before_spans,profile.get('safety_mm',0))
         if status_doc:
             if not test_mode and status['kind'] in ('sin_analizar','aprobado') and not item.get('lote','').strip():
                 raise LayoutError('El estado de un material necesita su identificación de lote.')
-            place=view
+            # Independent explicit composition fills/fits the selected physical
+            # slot, not the already proportionally fitted historical view.
+            place=fitz.Rect(xslot,yslot,xslot+width_mm*MM,yslot+height_mm*MM) if placement=='independiente' and (status or {}).get('composition') else view
             if placement=='integrada':
                 sx,sy,sw,sh=map(float,status_area)
                 place=fitz.Rect(view.x0+view.width*sx,view.y0+view.height*sy,
                                 view.x0+view.width*(sx+sw),view.y0+view.height*(sy+sh))
             before_status=span_count(page)
             _paint_status(page,status_doc,status_master,place,item,status,rootfont,boldfont,issues,test_mode)
+            composition_reports.extend(item.get('_composition_reports',[]))
             # Include the integrated status variables in the label-boundary check.
-            check_rendered_bounds(page,view,before_status,profile.get('safety_mm',0))
+            check_rendered_bounds(page,place if placement=='independiente' and (status or {}).get('composition') else view,before_status,profile.get('safety_mm',0))
         if test_mode:
             page.draw_rect(fitz.Rect(xslot,yslot,xslot+width_mm*MM,yslot+height_mm*MM),
                 color=(.78,.27,.27),width=.6,overlay=True)
@@ -519,8 +572,10 @@ def render_emission(version,root,values,profile,indices,count_containers,copies_
     out.save(target,garbage=4,deflate=True)
     out.close();orig.close()
     if status_doc:status_doc.close()
-    return {'pages':plan.pages,'per_page':plan.capacity,'physical':len(physical),
+    result={'pages':plan.pages,'per_page':plan.capacity,'physical':len(physical),
             'warnings':sorted(set(issues)),'path':str(target)}
+    if composition_reports:result['composition']=composition_reports
+    return result
 
 
 def render_label_thumbnail(version,root,values=None,number=1,total=1,width_px=500):

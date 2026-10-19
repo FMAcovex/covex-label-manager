@@ -83,8 +83,10 @@ class WorkRepository:
             from .canonical import parse
             # Parse duplicate keys strictly, then plain JSON keeps engine numbers native.
             raw=path.read_text(encoding='utf-8');parse(raw);envelope=json.loads(raw)
-            if envelope.get('contract') not in (1,2):raise WorkUnsupported('Contrato de trabajo desconocido; use una versión compatible. No se permite restaurar encima.')
+            if envelope.get('contract') not in (1,2,3):raise WorkUnsupported('Contrato de trabajo desconocido; use una versión compatible. No se permite restaurar encima.')
             w=envelope['payload']
+            if ('trial_appearance' in w.get('profile',{}) or 'composition' in w.get('status',{}) or w.get('binding',{}).get('render_contract')) and envelope['contract']!=3:
+                raise WorkUnsupported('Los ajustes R8C requieren contrato de trabajo 3.')
             if envelope.get('contract')==2 and w.get('profile',{}).get('layout_version')!=1:raise WorkUnsupported('Contrato 2 requiere distribución nativa versión 1.')
             if digest(w)!=envelope['sha256']:raise ValueError('Checksum de trabajo incorrecto.')
             self.validate(w)
@@ -104,6 +106,12 @@ class WorkRepository:
         if any(not isinstance(v,str) for v in w['values'].values()):raise ValueError('Valores comunes deben ser texto.')
         for number,values in w['per_container'].items():
             if not number.isdigit() or int(number)<1 or not isinstance(values,dict) or any(not isinstance(v,str) for v in values.values()):raise ValueError('Datos por recipiente inválidos.')
+        if w['profile'].get('trial_appearance') is not None:
+            from .typography import validate_trial
+            validate_trial(w['profile']['trial_appearance'])
+        if 'composition' in w['status']:
+            from .status_scaling import validate
+            validate(w['status']['composition'])
         if w['phase']!='DRAFT' and not re.fullmatch('[a-f0-9]{32}',w.get('operation_uid') or ''):raise ValueError('Falta intención de emisión.')
         canonical(w)
     def binding(self,revision_id,variant_id):
@@ -112,20 +120,24 @@ class WorkRepository:
         variant=self.api.variant(variant_id) if variant_id is not None else None
         if variant and variant['revision_id']!=revision_id:raise ValueError('Variante de otra revisión.')
         design=json.loads(variant['design_json']) if variant else design_from_revision(v)
-        return {'revision_id':revision_id,'revision_uid':v['uid'],'variant_id':variant_id,
+        binding={'revision_id':revision_id,'revision_uid':v['uid'],'variant_id':variant_id,
             'variant_uid':variant['uid'] if variant else None,'source':source_identity(v),
             'design_sha256':digest(design),'revision_state':v['state'],
             'revision_approval':{k:v[k] for k in ('approved_by','approval_ref','approved_at')},
             'variant_generation':variant['generation'] if variant else None}
+        if any('typography' in f for f in design['layout']['fields']):binding['render_contract']=1
+        return binding
     def assert_current(self,w,production=False):
         b=w['binding']
         if digest(self.binding(b['revision_id'],b['variant_id']))!=digest(b):raise WorkConflict('El documento o la variante cambió. Conserve el trabajo y actualice explícitamente el vínculo documental.')
         self.api.resolved_design(b['revision_id'],b['variant_id'],production)
     def _write(self,w,previous=None):
         self.validate(w);path=self.path(w['uid'])
+        def contract(item):
+            return 3 if 'trial_appearance' in item['profile'] or 'composition' in item['status'] or item['binding'].get('render_contract') else 2 if item['profile'].get('layout_version') else 1
         if previous is not None:
-            atomic_json(path.with_suffix('.previous.json'),{'contract':2 if previous['profile'].get('layout_version') else 1,'payload':previous,'sha256':digest(previous)})
-        atomic_json(path,{'contract':2 if w['profile'].get('layout_version') else 1,'payload':w,'sha256':digest(w)})
+            atomic_json(path.with_suffix('.previous.json'),{'contract':contract(previous),'payload':previous,'sha256':digest(previous)})
+        atomic_json(path,{'contract':contract(w),'payload':w,'sha256':digest(w)})
         return copy.deepcopy(w)
     def create(self,revision_id,variant_id=None,name='Nuevo trabajo',template=None):
         stamp=now();uid=uuid.uuid4().hex
@@ -211,6 +223,8 @@ class WorkRepository:
             if old['phase']=='ISSUED':raise PermissionError('Trabajo ya emitido. Copie para preparar otro lote.')
             if old['generation']!=generation or old['phase']!='DRAFT':raise WorkConflict('Trabajo obsoleto o intento interrumpido.')
             if not operator.strip():raise ValueError('Responsable obligatorio.')
+            if old['profile'].get('trial_appearance') is not None:
+                raise PermissionError('Ajustes temporales de PRUEBA: restablezca el diseño o cree una variante y complete su revisión y aprobación externa.')
             self.assert_current(old,True);p,indices,count,copies=parameters(old)
             w=copy.deepcopy(old);w.update(phase='EMITTING',operation_uid=uuid.uuid4().hex,
                 generation=generation+1,updated_at=now())

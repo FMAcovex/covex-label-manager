@@ -44,6 +44,7 @@ jobs:
       - name: Record build and archive complete portable folder
         shell: pwsh
         run: |
+          Copy-Item docs/R8C_TYPOGRAPHY_SCALING/URW-FONTS-OFL.txt dist/COVEXLabelManager/
           python scripts/build_manifest.py dist/COVEXLabelManager
           Compress-Archive -Path dist/COVEXLabelManager -DestinationPath COVEXLabelManager_Windows.zip
           Get-FileHash COVEXLabelManager_Windows.zip -Algorithm SHA256 | Format-List | Out-File test-results/ZIP_SHA256.txt

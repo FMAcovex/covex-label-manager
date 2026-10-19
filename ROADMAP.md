@@ -185,3 +185,13 @@ retenidos, menús contextuales claros y coherencia de Estados sin ampliar el mot
 Base PR #33, sin fusionar. Pruebas source/portable y comparación sintética a seis
 resoluciones/escalados; [informe y matriz de 87 capacidades](docs/R8B_EDITOR_UX/README.md).
 R8C/R8D y aceptación humana conjunta R8 siguen pendientes. No declara validación GMP.
+
+## R8C — Tipografía y escalado (dependiente de R8B, revisión pendiente)
+
+Contrato tipográfico opcional con fuentes deterministas embebidas; controles de
+Editor y Estados, PDF real, apariencia temporal de prueba sin vía de producción,
+variantes documentales y composición ajustar/rellenar protegida. Sin migración SQL,
+sin reescritura de métricas históricas ni aprobación automática. [Informe, contratos,
+comparaciones y matriz de conservación](docs/R8C_TYPOGRAPHY_SCALING/README.md).
+R8A → R8B → R8C permanece sin fusionar. Aceptación humana conjunta R8 y GMP no
+completadas. R8D se limita a propuesta posterior, sin adelantar sus asistentes.

@@ -373,7 +373,7 @@ class StatusCatalogue:
             db.commit()
 
     def _sheet(self, record, data, destination, *, count=1, paper="A4",
-               width_mm=None, margin_mm=8, gap_mm=3, proof=False):
+               width_mm=None, margin_mm=8, gap_mm=3, proof=False, height_mm=None, composition=None):
         pdf, design = self._verified(record)
         values = validate_values(design, data, strict=not proof)
         if type(count) is not int or not 1 <= count <= 500:
@@ -387,6 +387,8 @@ class StatusCatalogue:
         label_width = (_finite(width_mm, "Ancho", minimum=10, maximum=500)
                        if width_mm is not None else design["size_mm"][0])
         label_height = label_width * design["size_mm"][1] / design["size_mm"][0]
+        if height_mm is not None:
+            label_height=_finite(height_mm,'Alto',minimum=8,maximum=500)
         paper_w, paper_h = sizes[paper]
         cols = math.floor((paper_w - 2 * margin + gap + 1e-7) / (label_width + gap))
         rows = math.floor((paper_h - 2 * margin + gap + 1e-7) / (label_height + gap))
@@ -407,9 +409,13 @@ class StatusCatalogue:
                     x = (margin + (i % cols) * (label_width + gap)) / MM_PER_POINT
                     y = (margin + (i // cols) * (label_height + gap)) / MM_PER_POINT
                     rect = fitz.Rect(x, y, x + label_width/MM_PER_POINT, y + label_height/MM_PER_POINT)
-                    page.show_pdf_page(rect, source, design["page"], clip=source_crop, keep_proportion=True)
+                    enhanced=design['contract']==2 or composition is not None or height_mm is not None
+                    if enhanced:
+                        from .status_scaling import paint
+                        paint(page,source,design,values,rect,settings=composition,strict=not proof)
+                    else:page.show_pdf_page(rect, source, design["page"], clip=source_crop, keep_proportion=True)
                     scale = rect.width / source_crop.width
-                    for field in design["fields"]:
+                    for field in ([] if enhanced else design["fields"]):
                         value = values[field["key"]]
                         if not value:
                             continue
@@ -442,7 +448,7 @@ class StatusCatalogue:
         return self._sheet(record, values or {}, dest, proof=True, **settings)
 
     def emit(self, revision_uid, values, operator, *, count=1, paper="A4",
-             width_mm=None, margin_mm=8, gap_mm=3):
+             width_mm=None, margin_mm=8, gap_mm=3, height_mm=None, composition=None):
         operator = _require_note(operator, "Operador")
         record = self.get(revision_uid)
         if record["state"] != "APPROVED":
@@ -450,6 +456,8 @@ class StatusCatalogue:
         self._verified(record)
         config = {"count": count, "paper": paper, "width_mm": width_mm,
                   "margin_mm": margin_mm, "gap_mm": gap_mm}
+        if height_mm is not None:config['height_mm']=height_mm
+        if composition is not None:config['composition']=composition
         dest = self.root / "emissions" / ("status-" + uuid.uuid4().hex + ".pdf")
         self._sheet(record, values, dest, proof=False, **config)
         try:

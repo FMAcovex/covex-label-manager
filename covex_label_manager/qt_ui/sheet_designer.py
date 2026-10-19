@@ -263,7 +263,8 @@ class SheetDesigner(QDialog):
         try:
             existing=next((p for p in self.repo.list() if p['uid']==uid),None)
             if existing:raise ValueError('Use un identificador nuevo para conservar la evidencia anterior.')
-            self.repo.save(uid,name,copy.deepcopy(self.profile));self.error.setText('Perfil guardado, sin emisión ni aprobación documental.')
+            physical=copy.deepcopy(self.profile);physical.pop('trial_appearance',None)
+            self.repo.save(uid,name,physical);self.error.setText('Formato físico guardado, sin apariencia temporal ni aprobación documental. Para conservar la apariencia use Copiar trabajo o una variante.')
         except (ValueError,OSError) as ex:self.error.setText(str(ex))
     def load_profile(self,*_):
         p=self.saved.currentData()

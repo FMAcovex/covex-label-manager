@@ -296,9 +296,15 @@ class AdvancedEditorMixin:
 
     def disable_properties(self):
         for widget in [self.name_input,self.key_input,self.font_size,self.bold,self.required,self.locked,self.draw_mode,*self.spins.values()]: widget.setEnabled(False)
+        if hasattr(self,'text_appearance'):self.text_appearance.setEnabled(False);self.example_input.setEnabled(False)
         self.field_title.setText('Selecciona un campo')
 
     def scene_selection(self):
+        # QStackedWidget owns the live canvas. During native child destruction,
+        # the scene can notify the still-alive main window after the view's C++
+        # wrapper has been invalidated. This is teardown, not an edit gesture.
+        from shiboken6 import isValid
+        if not isValid(self.canvas):return
         if self.loading or self._selection_sync: return
         selected = [x.index for x in self.canvas.scene().selectedItems() if isinstance(x,EditorFieldItem)]
         self._selection_sync=True
@@ -331,6 +337,11 @@ class AdvancedEditorMixin:
         self.font_size.setValue(f['font_pt']); self.bold.setChecked(f.get('bold',False))
         self.required.setChecked(f.get('required',False)); self.locked.setChecked(f.get('locked',False))
         self.draw_mode.setCurrentIndex(self.draw_mode.findData(f.get('draw','textbox')))
+        if hasattr(self,'text_appearance'):
+            self.text_appearance.load(f);self.text_appearance.setEnabled(self.editable())
+            self.example_input.setText(f.get('text','') if f['key']=='texto_fijo' else f.get('example',''))
+            self.example_input.setEnabled(self.editable() and f['key']!='numero')
+            self.content_type.setText('Texto fijo superpuesto · no modifica el maestro' if f['key']=='texto_fijo' else 'Numeración automática' if f['key']=='numero' else 'Campo variable superpuesto')
         enabled=self.editable()
         for widget in [self.name_input,self.key_input,self.font_size,self.bold,self.required,self.locked,self.draw_mode]: widget.setEnabled(enabled)
         for entry in self.spins.values(): entry.setEnabled(enabled and not f.get('locked'))
@@ -419,6 +430,21 @@ class AdvancedEditorMixin:
         candidate['fields'][self.property_index].update(bold=self.bold.isChecked(),required=self.required.isChecked(),locked=self.locked.isChecked(),font_pt=self.font_size.value())
         self.command('Propiedades de texto / bloqueo',candidate,rebuild=False)
 
+    def change_typography(self):
+        if self.loading or not self.editable() or not hasattr(self,'property_index'):return
+        try:style=self.text_appearance.configuration()
+        except ValueError as ex:self.statusBar().showMessage(str(ex));return
+        candidate=copy.deepcopy(self.design.state);field=candidate['fields'][self.property_index]
+        if style is None:field.pop('typography',None)
+        else:field['typography']=style
+        self.command('Apariencia tipográfica',candidate,rebuild=False)
+
+    def change_example(self):
+        if self.loading or not self.editable() or not hasattr(self,'property_index'):return
+        candidate=copy.deepcopy(self.design.state);field=candidate['fields'][self.property_index]
+        field['text' if field['key']=='texto_fijo' else 'example']=self.example_input.text()
+        self.command('Texto de ejemplo / superpuesto',candidate,rebuild=False)
+
     def change_draw_mode(self,*_):
         if self.loading or not self.editable(): return
         candidate=copy.deepcopy(self.design.state); f=candidate['fields'][self.property_index]
@@ -456,6 +482,7 @@ class AdvancedEditorMixin:
     def update_dirty(self):
         if self._initializing or self.design is None: return
         self.dirty=self.design.dirty; self.recheck_actions()
+        if hasattr(self,'editor_pdf_toggle') and self.editor_pdf_toggle.isChecked():self.editor_pdf_timer.start(350)
         self.edit_status.setText('Cambios de diseño sin guardar.' if self.dirty else ('Diseño guardado. Sin autoguardado.' if self.editable() else 'Revisión vigente o retirada: solo lectura.'))
         self.save_button.setText('Guardar diseño')
         if hasattr(self,'editor_document_note'):
@@ -465,6 +492,17 @@ class AdvancedEditorMixin:
             restriction='' if self.editable() else ('\nSolo lectura: cree una variante en borrador para editar.' if self.editor_version['state']=='APPROVED' else '\nSolo lectura: revisión retirada; no permite edición ni emisión.')
             self.editor_document_note.setText('Revisión '+self.editor_version['version']+' · '+state+variant_note+restriction)
             self.editor_document_note.setToolTip('El original Word/PDF permanece protegido. '+('Edición permitida; guardar no aprueba.' if self.editable() else 'Diseño protegido. Cree una variante en borrador desde una revisión vigente para modificar los campos.'))
+
+    def refresh_editor_pdf(self):
+        if self.design is None:return
+        try:
+            profile=self.output_profile or dict(width_mm=self.editor_version['base_w_mm'],height_mm=self.editor_version['base_h_mm'],margin_mm=8,gap_mm=3,start_slot=1)
+            examples={f['key']:f.get('example','') for f in self.design.state['fields'] if f['key'] not in ('texto_fijo','numero')}
+            path,result=self.api.preview_editor_layout(self.current_editor_id,self.design.state,profile,examples)
+            note='PRUEBA / NO GMP · Ejemplos, no datos de lote · '+f"{profile['width_mm']:.2f} × {profile['height_mm']:.2f} mm"
+            if result['warnings']:note+=' · '+' · '.join(result['warnings'])
+            self.editor_pdf.load(path,'PDF real · diseño sin aprobar',note)
+        except (ValueError,OSError,RuntimeError) as ex:self.editor_pdf.clear('Prueba bloqueada: '+str(ex))
 
     def recheck_actions(self):
         super().recheck_actions()

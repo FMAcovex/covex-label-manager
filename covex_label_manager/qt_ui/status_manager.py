@@ -4,12 +4,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt,QTimer
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
     QAbstractItemView, QDialogButtonBox, QFileDialog, QMessageBox, QDialog,
     QComboBox, QLineEdit, QLabel, QInputDialog, QFormLayout, QSpinBox,
-    QDoubleSpinBox, QCheckBox, QSplitter,
+    QDoubleSpinBox, QCheckBox, QSplitter,QScrollArea,
 )
 from .window import label, button, vbox
 from .pdf_view import PdfPane
@@ -592,9 +592,10 @@ class StatusManagerMixin:
                 raise PermissionError("Emisión bloqueada: revisión no aprobada externamente.")
             dialog = AdaptiveDialog(self)
             dialog.setWindowTitle(("PDF de prueba" if proof else "Emisión") + " · " + NAMES[rec["kind"]])
-            dialog.resize(560, 530)
+            dialog.resize(1000, 720)
             box = vbox(dialog, 12, 8)
-            form = QFormLayout()
+            split=QSplitter();panel=QWidget();form=QFormLayout(panel)
+            form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
             operator = QLineEdit(self.api.setting("operator"))
             form.addRow("Operador", operator)
             count = QSpinBox()
@@ -608,13 +609,48 @@ class StatusManagerMixin:
             width.setDecimals(2)
             width.setValue(json.loads(rec["layout_json"])["size_mm"][0])
             form.addRow("Anchura de etiqueta (mm)", width)
+            height=QDoubleSpinBox();height.setRange(8,500);height.setDecimals(2)
+            source_size=json.loads(rec['layout_json'])['size_mm']
+            height.setValue(source_size[1]);form.addRow('Altura de área (mm)',height)
+            composition=QComboBox()
+            for title,key in [('Histórico · proporcional',None),('Ajustar sin deformar','fit'),('Rellenar · recorte protegido','fill')]:composition.addItem(title,key)
+            form.addRow('Composición física',composition)
+            def adapt_size(*_):
+                height.setEnabled(composition.currentData() is not None)
+                if composition.currentData() is None:height.setValue(width.value()*source_size[1]/source_size[0])
+            composition.currentIndexChanged.connect(adapt_size);width.valueChanged.connect(adapt_size);adapt_size()
+            information=label('Histórico conserva las métricas anteriores. Ajustar puede dejar margen. Rellenar bloquea cualquier recorte crítico. La revisión documental seleccionada no cambia.','subtle');information.setWordWrap(True);form.addRow(information)
             controls = {}
             for field in json.loads(rec["layout_json"])["fields"]:
                 widget = QLineEdit()
                 widget.setPlaceholderText(field["label"])
                 form.addRow(field["label"] + (" *" if field["required"] else ""), widget)
                 controls[field["key"]] = widget
-            box.addLayout(form)
+            scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(panel);scroll.setMaximumWidth(340);split.addWidget(scroll)
+            pane=PdfPane(self.api);split.addWidget(pane);split.setStretchFactor(1,1);box.addWidget(split,1)
+            timer=QTimer(dialog);timer.setSingleShot(True)
+            def settings():
+                options={'count':count.value(),'paper':paper.currentText(),'width_mm':width.value()}
+                if composition.currentData():
+                    options.update(height_mm=height.value(),composition=dict(contract=1,mode=composition.currentData(),align_x='center',align_y='middle'))
+                return options
+            def live_preview():
+                try:
+                    values={key:widget.text() for key,widget in controls.items()}
+                    dest=self.api.status_catalog.preview(rec['uid'],values,**settings())
+                    pane.load(dest,'PDF real · PRUEBA / NO GMP',f"{NAMES[rec['kind']]} · Revisión {rec['revision']} · "+('Sin deformación · el recorte crítico bloquea el PDF.' if composition.currentData() else 'Proporción histórica.'))
+                    if composition.currentData():
+                        import fitz
+                        from ..status_scaling import geometry,describe
+                        design=json.loads(rec['layout_json'])
+                        report=geometry(design['crop'],fitz.Rect(0,0,width.value()*72/25.4,height.value()*72/25.4),settings()['composition'])
+                        pane.note.setText(pane.note.text()+'\n'+describe(report))
+                except (ValueError,OSError,RuntimeError) as err:pane.clear('Prueba bloqueada: '+str(err))
+            timer.timeout.connect(live_preview)
+            for control in (count,width,height):control.valueChanged.connect(lambda *_:timer.start(350))
+            for control in (paper,composition):control.currentIndexChanged.connect(lambda *_:timer.start(350))
+            for control in controls.values():control.textEdited.connect(lambda *_:timer.start(350))
+            QTimer.singleShot(0,dialog,live_preview)
             box.addWidget(label("El PDF de prueba no es apto para uso GMP.", "subtle"))
             buttons = QDialogButtonBox(
                 QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
@@ -624,8 +660,7 @@ class StatusManagerMixin:
             if dialog.exec() != QDialog.DialogCode.Accepted:
                 return
             values = {key: widget.text() for key, widget in controls.items()}
-            options = {"count": count.value(), "paper": paper.currentText(),
-                       "width_mm": width.value()}
+            timer.stop();options=settings()
             if proof:
                 dest = self.api.status_catalog.preview(rec["uid"], values, **options)
             else:

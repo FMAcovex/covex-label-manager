@@ -4,6 +4,14 @@ Aplicación 0.3.1, consolidación de R1/R2. Escritorio portable Windows, un usua
 
 ## Organización actual
 
+Ampliación R8C: `typography.py` define tipografía opt-in (recursos MuPDF embebidos
+y verificados); `status_scaling.py` compone fondo+variables en espacio fuente y
+protege recortes. Los campos históricos conservan su ruta. `emission_work` guarda
+ajustes de prueba en sidecar contrato 3, nunca en revisión aprobada; motor y trabajo
+bloquean su producción. Snapshot v4 mantiene contrato SQL 1 con marcador de render
+para impedir reinterpretación por lectores anteriores. [Contratos, límites y
+licencias](docs/R8C_TYPOGRAPHY_SCALING/README.md). Sin cambio de esquema SQLite.
+
 | Módulo | Responsabilidad |
 |---|---|
 | `gui.py` | Interfaz de emisión, editor de campos, administración e historial heredados. |
