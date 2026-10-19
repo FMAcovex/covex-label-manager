@@ -232,7 +232,10 @@ class EmissionCentreMixin:
         dialog.setWindowTitle('Estado y motivos de emisión')
         dialog.resize(650,360)
         layout=vbox(dialog,12,8)
-        detail=label(self.emission_blockers.text(),'subtle')
+        explanation='\n\n'.join(part for part in (
+            self.emission_summary.text(),self.emission_feedback.text(),
+            self.emission_blockers.text()) if part)
+        detail=label(explanation,'subtle')
         detail.setWordWrap(True)
         detail.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         scroll=QScrollArea()
@@ -460,7 +463,11 @@ class EmissionCentreMixin:
         self.compact_blockers_button.setVisible(compact)
         self.compact_blockers_button.setStyleSheet('padding:3px 8px;' if compact else '')
         self.emission_summary.setMaximumHeight(21 if compact else 16777215)
+        self.emission_summary.setVisible(not compact)
         self.emission_summary.setToolTip(self.emission_summary.text())
+        self.compact_blockers_button.setToolTip(
+            '\n'.join(part for part in (self.emission_summary.text(),
+                self.emission_feedback.text(),self.emission_blockers.text()) if part))
         self.emission_feedback.setToolTip(self.emission_feedback.text())
         self.emission_pdf.note.setMaximumHeight(22 if compact else 16777215)
         self.emission_pdf.note.setToolTip(self.emission_pdf.note.text())
