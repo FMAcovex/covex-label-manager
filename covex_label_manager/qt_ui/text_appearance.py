@@ -18,7 +18,7 @@ class TextAppearance(QWidget):
         for key,title in FAMILIES.items():self.family.addItem(title,key)
         self.family.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.family.setMinimumContentsLength(5);form.addRow('Fuente',self.family)
-        self.activate_font=QPushButton('Activar opciones de texto (sólo prueba o borrador)')
+        self.activate_font=QPushButton('Activar fuente editable')
         self.activate_font.setToolTip('Cambiar expresamente a Helvetica embebida. No modifica ningún maestro aprobado.')
         self.activate_font.clicked.connect(self.select_editable_font)
         form.addRow(self.activate_font)
