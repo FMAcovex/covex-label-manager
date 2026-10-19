@@ -116,6 +116,7 @@ def test_compact_emission_keeps_all_blockers_and_pdf_space(studio):
     assert w.emission_compact.isVisible()
     assert not w.emission_blockers_scroll.isVisible()
     assert not w.emission_feedback.isVisible()
+    assert not w.emission_summary.isVisible()
     assert w.compact_blockers_button.isVisible()
     assert "número 11" in w.emission_blockers.text()
     assert "número 11" in w.compact_blockers_button.toolTip()
