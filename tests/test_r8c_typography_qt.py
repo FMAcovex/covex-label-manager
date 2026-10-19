@@ -172,3 +172,11 @@ def test_proof_timers_stop_on_dialog_close_and_runtime_shutdown(studio):
     w.editor_pdf_timer.start(10000);w.shutdown_runtime()
     assert not w.editor_pdf_timer.isActive()
     dialog.deleteLater()
+
+
+def test_text_controls_follow_drawing_mode_without_reselecting(studio):
+    w,s,app=studio;w.open_editor();select(w.text_appearance.family,'sans')
+    select(w.draw_mode,'baseline')
+    assert not w.text_appearance.wrap.isEnabled() and not w.text_appearance.valign.isEnabled()
+    select(w.draw_mode,'textbox')
+    assert w.text_appearance.wrap.isEnabled() and w.text_appearance.valign.isEnabled()

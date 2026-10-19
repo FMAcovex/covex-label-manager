@@ -450,7 +450,8 @@ class AdvancedEditorMixin:
         candidate=copy.deepcopy(self.design.state); f=candidate['fields'][self.property_index]
         mode=self.draw_mode.currentData(); f['draw']=mode
         if mode=='continuation': f.setdefault('second_x',f['x']); f.setdefault('next_w',f['w']); f.setdefault('max_lines',3)
-        self.command('Modo de dibujo',candidate,rebuild=False)
+        if self.command('Modo de dibujo',candidate,rebuild=False) and hasattr(self,'text_appearance'):
+            self.text_appearance.load(self.fields[self.property_index])
 
     def moved(self,index):
         # Kept for callers of the R3A controller; graphical gestures commit on release.
