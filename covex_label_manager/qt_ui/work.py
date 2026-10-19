@@ -433,9 +433,12 @@ class WorkPanel(QWidget):
         from PySide6.QtWidgets import QDialog
         import uuid
         work=copy.deepcopy(w.emission_work)
-        def proof(profile,parent,quantities):
+        def proof(profile,parent,quantities=None):
+            # Keep the legacy two-argument callback valid (R3E acceptance).
+            # The designer passes explicit proposed quantities when available.
             w.api.work.assert_current(work)
-            trial=copy.deepcopy(work);trial['profile']=profile;trial.update(quantities)
+            trial=copy.deepcopy(work);trial['profile']=profile
+            if quantities is not None:trial.update(quantities)
             p,indices,count,copies=parameters(trial);b=trial['binding']
             path=w.api.output_path('cache','sheet-proof-'+uuid.uuid4().hex+'.pdf')
             w.api.render(w.api.version(b['revision_id']),trial['values'],p,indices,count,copies,path,True,per_container=trial['per_container'],status=trial['status'],variant_id=b['variant_id'])
