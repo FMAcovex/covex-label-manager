@@ -1,5 +1,7 @@
 # COVEX Label Manager — Plan maestro vivo
 
+R8D: [Inicio por tareas y asistente de cuatro pasos](docs/R8D_GUIDED_WORKFLOW/README.md), base R8C `8859f21`. Mismo trabajo/CAS/PDF/servicios, Centro avanzado, 87 capacidades y SQLite v4. Cadena #33 → #34 → #35 → R8D sin fusionar. [Aceptación integral pendiente](docs/R8_INTEGRAL_ACCEPTANCE_PLAN.md); resultados finales en PR, sin aceptación funcional/GMP automática.
+
 Situación R6B-UX: [implementación UX-1/2/3 y evidencias](docs/R6B_UX_INTEGRATED/README.md),
 alternativa A, conservación de 87 capacidades y entrega en PR borrador. Pendientes:
 UX-15 (concurrencia Word), UIA/teclado y pruebas físicas Windows, calibración/impresión

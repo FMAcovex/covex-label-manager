@@ -63,6 +63,7 @@ class EmissionCentreMixin:
         return page
     def refresh_work_panels(self):
         super().refresh_work_panels()
+        if hasattr(self,'guided'):self.guided.refresh()
         if getattr(self,'native_ready',False):
             self.invalidate_work_preview();self.refresh_emission_review();self.schedule_preview()
     def work_changed(self,panel):
@@ -220,7 +221,11 @@ class EmissionCentreMixin:
     def operator_error(self,ex):
         if isinstance(ex,WorkCorrupt):return 'El trabajo no se puede leer. Conserve sus archivos y use Recuperar trabajo o una versión compatible.'
         if isinstance(ex,sqlite3.Error):return 'No se ha completado la operación en la base de datos. Revise el historial y recupere el trabajo antes de reintentar.'
-        return str(ex).replace(self.api.location(),'la carpeta de datos')
+        message=str(ex)
+        if any(word in message.lower() for word in ('overflow','no cabe','desborda')):
+            return 'El texto no cabe en el espacio disponible. Revise el dato, amplíe el campo en un borrador o utilice otra variante autorizada.'
+        from .guided_workflow import safe_message
+        return safe_message(message)
     def emission_error(self,ex):
         from ..diagnostics import error
         error('operation_error', ex)
@@ -279,7 +284,7 @@ class EmissionCentreMixin:
             self.navigate('emission');self.preview_emission_work();return False
         if not review['production_allowed'] or self.work_preview['result']['warnings']:return False
         w=self.emission_work;s=review['summary']
-        text=f"Registrar definitivamente «{w['name']}»?\n\n{self.emission_document.text()}\n{s['physical']} etiquetas · {s['pages']} hojas {w['profile'].get('paper','A4')}\n\nGuardar un borrador no emite. Generar este PDF registra la emisión, sin confirmar la impresión física."
+        text=f"Registrar definitivamente «{w['name']}»?\n\n{self._emission_document_full}\nLote: {w['values'].get('lote','(no definido por el diseño)')}\n{s['physical']} etiquetas · {s['pages']} hojas {w['profile'].get('paper','A4')}\n\nGuardar un borrador no emite. Generar este PDF registra la emisión, sin confirmar la impresión física."
         if QMessageBox.question(self,'Confirmar emisión definitiva',text,QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.Cancel,QMessageBox.StandardButton.Cancel)!=QMessageBox.StandardButton.Yes:return False
         try:
             latest=self.api.review_work(w['uid'],w['generation'])
@@ -412,6 +417,7 @@ class EmissionCentreMixin:
         """
         from ..diagnostics import event
         self._runtime_shutting_down=True
+        if hasattr(self,'guided'):self.guided.timer.stop()
         for name in ('preview_timer', 'work_timer', 'legacy_timer', 'poll_timer', '_gesture_redraw','editor_pdf_timer'):
             timer = getattr(self, name, None)
             if timer is not None:timer.stop()

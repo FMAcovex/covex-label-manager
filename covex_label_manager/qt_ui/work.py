@@ -36,7 +36,7 @@ class VariableText(QPlainTextEdit):
 
 class WorkPanel(QWidget):
     def __init__(self,window,context='emission'):
-        super().__init__();self.controller=window;self.loading=False;self.inputs={};self.profile_inputs={};self.error_labels={};self.field_widgets={}
+        super().__init__();self.controller=window;self.loading=False;self.inputs={};self.profile_inputs={};self.error_labels={};self.field_widgets={};self.context=context
         layout=vbox(self,12,8);self.panel_layout=layout;self._compact=False
         top=QHBoxLayout();self.top_actions=top;self.choice=QComboBox();self.choice.setMinimumWidth(170);top.addWidget(self.choice,1)
         top.addWidget(button('Abrir',self.open_selected));layout.addLayout(top)
@@ -127,6 +127,27 @@ class WorkPanel(QWidget):
         row.addWidget(self.proof);row.addWidget(self.issue);layout.addLayout(row)
         self.binding_button=button('Actualizar vínculo documental…',window.refresh_work_binding)
         layout.addWidget(self.binding_button)
+        if context=='guided':
+            # Same work/CAS and widgets, quantities outside the advanced tab.
+            quantities=QWidget();quantity_form=QFormLayout(quantities)
+            quantity_form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+            for key,title in [('count','Número de recipientes'),('copies','Copias de cada recipiente')]:
+                holder=self.inputs[key].parentWidget();row=form.takeRow(holder)
+                if row.labelItem:row.labelItem.widget().deleteLater()
+                quantity_form.addRow(title,holder)
+            layout.insertWidget(0,quantities)
+            tip=label('Un recipiente puede tener datos propios. Las copias repiten su etiqueta. Los datos se guardan localmente; guardar no emite.','subtle')
+            tip.setWordWrap(True);layout.insertWidget(1,tip)
+            self.tabs.setTabText(1,'Datos por recipiente')
+            self.tabs.setTabText(2,'Formato y opciones adicionales')
+            self.tabs.setTabText(3,'Añadir etiqueta de estado')
+            status_tip=label('«Aprobado» es el tipo de etiqueta verde, no la aprobación documental de una revisión. Seleccione expresamente su revisión; no se sustituye el maestro histórico.','subtle')
+            status_tip.setWordWrap(True);f.insertRow(0,status_tip)
+            for widget in (self.choice,self.note,self.identity,self.save,self.recover,self.proof,self.issue,self.binding_button,*self.shortcut_buttons):widget.hide()
+            for i in range(top.count()):
+                if top.itemAt(i).widget():top.itemAt(i).widget().hide()
+            self.tabs.setUsesScrollButtons(True);self.tabs.setElideMode(Qt.TextElideMode.ElideRight)
+            self.tabs.tabBar().setExpanding(False)
         if context=='editor':
             self.proof.hide();self.issue.hide()
             self.recover.hide();self.binding_button.hide()
@@ -233,6 +254,7 @@ class WorkPanel(QWidget):
             labels={unicodedata.normalize('NFC',f['key']):f.get('label',f['key']) for f in fields if f['key'] not in ('numero','texto_fijo')}
             labels.update({k:labels.get(k,k+' (conservado)') for k in w['values']})
             for key,title in labels.items():
+                if self.context=='guided' and any(f['key']==key and f.get('required') for f in fields):title+=' *'
                 if key in ('pn','pb'):
                     e=QLineEdit(w['values'].get(key,''))
                     e.setPlaceholderText('Ej.: 350 g · 0,35 kg · 350000 mg')
@@ -482,11 +504,11 @@ class EmissionWorkMixin:
             from ..diagnostics import error
             error('operation_error', ex)
             message = ('No se pudo guardar el trabajo. Los cambios siguen en pantalla; reintente cuando termine la otra operación.'
-                       if isinstance(ex, sqlite3.Error) else str(ex))
+                       if isinstance(ex, sqlite3.Error) else self.operator_error(ex))
             panel.note.setText('NO GUARDADO · '+message);self.statusBar().showMessage('No guardado: '+message);return False
     def work_action(self,action):
         try:return action()
-        except (ValueError,OSError,PermissionError) as ex:QMessageBox.warning(self,'Trabajo conservado',str(ex));return None
+        except (ValueError,OSError,PermissionError) as ex:QMessageBox.warning(self,'Trabajo conservado',self.operator_error(ex));return None
     def selected_work_design(self):
         if self.stack.currentWidget()==self.editor and self.current_editor_id:return self.current_editor_id,self.current_variant_id
         if getattr(self,'emission_page',None) is self.stack.currentWidget() and self.emission_work:

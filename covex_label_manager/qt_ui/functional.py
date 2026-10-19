@@ -376,6 +376,8 @@ class FunctionalWindow(StatusManagerMixin, CatalogExchangeMixin, PrintWorkflowMi
             control.setAccessibleName({'x':'Posición X en mm','y':'Posición Y en mm',
                 'w':'Ancho del campo en mm','h':'Alto del campo en mm'}[key])
         for form in self.findChildren(QFormLayout):accessible_form(form)
+        from .guided_workflow import GuidedWorkflow
+        self.guided=GuidedWorkflow(self)
         self.adapt_header()
 
     def library_context_menu(self, point):
@@ -421,10 +423,16 @@ class FunctionalWindow(StatusManagerMixin, CatalogExchangeMixin, PrintWorkflowMi
         return super().show_access(key)
 
     def navigate(self, key):
+        if hasattr(self,'guided') and self.guided.navigate(key):return
         result = super().navigate(key)
         if hasattr(self, 'work_dock') and hasattr(self,'editor_context'):
             self.work_dock.setVisible(self.stack.currentWidget() is self.editor and self.editor_context.currentIndex()==1)
         return result
+
+    def set_mutations_enabled(self,enabled):
+        super().set_mutations_enabled(enabled)
+        if hasattr(self,'guided'):
+            self.guided.page.setEnabled(enabled);self.guided.home.setEnabled(enabled)
 
     def show_editor_work(self):
         if not hasattr(self, 'editor_context'):
@@ -435,6 +443,7 @@ class FunctionalWindow(StatusManagerMixin, CatalogExchangeMixin, PrintWorkflowMi
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        if hasattr(self,'guided'):self.guided.adapt()
         if hasattr(self, 'editor_context'):
             self.editor_note.hide()
             self.editor_title.setStyleSheet('font-size:20px;')

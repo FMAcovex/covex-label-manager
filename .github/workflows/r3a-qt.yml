@@ -43,6 +43,8 @@ on:
       - 'tests/test_r8a*.py'
       - 'tests/test_r8b*.py'
       - 'tests/test_r8c*.py'
+      - 'tests/test_r8d*.py'
+      - 'scripts/r8d*.py'
       - 'covex_label_manager/typography.py'
       - 'covex_label_manager/status_scaling.py'
       - 'covex_label_manager/status_design.py'
@@ -161,6 +163,40 @@ jobs:
         run: >-
           python -m pytest -vv -x -o faulthandler_timeout=45
           --junitxml=test-results/r8c.xml tests/test_r8c_typography.py tests/test_r8c_typography_qt.py
+      - name: R8D real guided workflow regressions
+        timeout-minutes: 3
+        run: >-
+          python -m pytest -vv -x -o faulthandler_timeout=45
+          --junitxml=test-results/r8d-native.xml tests/test_r8d_guided_qt.py
+          -k "not test_four_pages_fit_keyboard_and_persistent_actions"
+      - name: R8D exact six viewports without hosted desktop clamping
+        timeout-minutes: 3
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: >-
+          python -m pytest -vv -x -o faulthandler_timeout=45
+          --junitxml=test-results/r8d-viewports.xml tests/test_r8d_guided_qt.py
+          -k test_four_pages_fit_keyboard_and_persistent_actions
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 8859f21ab77878b3e5c874bfac0023d0c8ad2ca3
+          path: .r8c-guided-baseline
+          persist-credentials: false
+      - name: R8D measured tasks and before-after at six Windows viewport/scales
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PYTHONIOENCODING: utf-8
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            python -u scripts/r8d_visual.py --baseline --source-root .r8c-guided-baseline --report "test-results/r8d-before-$scale.json" --capture "test-results/r8d-visual/before-$scale"
+            if ($LASTEXITCODE -ne 0) { Get-Content "test-results/r8d-before-$scale.json" -Raw; throw 'R8D baseline failed' }
+            python -u scripts/r8d_visual.py --report "test-results/r8d-source-$scale.json" --capture "test-results/r8d-visual/source-$scale"
+            if ($LASTEXITCODE -ne 0) { Get-Content "test-results/r8d-source-$scale.json" -Raw; throw 'R8D source failed' }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
+      - run: Remove-Item .r8c-guided-baseline -Recurse -Force
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: 56399394424896a1adbd56a91882a7eb49282632
@@ -397,6 +433,8 @@ jobs:
           Copy-Item docs/R8A_STABILITY_DIAGNOSTICS.md dist/COVEXLabelManager_Qt/
           Copy-Item docs/R8C_TYPOGRAPHY_SCALING/README.md dist/COVEXLabelManager_Qt/GUIA_R8C.md
           Copy-Item docs/R8C_TYPOGRAPHY_SCALING/URW-FONTS-OFL.txt dist/COVEXLabelManager_Qt/
+          Copy-Item docs/R8D_GUIDED_WORKFLOW/README.md dist/COVEXLabelManager_Qt/GUIA_R8D.md
+          Copy-Item docs/R8_INTEGRAL_ACCEPTANCE_PLAN.md dist/COVEXLabelManager_Qt/
           python scripts/build_manifest.py dist/COVEXLabelManager_Qt
           if ($LASTEXITCODE -ne 0) { throw 'Qt build manifest failed' }
           Compress-Archive -Path dist/COVEXLabelManager_Qt -DestinationPath COVEXLabelManager_Qt.zip
@@ -456,6 +494,22 @@ jobs:
           Remove-Item Env:QT_SCALE_FACTOR
       # User-facing download: application only, no screenshots or CI reports.
       # Technical evidence is a separate download, not a second portable.
+      - name: R8D guided tasks in the actual extracted portable
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PYTHONIOENCODING: utf-8
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            $report = Join-Path $pwd "test-results/r8d-extracted-$scale.json"
+            $captures = Join-Path $pwd "test-results/r8d-visual/extracted-$scale"
+            $process = Start-Process -FilePath $env:R8B_EXTRACTED_EXE -ArgumentList @('--guided-check', $report, '--capture', $captures) -Wait -PassThru
+            if ($process.ExitCode -ne 0 -or !(Test-Path $report)) { if (Test-Path $report) { Get-Content $report -Raw }; throw 'R8D extracted check failed' }
+            $result = Get-Content $report -Raw | ConvertFrom-Json
+            if (!$result.ok -or !$result.four_steps -or !$result.same_work -or !$result.normal_start_close -or !$result.integrity -or !$result.sqlite_v4 -or !$result.exact_viewports -or !$result.approved_revision_unchanged -or !$result.registered_pdf_verified -or !$result.reprint_verified -or $result.captures.Count -ne 14 -or $result.tasks.Count -ne 10 -or $result.os -ne 'win32') { Get-Content $report -Raw; throw 'R8D extracted coverage incomplete' }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
       - name: Publish lightweight Qt portable without test evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: success()
@@ -467,7 +521,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: R8C-Technical-Evidence-${{ github.sha }}
+          name: R8D-Technical-Evidence-${{ github.sha }}
           path: |
             test-results/
           retention-days: 14
