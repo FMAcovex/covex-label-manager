@@ -1,5 +1,7 @@
 # Arquitectura local de COVEX Label Manager
 
+R8D añade `qt_ui.guided_workflow.GuidedWorkflow` a `FunctionalWindow`: Inicio, ayuda y cuatro páginas de presentación. Reutiliza WorkPanel/EmissionWorkRepository/review_work/preview y controladores de definitiva/historial, sin persistencia, catálogo ni motor nuevos. UID/generación/CAS compartidos entre paneles; navegación bloqueada si no guarda, exclusión de escritores y diagnóstico privado R8A. SQLite v4/contratos R8C intactos. [Recorridos y evidencia](docs/R8D_GUIDED_WORKFLOW/README.md).
+
 Aplicación 0.3.1, consolidación de R1/R2. Escritorio portable Windows, un usuario, funcionamiento local. Sin servidores, microservicios, clientes ERP ni infraestructura de integración.
 
 ## Organización actual

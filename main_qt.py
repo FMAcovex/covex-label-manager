@@ -29,6 +29,7 @@ def main():
     p.add_argument('--stability-rounds',type=int,default=4)
     p.add_argument('--editor-ux-check',type=Path)
     p.add_argument('--typography-check',type=Path)
+    p.add_argument('--guided-check',type=Path)
     p.add_argument('--verify-bridge',action='store_true');p.add_argument('--capture',type=Path);p.add_argument('--self-check',type=Path);a=p.parse_args()
     if a.import_check:
         from covex_label_manager.qt_ui.import_checks import run
@@ -49,6 +50,9 @@ def main():
     if a.typography_check:
         from covex_label_manager.qt_ui.typography_checks import run
         return run(a.typography_check,a.capture)
+    if a.guided_check:
+        from covex_label_manager.qt_ui.guided_checks import run
+        return run(a.guided_check,a.capture)
     if a.r3e_check:
         from covex_label_manager.qt_ui.r3e_checks import run
         return run(a.r3e_check,a.capture)
@@ -111,6 +115,7 @@ def run_application(a, diagnostic):
         except MigrationCancelled:return 0
     try:
         w=FunctionalWindow(session);w.diagnostics=diagnostic;w.show()
+        if not (a.capture or a.self_check):w.navigate('home')
         from covex_label_manager.qt_ui.diagnostic_ui import ErrorNotifier, install_qt_diagnostics
         notifier=ErrorNotifier(w)
         diagnostic.notifier=notifier.failed.emit
