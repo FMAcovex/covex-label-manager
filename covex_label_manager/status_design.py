@@ -56,7 +56,7 @@ def validate_layout(layout, document):
     Field boxes use PDF points in the *uncropped page* coordinate system, so
     changing the crop must be reviewed and cannot silently move variable text.
     """
-    if not isinstance(layout, dict) or layout.get("contract") != 1:
+    if not isinstance(layout, dict) or type(layout.get('contract')) is not int or layout.get("contract") not in (1,2):
         raise StatusDesignError("Contrato de diseño de estado no reconocido.")
     kind = layout.get("kind")
     if kind not in KINDS:
@@ -103,7 +103,18 @@ def validate_layout(layout, document):
         normalized.append({"key": key, "label": label.strip(), "rect": list(area),
                            "font_size": size, "bold": item.get("bold", False),
                            "required": item.get("required", False)})
-    return {"contract": 1, "kind": kind, "page": page_index,
+        if 'typography' in item or 'example' in item:
+            if layout['contract']!=2:
+                raise StatusDesignError('Las propiedades R8C requieren contrato de estado 2.')
+            if 'typography' in item:
+                from .typography import validate
+                normalized[-1]['typography']=validate(item['typography'])
+            if 'example' in item:
+                example=item['example']
+                if not isinstance(example,str) or len(example)>300 or any(c in example for c in ('\r','\0')):
+                    raise StatusDesignError('Ejemplo de campo inválido.')
+                normalized[-1]['example']=example
+    return {"contract": layout['contract'], "kind": kind, "page": page_index,
             "crop": list(crop), "fields": normalized,
             "size_mm": [round(crop.width * MM_PER_POINT, 3),
                         round(crop.height * MM_PER_POINT, 3)]}
@@ -143,7 +154,7 @@ def validate_values(layout, values, *, strict=True):
     return output
 
 
-def render_proof(pdf_path, layout, values, destination, *, width_mm=None):
+def render_proof(pdf_path, layout, values, destination, *, width_mm=None, height_mm=None, composition=None):
     """Render a watermarked, single-page proof. Does not touch approved masters.
 
     The source PDF remains untouched, content is vector-copied, and all rendered
@@ -158,15 +169,19 @@ def render_proof(pdf_path, layout, values, destination, *, width_mm=None):
         crop = fitz.Rect(design["crop"])
         width = crop.width if width_mm is None else _finite(width_mm, "Ancho", minimum=10, maximum=500) / MM_PER_POINT
         scale = width / crop.width
-        height = crop.height * scale
+        height = crop.height * scale if height_mm is None else _finite(height_mm,'Alto',minimum=8,maximum=500)/MM_PER_POINT
         if min(width, height) < 25:
             raise StatusDesignError("La prueba quedaría ilegible.")
         output = fitz.open()
         try:
             page = output.new_page(width=width, height=height)
             dest = fitz.Rect(0, 0, width, height)
-            page.show_pdf_page(dest, source, design["page"], clip=crop, keep_proportion=True)
-            for field in design["fields"]:
+            enhanced=design['contract']==2 or composition is not None or height_mm is not None
+            if enhanced:
+                from .status_scaling import paint
+                composition_report=paint(page,source,design,data,dest,settings=composition,strict=False)
+            else:page.show_pdf_page(dest, source, design["page"], clip=crop, keep_proportion=True)
+            for field in ([] if enhanced else design["fields"]):
                 value = data[field["key"]]
                 if not value:
                     continue
@@ -189,6 +204,9 @@ def render_proof(pdf_path, layout, values, destination, *, width_mm=None):
                              color=(0.7, 0.05, 0.05), overlay=True)
             output.set_metadata({"title": "COVEX - PRUEBA de etiqueta de estado",
                                "subject": "No autorizada para uso GMP"})
+            if enhanced:
+                from .status_scaling import describe
+                output.set_metadata(dict(output.metadata,subject='PRUEBA / NO GMP · '+describe(composition_report)+' · '+' · '.join(composition_report['warnings'])))
             destination.parent.mkdir(parents=True, exist_ok=True)
             if destination.exists():
                 raise FileExistsError("No se sobrescribe una prueba existente.")

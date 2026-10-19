@@ -24,6 +24,8 @@ class LayoutProfiles:
         plan_sheet(e['payload']['profile'],1)
         return e['payload']
     def save(self,uid,name,profile,expected=0):
+        if 'trial_appearance' in profile:
+            raise ValueError('Los perfiles guardan formato físico, no apariencia temporal. Use Copiar trabajo o una variante documental para conservarla.')
         path=self.path(uid)
         if not name.strip():raise ValueError('Nombre obligatorio.')
         plan_sheet(profile,1)

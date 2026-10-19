@@ -205,6 +205,10 @@ class StatusFieldsDialog(AdaptiveDialog):
             self.spins[key]=entry;properties.addRow(caption,entry)
         properties.addRow("Tamaño original (pt)", self.font_size)
         properties.addRow("Estilo", self.bold)
+        from .text_appearance import TextAppearance
+        self.text_appearance=TextAppearance();properties.addRow(self.text_appearance)
+        self.example=QLineEdit();self.example.setPlaceholderText('Ejemplo para PDF real')
+        properties.addRow('Texto de ejemplo',self.example)
         properties.addRow("Validación", self.required)
         accessible_form(properties)
         panel.addLayout(properties)
@@ -217,10 +221,21 @@ class StatusFieldsDialog(AdaptiveDialog):
         self.properties_scroll.setWidget(aside);body.addWidget(self.properties_scroll)
         aside.ensurePolished();aside.fit_width()
         body.setSizes([170,600,270]);body.setStretchFactor(1,1)
+        from .pdf_view import EditorPdfPane,canvas_pdf_stack
+        index=body.indexOf(self.view);placeholder=QWidget();body.replaceWidget(index,placeholder)
+        self.pdf_preview=EditorPdfPane(api);self.preview_stack=canvas_pdf_stack(self.view,self.pdf_preview)
+        body.replaceWidget(index,self.preview_stack);placeholder.hide();placeholder.deleteLater()
+        self.pdf_timer=QTimer(self);self.pdf_timer.setSingleShot(True);self.pdf_timer.timeout.connect(self.refresh_pdf)
+        self.finished.connect(self.pdf_timer.stop)
         tools=QHBoxLayout()
         self.undo_button=button('Deshacer',self.undo_edit);self.redo_button=button('Rehacer',self.redo_edit)
         tools.addWidget(self.undo_button);tools.addWidget(self.redo_button)
         tools.addWidget(button('Ajustar a pantalla',self.fit))
+        self.pdf_toggle=button('PDF real',lambda:None);self.pdf_toggle.setCheckable(True)
+        def pdf_mode(checked):
+            self.preview_stack.setCurrentIndex(int(checked))
+            if checked:self.refresh_pdf()
+        self.pdf_toggle.toggled.connect(pdf_mode);tools.addWidget(self.pdf_toggle)
         tools.addWidget(button('−',lambda:self.view.zoom(1/1.2)))
         tools.addWidget(button('+',lambda:self.view.zoom(1.2)))
         root.addLayout(tools)
@@ -243,6 +258,8 @@ class StatusFieldsDialog(AdaptiveDialog):
             entry.editingFinished.connect(self.commit_properties)
         for check in (self.bold,self.required):
             check.toggled.connect(self.commit_properties)
+        self.example.editingFinished.connect(self.commit_properties)
+        self.text_appearance.edited.connect(self.commit_properties)
         self.draw()
         QTimer.singleShot(0, self, self.fit)
 
@@ -281,9 +298,12 @@ class StatusFieldsDialog(AdaptiveDialog):
         self.undo_button.setEnabled(bool(self.undo_states));self.redo_button.setEnabled(bool(self.redo_states))
 
     def scene_selected(self):
+        from shiboken6 import isValid
+        if not isValid(self.view) or not isValid(self.items):return
         if self.busy:
             return
         for shape in self.shapes:
+            if not isValid(shape):continue  # native scene teardown, not a gesture
             if shape.isSelected() and self.items.currentRow() != shape.index:
                 self.items.setCurrentRow(shape.index)
                 return
@@ -302,7 +322,7 @@ class StatusFieldsDialog(AdaptiveDialog):
             shape.setSelected(shape.index == index)
         valid = 0 <= index < len(self.design["fields"])
         for widget in (self.key, self.name, self.font_size,
-                       self.bold, self.required, *self.spins.values()):
+                       self.bold, self.required,self.text_appearance,self.example, *self.spins.values()):
             widget.setEnabled(valid)
         if valid:
             field = self.design["fields"][index]
@@ -310,6 +330,7 @@ class StatusFieldsDialog(AdaptiveDialog):
             self.name.setText(field["label"])
             self.font_size.setValue(field["font_size"])
             self.bold.setChecked(field["bold"])
+            self.text_appearance.load(field);self.example.setText(field.get('example',''))
             self.required.setChecked(field["required"])
             self.load_geometry(index)
             self.show_geometry(index)
@@ -370,6 +391,13 @@ class StatusFieldsDialog(AdaptiveDialog):
                      font_size=self.font_size.value(),
                      bold=self.bold.isChecked(),
                      required=self.required.isChecked())
+        try:style=self.text_appearance.configuration()
+        except ValueError as ex:
+            QMessageBox.warning(self,'Tipografía no válida',str(ex));return False
+        if style is None:field.pop('typography',None)
+        else:field['typography']=style
+        if self.example.text() or 'example' in field:field['example']=self.example.text()
+        if any('typography' in f or 'example' in f for f in candidate['fields']):candidate['contract']=2
         if any(entry.value()!=self.geometry_reference[k] for k,entry in self.spins.items()):
             x,y,w,h=(self.spins[k].value()*72/25.4 for k in ('x','y','w','h'))
             field['rect']=[self.crop[0]+x,self.crop[1]+y,self.crop[0]+x+w,self.crop[1]+y+h]
@@ -383,7 +411,19 @@ class StatusFieldsDialog(AdaptiveDialog):
         r=field['rect'];shape.setPos((r[0]-self.crop[0])*sx,(r[1]-self.crop[1])*sy)
         shape.setRect(0,0,(r[2]-r[0])*sx,(r[3]-r[1])*sy);shape.position_handles()
         self.load_geometry(index);self.show_geometry(index)
+        if self.pdf_toggle.isChecked():self.pdf_timer.start(350)
         return True
+
+    def refresh_pdf(self):
+        from ..status_design import render_proof
+        import uuid
+        try:
+            path=self.api.output_path('cache','r8c-status-'+uuid.uuid4().hex+'.pdf')
+            values={f['key']:f.get('example','') for f in self.design['fields']}
+            render_proof(self.pdf,self.design,values,path)
+            with fitz.open(path) as pdf:details=pdf.metadata.get('subject','')
+            self.pdf_preview.load(path,'PDF real · ejemplos de estado',details or 'PRUEBA / NO GMP · No modifica los textos fijos ni registra una emisión.')
+        except (ValueError,OSError,RuntimeError) as ex:self.pdf_preview.clear('Prueba bloqueada: '+str(ex))
 
     def commit_properties(self,*_):
         if not self.busy:return self.apply_properties()

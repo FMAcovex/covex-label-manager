@@ -44,7 +44,7 @@ class TransitionServices(LocalServices):
         validate_layout(layout, self.editor_page_rect(version_id))
         return layout
 
-    def preview_editor_layout(self, version_id, layout, profile):
+    def preview_editor_layout(self, version_id, layout, profile, values=None):
         """Proof only: never approve, save design, or add a definitive issue."""
         import uuid
         from .editor_layout import validate_layout, version_with_layout
@@ -54,7 +54,7 @@ class TransitionServices(LocalServices):
         validate_layout(layout, self.editor_page_rect(version_id))
         version = version_with_layout(self.version(version_id), layout)
         path = self.output_path('cache', 'qt-layout-proof-'+uuid.uuid4().hex+'.pdf')
-        warnings = render_emission(version, self._repository.root, {}, profile,
+        warnings = render_emission(version, self._repository.root, values or {}, profile,
                                    [1], 1, 1, path, test_mode=True)
         return path, warnings
 

@@ -44,6 +44,9 @@ class EmissionCentreMixin:
         pattern=button('Hoja patrón…',self.calibrate_emission)
         pattern.setToolTip('Generar un PDF de referencia no productivo. Imprimir y medir en papel antes de aplicar una calibración.')
         tools.addWidget(pattern);ll.insertLayout(0,tools)
+        self.appearance_button=button('Ajustar apariencia del campo…',self.adjust_field_appearance)
+        self.appearance_button.setToolTip('Prueba temporal con PDF real; no modifica diseños aprobados. Permite crear una variante documental en borrador.')
+        ll.insertWidget(1,self.appearance_button)
         self.emission_panel.setMinimumHeight(320);left.setMinimumWidth(330);left_scroll=QScrollArea();left_scroll.setWidgetResizable(True);left_scroll.setWidget(left);left_scroll.setFrameShape(QScrollArea.Shape.NoFrame);split.addWidget(left_scroll);self.emission_left=left_scroll
         right=box();rl=vbox(right,14,8);toolbar=QHBoxLayout();self.emission_check_heading=label('COMPROBAR ANTES DE EMITIR','section');toolbar.addWidget(self.emission_check_heading);toolbar.addStretch()
         self.preview_work_button=button('Actualizar vista previa',self.preview_emission_work);toolbar.addWidget(self.preview_work_button);rl.addLayout(toolbar)
@@ -139,6 +142,7 @@ class EmissionCentreMixin:
         except (ValueError,OSError,RuntimeError) as ex:
             self.work_preview=None;self.emission_pdf.clear('Revise errores · '+self.operator_error(ex));return
         self.refresh_emission_review()
+        self.show_composition_report(payload['result'])
         if payload['result']['warnings']:
             self.native_issue.setEnabled(False);self.emission_feedback.setText('Revise antes de emitir: '+' · '.join(payload['result']['warnings'][:5]))
     def automatic_preview_finished(self):
@@ -154,6 +158,7 @@ class EmissionCentreMixin:
         if getattr(self,'native_ready',False) and not self.native_busy:self.refresh_emission_review()
     def refresh_emission_review(self):
         w=self.emission_work;self.native_issue.setEnabled(False)
+        self.appearance_button.setEnabled(bool(w and w['phase']=='DRAFT' and not self.native_busy and not self.legacy_process and self.preview_task is None))
         self.native_print.setEnabled(bool(w and w['phase']=='ISSUED' and w.get('issue_id') and not self.native_busy and not self.legacy_process))
         self.native_save.setEnabled(bool(w and w['phase']=='DRAFT' and not self.native_busy))
         self.native_proof.setEnabled(bool(w and not self.native_busy));self.preview_work_button.setEnabled(bool(w and not self.native_busy))
@@ -181,6 +186,13 @@ class EmissionCentreMixin:
         self.native_issue.setEnabled(review['production_allowed'] and valid and not self.work_preview['result']['warnings'] and not self.native_busy and not self.legacy_process and self.preview_task is None)
         self.native_issue.setToolTip('Confirmar y registrar la emisión definitiva.' if valid else 'Espere la vista previa automática o revise los errores del trabajo.')
         return review
+
+    def adjust_field_appearance(self):
+        if self.native_busy or self.legacy_process or self.preview_task is not None or not self.emission_work or not self.flush_emission_work():return
+        from .emission_appearance import EmissionAppearanceDialog
+        dialog=EmissionAppearanceDialog(self)
+        self.preview_timer.stop();self.preview_pending=False
+        dialog.exec();self.refresh_emission_review();self.schedule_preview()
     def refresh_emission_caption(self):
         """Elide the identifier only in compact view; the full identity stays in its tooltip."""
         if not hasattr(self,'emission_document'):return
@@ -239,10 +251,18 @@ class EmissionCentreMixin:
             self.emission_pdf.validator=lambda:self.verify_work_preview_pdf()
             self.emission_compact.setCurrentIndex(1);self.emission_pdf.load(out,'Vista previa · PDF de prueba','PRUEBA · No apto para uso productivo · Los datos y la geometría proceden del motor PDF.')
             self.refresh_emission_review()
+            self.show_composition_report(result)
             if result['warnings']:
                 self.native_issue.setEnabled(False);self.emission_feedback.setText('Revise antes de emitir: '+' · '.join(result['warnings'][:5]))
             return True
         except Exception as ex:self.emission_error(ex);return False
+
+    def show_composition_report(self,result):
+        if result.get('composition'):
+            from ..status_scaling import describe
+            report=result['composition'][0]
+            target=report['target'];area=f"Área {((target[2]-target[0])*25.4/72):.2f} × {((target[3]-target[1])*25.4/72):.2f} mm"
+            self.emission_pdf.note.setText(self.emission_pdf.note.text()+'\n'+area+' · '+describe(report))
     def proof_emission_work(self):
         if not self.preview_matches() and not self.preview_emission_work():return False
         target,_=QFileDialog.getSaveFileName(self,'Guardar PDF de prueba','PRUEBA_etiquetas.pdf','PDF (*.pdf)')
@@ -324,7 +344,7 @@ class EmissionCentreMixin:
         name,ok=QInputDialog.getText(self,'Guardar perfil reutilizable','Nombre del perfil:')
         if not ok or not name.strip():return
         try:
-            p=profile_numbers(self.emission_work['profile']);p['name']=name.strip();self.api.sheet_plan(p,1)
+            p=profile_numbers(self.emission_work['profile']);p.pop('trial_appearance',None);p['name']=name.strip();self.api.sheet_plan(p,1)
             if any(r['name']==p['name'] for r in self.api.profile_list()):
                 if QMessageBox.question(self,'Actualizar perfil','Actualizar este perfil reutilizable? El diseño documental conserva su aprobación.',QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.Cancel,QMessageBox.StandardButton.Cancel)!=QMessageBox.StandardButton.Yes:return
             self.api.add_profile(p)
@@ -332,7 +352,7 @@ class EmissionCentreMixin:
                 panel.profile_choice.blockSignals(True);panel.profile_choice.clear();panel.profile_choice.addItem('Aplicar perfil guardado…',None)
                 for profile in self.api.profile_list():panel.profile_choice.addItem(profile['name'],dict(profile))
                 panel.profile_choice.blockSignals(False)
-            self.emission_feedback.setText('Perfil guardado. Puede aplicarlo a otros trabajos sin modificar sus diseños.')
+            self.emission_feedback.setText('Formato físico guardado. No guarda ni aprueba tipografía temporal; para reutilizarla use Copiar trabajo o una variante documental.')
         except Exception as ex:self.emission_error(ex)
     def calibrate_emission(self):
         if not self.emission_work or not self.flush_emission_work():return
@@ -392,7 +412,7 @@ class EmissionCentreMixin:
         """
         from ..diagnostics import event
         self._runtime_shutting_down=True
-        for name in ('preview_timer', 'work_timer', 'legacy_timer', 'poll_timer', '_gesture_redraw'):
+        for name in ('preview_timer', 'work_timer', 'legacy_timer', 'poll_timer', '_gesture_redraw','editor_pdf_timer'):
             timer = getattr(self, name, None)
             if timer is not None:timer.stop()
         self.preview_pending=False

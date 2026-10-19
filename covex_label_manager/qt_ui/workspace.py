@@ -100,14 +100,24 @@ def arrange_editor(window):
     # Windows font metrics and enlarged text must wrap labels above controls,
     # rather than force the narrow properties panel to scroll horizontally.
     form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+    form.addRow(QLabel('CONTENIDO'))
     form.addRow('Nombre visible', w.name_input)
     w.key_label = QLabel('Identificador');form.addRow(w.key_label, w.key_input)
+    w.content_type=QLabel();w.content_type.setWordWrap(True);form.addRow('Tipo',w.content_type)
+    from PySide6.QtWidgets import QLineEdit
+    w.example_input=QLineEdit();w.example_input.setPlaceholderText('Ejemplo sintético para el PDF de prueba')
+    w.example_input.editingFinished.connect(w.change_example);form.addRow('Ejemplo / texto superpuesto',w.example_input)
+    form.addRow(QLabel('TIPOGRAFÍA'))
+    w.font_size.setKeyboardTracking(False)
+    form.addRow('Tamaño de texto', w.font_size);form.addRow(w.bold)
+    from .text_appearance import TextAppearance
+    w.text_appearance=TextAppearance();w.text_appearance.edited.connect(w.change_typography)
+    form.addRow(w.text_appearance)
+    form.addRow(QLabel('GEOMETRÍA'))
     for key, text in [('x','Posición X'),('y','Posición Y'),('w','Anchura'),('h','Altura')]:
         w.spins[key].setKeyboardTracking(False)
         form.addRow(text, w.spins[key])
-    w.font_size.setKeyboardTracking(False)
-    form.addRow('Tamaño de texto', w.font_size)
-    form.addRow(w.bold);form.addRow(w.required);form.addRow(w.locked)
+    form.addRow(w.required);form.addRow(w.locked)
     form.addRow('Modo de texto', w.draw_mode);pl.addLayout(form)
     pl.addWidget(QLabel('VARIANTE DE DISEÑO'))
     pl.addLayout(variant_row);pl.addWidget(variant_menu)
@@ -166,6 +176,24 @@ def arrange_editor(window):
     split.setSizes([185, 900, 285])
     w.editor_split = split
     w.work_dock.hide()
+    # The drawing scene remains alive while inspecting the actual generated
+    # PDF. Returning to geometry never loses selection, zoom or native items.
+    from PySide6.QtCore import QTimer
+    from .pdf_view import EditorPdfPane,canvas_pdf_stack
+    index=split.indexOf(w.canvas)
+    # Reparent only after removing the old splitter slot.
+    placeholder=QWidget();split.replaceWidget(index,placeholder)
+    w.editor_pdf=EditorPdfPane(w.api);w.editor_preview_stack=canvas_pdf_stack(w.canvas,w.editor_pdf)
+    split.replaceWidget(index,w.editor_preview_stack);placeholder.hide();placeholder.deleteLater()
+    w.editor_pdf_toggle=QPushButton('PDF real');w.editor_pdf_toggle.setCheckable(True)
+    w.editor_pdf_toggle.setToolTip('Ver el PDF de prueba con los ejemplos introducidos. No modifica ni aprueba el diseño.')
+    toolbar.insertWidget(1,w.editor_pdf_toggle)
+    w.editor_pdf_timer=QTimer(w);w.editor_pdf_timer.setSingleShot(True)
+    w.editor_pdf_timer.timeout.connect(w.refresh_editor_pdf)
+    def pdf_mode(checked):
+        w.editor_preview_stack.setCurrentIndex(int(checked))
+        if checked:w.refresh_editor_pdf()
+    w.editor_pdf_toggle.toggled.connect(pdf_mode)
     for layout in (outer, toolbar):
         layout.setSpacing(6)
         layout.setContentsMargins(8, 6, 8, 6)

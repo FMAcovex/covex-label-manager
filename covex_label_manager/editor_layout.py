@@ -61,6 +61,13 @@ def validate_layout(layout, page_rect=None):
         numbers([f.get('font_pt', 12)])
         if not 3 <= f.get('font_pt', 12) <= 80:
             raise ValueError('Fuente fuera de intervalo (3–80 pt).')
+        if 'typography' in f:
+            from .typography import validate
+            validate(f['typography'])
+            if f.get('draw') in ('baseline','continuation') and f['typography']['valign']!='top':
+                raise ValueError('La alineación vertical requiere caja o párrafo.')
+        if 'example' in f and (not isinstance(f['example'],str) or len(f['example'])>300):
+            raise ValueError('Ejemplo de campo inválido (máximo 300 caracteres).')
         if f.get('erase'):
             validate_box(f['erase'], 'borrado '+key)
         if f.get('draw', 'textbox') not in ('textbox', 'baseline', 'continuation', 'paragraph'):

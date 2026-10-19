@@ -82,6 +82,9 @@ def review(api,uid,generation):
     from .canonical import digest
     result['token']=digest([w,dict(resolve_status(api._repository,state)) if kind!='ninguna' and resolve_status(api._repository,state) is not None else None])
     result['production_allowed']=not result['errors']
+    if p.get('trial_appearance') is not None:
+        result['production_allowed']=False
+        result['warnings'].append('PRUEBA / NO GMP · Apariencia temporal. Restablezca el diseño o cree una variante para revisión y aprobación externa.')
     if not any(f['key']=='numero' for f in fields) and len(indices)>1:
         result['warnings'].append('La plantilla no tiene numeración: varios recipientes producirán etiquetas con el mismo aspecto.')
     return result

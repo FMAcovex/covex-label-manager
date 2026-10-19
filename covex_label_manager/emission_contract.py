@@ -23,6 +23,14 @@ def snapshot(store,revision_id,variant_id,profile,status,asset,*,historical_stat
     base_design_sha256=digest(design)
     if profile.get('layout_version'):
         design={**design,'sheet_layout':{k:v for k,v in profile.items() if k!='start_slot'},'approved_base_design_sha256':base_design_sha256}
+    typography=any('typography' in f for f in design['layout']['fields'])
+    composition='composition' in status or bool(state and state.get('r7b_layout',{}).get('contract')==2)
+    if typography or composition:
+        # Older snapshot readers recompute the design without this marker and
+        # MUST refuse reproduction, rather than ignore new render semantics.
+        from .typography import FONT_SHA256
+        design={**design,'render_contract':dict(contract=1,typography=typography,composition=composition,fonts=FONT_SHA256),
+                'approved_base_design_sha256':base_design_sha256}
     return {'contract':1,'revision_id':revision_id,'revision_uid':effective['uid'],'variant_id':variant_id,
         'variant_uid':variant['uid'] if variant else None,'generation':variant['generation'] if variant else None,
         'design':design,'design_sha256':digest(design),'source':source_identity(effective),

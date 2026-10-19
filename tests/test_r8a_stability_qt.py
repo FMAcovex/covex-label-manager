@@ -159,7 +159,7 @@ def test_process_stability_check(tmp_path):
 def test_qt_method_shadowing_static_regression():
     import ast
     protected = {'layout','geometry','rect','actions','window','done','parent',
-        'move','resize','close','update','deleteLater','screen','setVisible'}
+        'move','resize','close','update','deleteLater','screen','setVisible','size'}
     issues = []
     folder = Path(__file__).resolve().parents[1]/'covex_label_manager/qt_ui'
     for path in folder.glob('*.py'):

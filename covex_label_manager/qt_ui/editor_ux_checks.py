@@ -15,7 +15,14 @@ def present_viewport(widget, size, settle):
     """
     widget.show();settle()
     widget.resize(size);settle()
-    assert widget.size()==size, ('Requested client viewport not available',size,widget.size())
+    if widget.size()!=size:
+        from PySide6.QtWidgets import QWidget
+        diagnostics=dict(minimum=repr(widget.minimumSize()),hint=repr(widget.minimumSizeHint()),
+            wide_children=[dict(type=type(child).__name__,minimum=child.minimumWidth(),
+                                hint=child.minimumSizeHint().width(),visible=child.isVisibleTo(widget))
+                           for child in widget.findChildren(QWidget)
+                           if child.minimumSizeHint().width()>size.width()/3][:20])
+        raise AssertionError(('Requested client viewport not available',size,widget.size(),diagnostics))
 
 
 def horizontal_layout_metrics(scroll):

@@ -42,6 +42,12 @@ on:
       - 'covex_label_manager/diagnostics.py'
       - 'tests/test_r8a*.py'
       - 'tests/test_r8b*.py'
+      - 'tests/test_r8c*.py'
+      - 'covex_label_manager/typography.py'
+      - 'covex_label_manager/status_scaling.py'
+      - 'covex_label_manager/status_design.py'
+      - 'covex_label_manager/status_catalog.py'
+      - 'scripts/r8c*.py'
       - 'scripts/r8b_editor_visual.py'
       - 'tests/test_r3a_qt.py'
       - 'tests/test_r3b1_qt.py'
@@ -150,6 +156,35 @@ jobs:
           }
           Remove-Item Env:QT_SCALE_FACTOR
       - run: Remove-Item .r8a-editor-baseline -Recurse -Force
+      - name: R8C real PDF and native appearance regressions
+        timeout-minutes: 3
+        run: >-
+          python -m pytest -vv -x -o faulthandler_timeout=45
+          --junitxml=test-results/r8c.xml tests/test_r8c_typography.py tests/test_r8c_typography_qt.py
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 56399394424896a1adbd56a91882a7eb49282632
+          path: .r8b-typography-baseline
+          persist-credentials: false
+      - name: R8C before-after, real PDF geometry and unchanged historical rasters
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            python scripts/r8c_visual.py --baseline --source-root .r8b-typography-baseline --report "test-results/r8c-before-$scale.json" --capture "test-results/r8c-visual/before-$scale"
+            if ($LASTEXITCODE -ne 0) { Get-Content "test-results/r8c-before-$scale.json" -Raw; throw 'R8C baseline failed' }
+            python scripts/r8c_visual.py --report "test-results/r8c-source-$scale.json" --capture "test-results/r8c-visual/source-$scale"
+            if ($LASTEXITCODE -ne 0) { Get-Content "test-results/r8c-source-$scale.json" -Raw; throw 'R8C source failed' }
+            python scripts/r8c_compare_evidence.py --before "test-results/r8c-before-$scale.json" --after "test-results/r8c-source-$scale.json" --report "test-results/r8c-comparison-$scale.json"
+            if ($LASTEXITCODE -ne 0) { throw 'R8C historical PDF changed or evidence incomplete' }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
+          python scripts/r8c_backward_gate.py --previous-source .r8b-typography-baseline --report test-results/r8c-backward.json
+          if ($LASTEXITCODE -ne 0) { throw 'R8B reader silently accepted R8C semantics' }
+      - run: Remove-Item .r8b-typography-baseline -Recurse -Force
       - name: Native emission, history and reprint on actual Qt
         shell: pwsh
         env:
@@ -360,6 +395,8 @@ jobs:
           Copy-Item docs/R6B_UX_INTEGRATED/CONSERVACION_87.md dist/COVEXLabelManager_Qt/
           Copy-Item docs/R6B_UX_INTEGRATED/CI_QT_FIX.md dist/COVEXLabelManager_Qt/
           Copy-Item docs/R8A_STABILITY_DIAGNOSTICS.md dist/COVEXLabelManager_Qt/
+          Copy-Item docs/R8C_TYPOGRAPHY_SCALING/README.md dist/COVEXLabelManager_Qt/GUIA_R8C.md
+          Copy-Item docs/R8C_TYPOGRAPHY_SCALING/URW-FONTS-OFL.txt dist/COVEXLabelManager_Qt/
           python scripts/build_manifest.py dist/COVEXLabelManager_Qt
           if ($LASTEXITCODE -ne 0) { throw 'Qt build manifest failed' }
           Compress-Archive -Path dist/COVEXLabelManager_Qt -DestinationPath COVEXLabelManager_Qt.zip
@@ -400,6 +437,23 @@ jobs:
             if (!$result.ok -or !$result.integrity -or !$result.exact_viewports -or $result.os -ne 'win32' -or $result.qt_platform -ne 'offscreen' -or !$result.approved_revision_unchanged -or $result.captures.Count -ne 14) { Get-Content $report -Raw; throw 'R8B extracted contract incomplete' }
           }
           Remove-Item Env:QT_SCALE_FACTOR
+      - name: R8C fonts, appearance safety and scaling in the actual extracted ZIP
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $executable = $env:R8B_EXTRACTED_EXE
+          if (!$executable -or !(Test-Path $executable)) { throw 'Extracted acceptance executable missing' }
+          foreach ($scale in @('1', '1.25', '1.5')) {
+            $env:QT_SCALE_FACTOR = $scale
+            $report = Join-Path $pwd "test-results/r8c-extracted-$scale.json"
+            $captures = Join-Path $pwd "test-results/r8c-visual/extracted-$scale"
+            $process = Start-Process -FilePath $executable -ArgumentList @('--typography-check', $report, '--capture', $captures) -Wait -PassThru
+            if ($process.ExitCode -ne 0 -or !(Test-Path $report)) { if (Test-Path $report) { Get-Content $report -Raw }; throw 'R8C extracted check failed' }
+            $result = Get-Content $report -Raw | ConvertFrom-Json
+            if (!$result.ok -or !$result.integrity -or !$result.sqlite_v4 -or !$result.exact_viewports -or !$result.approved_revision_unchanged -or !$result.trial_production_blocked -or !$result.status_exact_reprint -or !$result.critical_crop_blocked -or !$result.italic_ink_checked -or !$result.literal_spaces_checked -or $result.embedded_fonts -ne 12 -or $result.combined_cases -ne 6 -or $result.legacy_compositions -ne 3 -or $result.captures.Count -ne 12 -or $result.os -ne 'win32') { Get-Content $report -Raw; throw 'R8C extracted coverage incomplete' }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR
       # User-facing download: application only, no screenshots or CI reports.
       # Technical evidence is a separate download, not a second portable.
       - name: Publish lightweight Qt portable without test evidence
@@ -413,7 +467,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: R3E-Qt-Visual-Design-${{ github.sha }}
+          name: R8C-Technical-Evidence-${{ github.sha }}
           path: |
             test-results/
           retention-days: 14

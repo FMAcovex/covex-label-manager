@@ -73,3 +73,54 @@ class PdfPane(QWidget):
     def open_pdf(self):
         if self.path is not None and self.verified():return QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.path)))
         return False
+
+
+class EditorPdfPane(PdfPane):
+    """PDF tools wrap inside a narrow Editor pane without enlarging its window.
+
+    The normal emission/history toolbar remains unchanged. All commands keep
+    their handlers and accessible names; no font shrink or hidden action.
+    """
+    def __init__(self,api,parent=None):
+        super().__init__(api,parent)
+        from PySide6.QtWidgets import QGridLayout
+        old=self.tools;controls=[]
+        while old.layout().count():
+            item=old.layout().takeAt(0)
+            if item.widget():controls.append(item.widget())
+        index=self.layout().indexOf(old);self.layout().removeWidget(old)
+        self.tools=QWidget();self._editor_tool_grid=QGridLayout(self.tools)
+        self._editor_tool_grid.setContentsMargins(0,0,0,0);self._editor_tool_grid.setSpacing(4)
+        self._editor_tool_controls=controls;self._editor_narrow=None
+        self.layout().insertWidget(index,self.tools);old.hide();old.deleteLater()
+        self.expand_button.setAccessibleName('Ampliar PDF completo')
+        self.expand_button.setToolTip('Ampliar PDF completo para inspeccionar la etiqueta')
+        self.reflow_editor_tools()
+
+    def reflow_editor_tools(self):
+        narrow=self.width()<480
+        if narrow==self._editor_narrow:return
+        grid=self._editor_tool_grid
+        for control in self._editor_tool_controls:grid.removeWidget(control)
+        for i,control in enumerate(self._editor_tool_controls):
+            if narrow:
+                row,column=(0,i) if i<3 else (1,0 if i==3 else 2)
+                grid.addWidget(control,row,column,1,2 if i==3 else 1)
+            else:grid.addWidget(control,0,i)
+        self.expand_button.setText('Ampliar' if narrow else 'Ampliar PDF')
+        self._editor_narrow=narrow
+
+    def resizeEvent(self,event):
+        if hasattr(self,'_editor_tool_controls'):self.reflow_editor_tools()
+        super().resizeEvent(event)
+
+
+def canvas_pdf_stack(canvas,pdf):
+    """An inactive PDF page must not set the geometry canvas minimum width."""
+    from PySide6.QtWidgets import QStackedWidget,QLayout
+    stack=QStackedWidget()
+    stack.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Expanding)
+    stack.layout().setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
+    stack.setMinimumWidth(canvas.minimumWidth())
+    stack.addWidget(canvas);stack.addWidget(pdf)
+    return stack

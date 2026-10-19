@@ -104,10 +104,22 @@ class WorkPanel(QWidget):
         self.status_revision.currentIndexChanged.connect(self.refresh_r7b_fields)
         self.status_revision.currentIndexChanged.connect(self.changed)
         self.placement=QComboBox();self.placement.addItem('Integrada','integrada');self.placement.addItem('Independiente','independiente');self.placement.currentTextChanged.connect(self.changed);f.addRow('Ubicación',self.placement)
+        self.composition=QComboBox()
+        for title,key in [('Histórico · sin cambios',None),('Ajustar sin deformar','fit'),('Rellenar · recorte protegido','fill')]:self.composition.addItem(title,key)
+        self.composition.currentIndexChanged.connect(self.changed);f.addRow('Composición física',self.composition)
+        self.state_align_x=QComboBox();self.state_align_y=QComboBox()
+        for title,key in [('Izquierda','left'),('Centro','center'),('Derecha','right')]:self.state_align_x.addItem(title,key)
+        for title,key in [('Arriba','top'),('Centro','middle'),('Abajo','bottom')]:self.state_align_y.addItem(title,key)
+        for title,combo in [('Alineación horizontal',self.state_align_x),('Alineación vertical',self.state_align_y)]:
+            combo.currentIndexChanged.connect(self.changed);f.addRow(title,combo)
+        def composition_controls(*_):
+            for combo in (self.state_align_x,self.state_align_y):combo.setEnabled(self.composition.currentData() is not None)
+        self.composition.currentIndexChanged.connect(composition_controls);composition_controls()
+        scaling_note=label('Ajustar conserva proporciones y puede dejar margen. Rellenar recorta sólo fondo no crítico; si afecta texto, símbolos o campos, se bloquea. El zoom de pantalla no cambia el tamaño físico.','subtle');scaling_note.setWordWrap(True);f.addRow(scaling_note)
         self.status_inputs={}
         for key,title in [('fecha','Fecha'),('persona','Responsable'),('caducidad_reanalisis','Caducidad / reanálisis')]:
             e=QLineEdit();e.textEdited.connect(self.changed);self.status_inputs[key]=e;f.addRow(title,self.with_error(e,'status:'+key))
-        self.tabs.addTab(status,'Estado')
+        status_scroll=QScrollArea();status_scroll.setWidgetResizable(True);status_scroll.setWidget(status);self.tabs.addTab(status_scroll,'Estado')
         row=QHBoxLayout();self.save=button('Guardar trabajo',window.flush_emission_work);row.addWidget(self.save)
         self.recover=button('Recuperar',window.recover_emission_work);row.addWidget(self.recover);layout.addLayout(row)
         row=QHBoxLayout();self.proof=button('PDF de prueba',window.proof_emission_work)
@@ -239,6 +251,10 @@ class WorkPanel(QWidget):
                 e.setToolTip(f'Valor exacto conservado: {raw}. Solo una edición expresa cambia este dato.')
             self.orientation.setCurrentIndex(max(0,self.orientation.findData(w['profile'].get('orientation','portrait'))));self.cut.setCurrentIndex(max(0,self.cut.findData(str(w['profile'].get('crop_marks',0)))))
             state=w['status'];self.status_kind.setCurrentIndex(max(0,self.status_kind.findData(state.get('kind','ninguna'))));self.placement.setCurrentIndex(max(0,self.placement.findData(state.get('placement','integrada'))))
+            composition=state.get('composition',{})
+            self.composition.setCurrentIndex(max(0,self.composition.findData(composition.get('mode'))))
+            self.state_align_x.setCurrentIndex(self.state_align_x.findData(composition.get('align_x','center')))
+            self.state_align_y.setCurrentIndex(self.state_align_y.findData(composition.get('align_y','middle')))
             for k,e in self.status_inputs.items():e.setText(state.get(k,''))
             self.refresh_r7b_revisions()
             uid=state.get('revision_uid')
@@ -323,6 +339,8 @@ class WorkPanel(QWidget):
         status={'kind':self.status_kind.currentData()}
         if status['kind']!='ninguna':
             status.update(placement=self.placement.currentData(),**{k:e.text() for k,e in self.status_inputs.items()})
+            if self.composition.currentData():
+                status['composition']=dict(contract=1,mode=self.composition.currentData(),align_x=self.state_align_x.currentData(),align_y=self.state_align_y.currentData())
             uid=self.status_revision.currentData()
             if uid:
                 status['revision_uid']=uid
