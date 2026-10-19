@@ -76,11 +76,12 @@ class OccupiedSlotsDialog(QDialog):
 
 
 class SheetDesigner(QDialog):
-    def __init__(self,parent,profile,proof=None,root=None,counts='',thumbnail=None,nominal=None):
+    def __init__(self,parent,profile,proof=None,root=None,counts='',thumbnail=None,nominal=None,quantities=None):
         super().__init__(parent);self.setWindowTitle('Diseñador de hojas · mm');self.resize(1120,700)
         # AdaptiveDialog applies the available-screen bounds when shown. Avoid
         # borrowing a QScreen wrapper from this transient dialog at construction.
         self.thumbnail=thumbnail;self.nominal=nominal
+        self.initial_quantities = dict(quantities or {})
         self.history=ProfileHistory(copy.deepcopy(profile));self.profile=copy.deepcopy(profile);self.proof=proof;self.busy=False;self.items=[];self.repo=LayoutProfiles(root) if root else None
         palette=self.palette()
         for role,colour in ((QPalette.ColorRole.Window,'#F4F7F8'),(QPalette.ColorRole.Base,'#FFFFFF'),(QPalette.ColorRole.Text,'#203B40'),(QPalette.ColorRole.WindowText,'#203B40'),(QPalette.ColorRole.Button,'#FFFFFF'),(QPalette.ColorRole.ButtonText,'#203B40')):palette.setColor(role,QColor(colour))
@@ -98,6 +99,17 @@ class SheetDesigner(QDialog):
             e=QDoubleSpinBox();e.setDecimals(0 if key=='start_slot' else 2);e.setRange(low,high);e.setValue(float(profile.get(key,default)));e.setSuffix('' if key=='start_slot' else ' mm');form.addRow(title,e);self.measures[key]=e
             e.valueChanged.connect(self.controls_changed)
         self.count=QSpinBox();self.count.setRange(1,100);self.count.setValue(len(profile.get('slots',[])) or 5);form.addRow('Posiciones / hoja',self.count)
+        # Quantity and sheet geometry are edited together in a detached draft.
+        self.vessel_count=QSpinBox();self.vessel_count.setRange(1,10000)
+        self.vessel_count.setValue(int(self.initial_quantities.get('count',1)))
+        self.copy_count=QSpinBox();self.copy_count.setRange(1,2)
+        self.copy_count.setValue(int(self.initial_quantities.get('copies',1)))
+        form.addRow('Recipientes del trabajo',self.vessel_count)
+        form.addRow('Copias por recipiente',self.copy_count)
+        self.quantity_summary=label('','subtle');self.quantity_summary.setWordWrap(True)
+        form.addRow(self.quantity_summary)
+        for control in (self.vessel_count,self.copy_count):
+            control.valueChanged.connect(self.update_quantity_summary)
         form.addRow(button('Distribuir estas posiciones',self.arrange))
         form.addRow(button('Ajustar automáticamente',self.auto_arrange))
         self.used_slots_button=button('Marcar casillas ya utilizadas…',self.mark_used_slots)
@@ -128,7 +140,7 @@ class SheetDesigner(QDialog):
         self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText('Aplicar al trabajo');self.buttons.accepted.connect(self.accept_valid);self.buttons.rejected.connect(self.reject);layout.addWidget(self.buttons)
         for e in (self.paper,self.orientation,self.mode):e.currentIndexChanged.connect(self.controls_changed)
         self.view.scene().selectionChanged.connect(self.selection)
-        self.sync();self.redraw();QTimer.singleShot(0,self.view,self.view.fit)
+        self.sync();self.redraw();self.update_quantity_summary();QTimer.singleShot(0,self.view,self.view.fit)
 
     def sync(self):
         self.busy=True;p=self.profile
@@ -138,7 +150,7 @@ class SheetDesigner(QDialog):
         for k in ('width_mm','height_mm'):self.property_form.setRowVisible(self.measures[k],p.get('layout_mode','grid')=='grid')
         self.busy=False
     def push(self,p,title):
-        self.history.push(p,title);self.profile=copy.deepcopy(self.history.state);self.sync();self.redraw()
+        self.history.push(p,title);self.profile=copy.deepcopy(self.history.state);self.sync();self.redraw();self.update_quantity_summary()
     def controls_changed(self,*_):
         if self.busy:return
         p=copy.deepcopy(self.profile);p.update(layout_version=1,paper=self.paper.currentText(),orientation=self.orientation.currentData(),layout_mode=self.mode.currentData())
@@ -243,9 +255,28 @@ class SheetDesigner(QDialog):
         selected={i.index for i in self.items if i.isSelected()}
         if self.profile.get('layout_mode')!='free' or not selected:return
         p=copy.deepcopy(self.profile);p['slots']=[b for i,b in enumerate(p['slots']) if i not in selected];self.push(p,'Eliminar posiciones')
-    def undo(self):self.history.undo();self.profile=copy.deepcopy(self.history.state);self.sync();self.redraw()
-    def redo(self):self.history.redo();self.profile=copy.deepcopy(self.history.state);self.sync();self.redraw()
+    def undo(self):self.history.undo();self.profile=copy.deepcopy(self.history.state);self.sync();self.redraw();self.update_quantity_summary()
+    def redo(self):self.history.redo();self.profile=copy.deepcopy(self.history.state);self.sync();self.redraw();self.update_quantity_summary()
     def reset(self):self.push(copy.deepcopy(self.history.clean),'Restablecer')
+    def quantities(self):
+        return {'count':str(self.vessel_count.value()),'copies':str(self.copy_count.value())}
+
+    def update_quantity_summary(self,*_):
+        total=self.vessel_count.value()*self.copy_count.value()
+        try:
+            from ..sheet_layout import physical_placements
+            plan=plan_sheet(self.profile,1)
+            last=None
+            for last in physical_placements(self.profile,plan.capacity,total):
+                pass
+            pages=last[0]+1
+            self.quantity_summary.setText(
+                f'{total} etiquetas reales · {plan.capacity} posiciones por hoja · {pages} hojas. '
+                'Las posiciones vacías no generan copias. '
+                'Los cambios de cantidades se guardarán al aplicar el diseño.')
+        except (ValueError,KeyError,TypeError) as ex:
+            self.quantity_summary.setText('Distribución todavía no válida: '+str(ex))
+
     def accept_valid(self):
         try:plan_sheet(self.profile,1)
         except ValueError as ex:self.error.setText(str(ex));return
@@ -253,7 +284,7 @@ class SheetDesigner(QDialog):
     def preview(self):
         try:
             plan_sheet(self.profile,1)
-            if self.proof:self.proof(copy.deepcopy(self.profile),self)
+            if self.proof:self.proof(copy.deepcopy(self.profile),self,self.quantities())
         except (ValueError,OSError) as ex:self.error.setText('PDF no generado: '+str(ex))
     def save_profile(self):
         uid,ok=QInputDialog.getText(self,'Guardar perfil','Identificador (letras, números, guion):')

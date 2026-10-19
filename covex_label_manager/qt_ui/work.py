@@ -421,9 +421,9 @@ class WorkPanel(QWidget):
         from PySide6.QtWidgets import QDialog
         import uuid
         work=copy.deepcopy(w.emission_work)
-        def proof(profile,parent):
+        def proof(profile,parent,quantities):
             w.api.work.assert_current(work)
-            trial=copy.deepcopy(work);trial['profile']=profile
+            trial=copy.deepcopy(work);trial['profile']=profile;trial.update(quantities)
             p,indices,count,copies=parameters(trial);b=trial['binding']
             path=w.api.output_path('cache','sheet-proof-'+uuid.uuid4().hex+'.pdf')
             w.api.render(w.api.version(b['revision_id']),trial['values'],p,indices,count,copies,path,True,per_container=trial['per_container'],status=trial['status'],variant_id=b['variant_id'])
@@ -431,9 +431,9 @@ class WorkPanel(QWidget):
         try:
             b=work['binding'];version=w.api.resolved_design(b['revision_id'],b['variant_id'])
             thumbnail=w.api.thumbnail(version,width_px=450)
-            dialog=SheetDesigner(w,work['profile'],proof,w.api._repository.root,f"Recipientes: {work['count']} · Copias por recipiente: {work['copies']}",thumbnail=thumbnail,nominal=(version['base_w_mm'],version['base_h_mm']))
+            dialog=SheetDesigner(w,work['profile'],proof,w.api._repository.root,f"Recipientes: {work['count']} · Copias por recipiente: {work['copies']}",thumbnail=thumbnail,nominal=(version['base_w_mm'],version['base_h_mm']),quantities={'count':work['count'],'copies':work['copies']})
             if dialog.exec()==QDialog.DialogCode.Accepted:
-                w.emission_work=w.api.work.save(work['uid'],work['generation'],{'profile':dialog.profile});w.refresh_work_panels()
+                w.emission_work=w.api.work.save(work['uid'],work['generation'],{'profile':dialog.profile,**dialog.quantities()});w.refresh_work_panels()
         except (ValueError,OSError) as ex:QMessageBox.warning(w,'Hoja no aplicada',str(ex))
 
     def apply_profile(self,*_):

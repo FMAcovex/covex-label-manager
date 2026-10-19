@@ -54,6 +54,7 @@ class EmissionCentreMixin:
         footer=box();self.emission_footer=footer;footer.setObjectName('emissionFooter');fl=vbox(footer,12,5)
         self.emission_summary=label('Sin trabajo seleccionado.','emissionSummary');self.emission_summary.setObjectName('emissionSummary');self.emission_summary.setWordWrap(True);fl.addWidget(self.emission_summary)
         self.emission_feedback=label('Guardar borrador no registra una emisión.','subtle');self.emission_feedback.setWordWrap(True);fl.addWidget(self.emission_feedback)
+        self.emission_blockers=label('','subtle');self.emission_blockers.setWordWrap(True);self.emission_blockers.setObjectName('emissionBlockers');fl.addWidget(self.emission_blockers)
         actions=QHBoxLayout();self.native_save=button('Guardar trabajo',self.flush_emission_work);actions.addWidget(self.native_save)
         self.native_proof=button('PDF de prueba',self.proof_emission_work);actions.addWidget(self.native_proof)
         self.native_options=button('Opciones…',self.work_options);actions.addWidget(self.native_options);actions.addStretch()
@@ -166,7 +167,7 @@ class EmissionCentreMixin:
         if not w:
             self._emission_document_full='Seleccione un trabajo o cree uno nuevo.'
             self.refresh_emission_caption()
-            self.emission_summary.setText('Sin trabajo seleccionado.');self.work_review=None;return None
+            self.emission_summary.setText('Sin trabajo seleccionado.');self.emission_blockers.setText('Emisión no disponible: seleccione un trabajo.');self.work_review=None;return None
         try:review=self.api.review_work(w['uid'],w['generation'])
         except (ValueError,OSError,sqlite3.Error) as ex:
             review={'errors':[{'target':'work','message':self.operator_error(ex),'recipient':None}], 'warnings':[], 'summary':None,'proof_allowed':False,'production_allowed':False}
@@ -185,7 +186,23 @@ class EmissionCentreMixin:
         self.native_proof.setEnabled(review['proof_allowed'] and not self.native_busy);self.preview_work_button.setEnabled(review['proof_allowed'] and not self.native_busy)
         valid=self.preview_matches(review)
         self.native_issue.setEnabled(review['production_allowed'] and valid and not self.work_preview['result']['warnings'] and not self.native_busy and not self.legacy_process and self.preview_task is None)
-        self.native_issue.setToolTip('Confirmar y registrar la emisión definitiva.' if valid else 'Espere la vista previa automática o revise los errores del trabajo.')
+        blockers=[item['message'] for item in review['errors']]
+        if not review['production_allowed'] and not blockers:
+            blockers.append('La revisión, variante o datos actuales no autorizan una emisión definitiva.')
+        if w['phase']!='DRAFT':blockers.append('Este trabajo ya no está en borrador.')
+        if w['profile'].get('trial_appearance'):
+            blockers.append('Hay ajustes de apariencia PRUEBA / NO GMP. Restaure el diseño o solicite aprobación documental.')
+        if self.work_dirty_panel:blockers.append('Hay cambios pendientes de guardar.')
+        if self.preview_task is not None:blockers.append('Se está calculando la vista previa.')
+        elif not valid:blockers.append('La vista previa PDF no está actualizada. Actualícela antes de emitir.')
+        if self.work_preview and self.work_preview['result'].get('warnings'):
+            blockers.extend(self.work_preview['result']['warnings'])
+        if self.native_busy or self.legacy_process:blockers.append('Hay una operación en curso.')
+        blockers=list(dict.fromkeys(str(s) for s in blockers if s))
+        self.emission_blockers.setText(
+            'No se puede emitir definitivamente:\n'+'\n'.join('• '+s for s in blockers)
+            if not self.native_issue.isEnabled() else 'Lista para emisión definitiva, previa confirmación.')
+        self.native_issue.setToolTip('\n'.join(blockers) if blockers else 'Confirmar y registrar la emisión definitiva.')
         return review
 
     def adjust_field_appearance(self):
