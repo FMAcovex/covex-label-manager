@@ -111,6 +111,7 @@ def test_compact_emission_keeps_all_blockers_and_pdf_space(studio):
     )
     w.emission_feedback.setText("Revise antes de emitir: " + "Error documental. " * 8)
     w.adapt_emission_layout()
+    w.emission_compact.setCurrentIndex(1)  # PDF tab must be the active compact pane.
     app.processEvents()
     assert w.emission_compact.isVisible()
     assert w.emission_blockers_scroll.maximumHeight() <= 48
