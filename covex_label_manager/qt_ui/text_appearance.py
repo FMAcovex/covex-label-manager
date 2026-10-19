@@ -49,6 +49,8 @@ class TextAppearance(QWidget):
         active=self.family.currentData() is not None
         for widget in self._controls:widget.setEnabled(active)
         self.valign.setEnabled(active and not self._baseline)
+        self.wrap.setEnabled(active and not self._baseline)
+        self.wrap.setToolTip('La línea base no se divide; la continuación conserva su flujo documental. Use caja o párrafo para elegir ajuste de línea.' if self._baseline else 'Ajuste dentro de la caja sin reducir ni recortar texto.')
         self.valign.setToolTip('No aplicable a una línea base o continuación anclada.' if self._baseline else 'Alineación dentro del recuadro.')
         color=QColor(self.color.text())
         self.swatch.setStyleSheet('border-left:8px solid '+color.name()+';' if color.isValid() else '')

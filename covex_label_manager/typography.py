@@ -65,7 +65,21 @@ def font_resource(family, bold=False, italic=False):
         raise ValueError('Fuente documental no disponible. No se permite sustituirla; repare el portable o prepare una variante.') from exc
 
 
+def ink_width(text,font,size):
+    """Include side bearings/italic overhangs, not just advance widths."""
+    pen=0.;left=0.;right=0.
+    for char in text:
+        box=font.glyph_bbox(ord(char))
+        if not box.is_empty:
+            left=min(left,pen+box.x0);right=max(right,pen+box.x1)
+        pen+=font.glyph_advance(ord(char))
+    return left*size,max(right,pen)*size
+
+
 def _lines(text, width, font, size, wrap):
+    def measured(value):
+        left,right=ink_width(value,font,size)
+        return right-left
     if width <= 0:
         raise ValueError('Anchura de texto insuficiente.')
     output = []
@@ -75,15 +89,15 @@ def _lines(text, width, font, size, wrap):
             continue
         current = ''
         for word in paragraph.split():
-            if font.text_length(word, fontsize=size) > width + .001:
+            if measured(word) > width + .001:
                 raise ValueError('Una palabra no cabe en el campo; amplíelo o prepare una variante.')
             candidate = (current + ' ' + word).strip()
-            if current and font.text_length(candidate, fontsize=size) > width:
+            if current and measured(candidate) > width:
                 output.append(current); current = word
             else:
                 current = candidate
         output.append(current)
-    if any(font.text_length(line, fontsize=size) > width + .001 for line in output):
+    if any(measured(line) > width + .001 for line in output):
         raise ValueError('El texto excede la anchura del campo.')
     return output
 
@@ -111,11 +125,13 @@ def paint(page, text, rect, size, bold, style, *, strict=True, baseline=False,
         lines = []; current = ''; width = rect.width
         for word in text.split():
             candidate = (current+' '+word).strip()
-            if font.text_length(candidate, fontsize=size) <= width:
+            il,ir=ink_width(candidate,font,size)
+            if ir-il <= width:
                 current = candidate
             else:
                 lines.append(current); width = full_w; current = word
-                if font.text_length(word, fontsize=size) > width:
+                il,ir=ink_width(word,font,size)
+                if ir-il > width:
                     raise ValueError('Una palabra no cabe en la continuación.')
         if current:lines.append(current)
         if len(lines) > maximum:
@@ -142,7 +158,13 @@ def paint(page, text, rect, size, bold, style, *, strict=True, baseline=False,
         left = continuation[0] if i and continuation else rect.x0
         width = continuation[1] if i and continuation else rect.width
         offset = (width-font.text_length(line, fontsize=size))*{'left':0,'center':.5,'right':1}[style['align']]
-        page.insert_text((left+offset, first_y+i*line_height), line, fontname=name,
+        ink_left,ink_right=ink_width(line,font,size)
+        if ink_right-ink_left>width+.001:
+            raise ValueError('Los trazos reales del texto exceden el campo; amplíelo, sin recortar cursivas.')
+        # Preserve logical alignment whenever it is safe. Only compensate a
+        # side bearing that would otherwise escape the authorized rectangle.
+        origin=min(max(left+offset,left-ink_left),left+width-ink_right)
+        page.insert_text((origin, first_y+i*line_height), line, fontname=name,
                          fontsize=size, color=rgb(style['color']), overlay=True)
     return warnings
 

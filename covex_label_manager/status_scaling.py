@@ -56,8 +56,12 @@ def critical_losses(source_page, layout, clip):
             check(block['bbox'],'imagen / símbolo')
         for line in block.get('lines',[]):
             for span in line['spans']:
-                # Fixed text is always critical, not just required variables.
-                check(span['bbox'],'texto fijo: '+span['text'][:60])
+                # PDF extraction boxes can omit italic overhangs. Reserve an
+                # em around fixed text conservatively; never authorize a cut
+                # tangent to a glyph merely because advance widths fit.
+                box=fitz.Rect(span['bbox']);pad=span['size']
+                check(fitz.Rect(box.x0-pad,box.y0-pad,box.x1+pad,box.y1+pad),
+                      'texto fijo: '+span['text'][:60])
     for drawing in source_page.get_drawings():
         rect=fitz.Rect(drawing['rect'])
         # Ignore only a single solid, axis-aligned rectangle enclosing the crop,
@@ -132,4 +136,4 @@ def describe(report):
     return (('Rellenar el área' if report['mode']=='fill' else 'Ajustar sin deformar')+
             f" · {size[0]:.2f} × {size[1]:.2f} mm · escala {report['scale']*100:.1f} %"+
             (f' · margen libre total {free[0]:.2f} × {free[1]:.2f} mm' if max(free)>.01 else '')+
-            (f' · recorte total {cut[0]:.2f} × {cut[1]:.2f} mm (sólo fondo no crítico)' if max(cut)>.01 else ''))
+            (f' · recorte del original {cut[0]:.2f} × {cut[1]:.2f} mm (sólo fondo no crítico)' if max(cut)>.01 else ''))

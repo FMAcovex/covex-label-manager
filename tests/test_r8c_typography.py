@@ -259,3 +259,29 @@ def test_trial_move_preserves_anchor_mask_and_continuation_contracts(work):
     assert changed['second_x']==pytest.approx(before['second_x']+delta)
     assert changed['anchor']['dx_pt']==pytest.approx(before['anchor']['dx_pt']+delta*width)
     assert json.loads(v['fields_json'])==fields # no original layout mutation
+
+
+@pytest.mark.parametrize('align',['left','center','right'])
+def test_real_italic_ink_stays_in_box_not_just_advance_width(align):
+    from covex_label_manager.typography import ink_width
+    font,_=font_resource('serif',False,True)
+    box=fitz.Rect(50,20,100,60);style=dict(DEFAULT,family='serif',italic=True,align=align)
+    with fitz.open() as doc:
+        page=doc.new_page();paint(page,'f',box,12,False,style)
+        span=page.get_text('dict')['blocks'][0]['lines'][0]['spans'][0]
+        left,right=ink_width('f',font,12);origin=span['origin'][0]
+        assert origin+left>=box.x0-.001 and origin+right<=box.x1+.001
+        tight=fitz.Rect(50,80,50+font.text_length('f',fontsize=12),120)
+        with pytest.raises(ValueError):paint(page,'f',tight,12,False,style)
+
+
+def test_fill_blocks_fixed_italic_overhang_beyond_extraction_box(tmp_path):
+    path=tmp_path/'SYNTHETIC-ITALIC-EDGE.pdf'
+    with fitz.open() as doc:
+        page=doc.new_page(width=200,height=100)
+        page.insert_text((50.1,45),'f',fontname='tiit',fontsize=12);doc.save(path)
+    layout=make_layout(path,'aprobado')
+    with fitz.open(path) as src,fitz.open() as out:
+        assert critical_losses(src[0],layout,[50,0,150,100])
+        with pytest.raises(ValueError,match='Relleno bloqueado'):
+            paint_status(out.new_page(),src,layout,{},fitz.Rect(0,0,100,100),settings=dict(FIT,mode='fill'))

@@ -52,7 +52,7 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
         approved=next(v['id'] for v in api.versions(w.row['id']) if v['state']=='APPROVED')
         original=dict(api.version(approved))
         if not baseline:
-            from ..typography import DEFAULT,font_resource,paint,FONT_SHA256
+            from ..typography import DEFAULT,font_resource,paint,FONT_SHA256,ink_width
             from ..status_scaling import DEFAULT as FIT,geometry,critical_losses
             from .emission_appearance import EmissionAppearanceDialog
             fonts=out/'font-specimen.pdf'
@@ -64,12 +64,18 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
                         font,name=font_resource(family,bold,italic)
                         paint(page,f'SYNTHETIC {family} bold={bold} italic={italic} Áéñ',fitz.Rect(25,25+n*45,570,65+n*45),12,bold,dict(DEFAULT,family=family,italic=italic,color='#1234AB'))
                         n+=1
+                box=fitz.Rect(25,600,80,630)
+                paint(page,'f',box,12,False,dict(DEFAULT,family='serif',italic=True,align='right'))
+                span=next(s for b in page.get_text('dict')['blocks'] for l in b.get('lines',[]) for s in l['spans'] if s['text']=='f')
+                font,_=font_resource('serif',False,True);il,ir=ink_width('f',font,12)
+                assert span['origin'][0]+il>=box.x0-.001 and span['origin'][0]+ir<=box.x1+.001
                 doc.save(fonts)
             # pdf_record expects a separate source path.
             with fitz.open(fonts) as doc:
                 assert len(doc[0].get_fonts())==12
                 assert all(len(doc.extract_font(f[0])[3])>1000 for f in doc[0].get_fonts())
             result['embedded_fonts']=12;result['font_hashes']=FONT_SHA256
+            result['italic_ink_checked']=True
         uids=[]
         for kind,color in [('sin_analizar',(1,.92,.3)),('aprobado',(.25,.8,.4)),('rechazado',(.9,.3,.3))]:
             path=session.root/('SYNTHETIC-'+kind+'.pdf')
