@@ -28,6 +28,7 @@ QLabel#section { font-size: 12px; font-weight: 700; color: #4B6268; letter-spaci
 QLabel#panelTitle { font-size: 18px; font-weight: 700; }
 QLabel#badge { padding: 5px 9px; border-radius: 5px; font-size: 11px; font-weight: 600; }
 QFrame#surface { background: white; border: 1px solid #E0E8EA; border-radius: 9px; }
+QFrame#editorProperties { background: white; }
 QFrame#surface QLabel { background: transparent; }
 QLineEdit { background: white; border: 1px solid #DCE5E7; border-radius: 6px; padding: 7px; selection-background-color: #147D71; }
 QLineEdit:focus { border: 1px solid #147D71; }

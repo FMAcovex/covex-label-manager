@@ -26,6 +26,7 @@ class VariantsMixin:
         self.variant_menu_button=button('Variantes ▾',self.variant_menu);row.addWidget(self.variant_menu_button)
         layout.insertLayout(3,row)
         self.variant_note=label('Diseño heredado de la revisión','subtle');self.variant_note.setWordWrap(True)
+        self.variant_note.setParent(page)
         self.variant_note.hide()
         return page
     def build_editor(self):
@@ -104,6 +105,7 @@ class VariantsMixin:
             self.save_button.setText('Guardar variante')
             self.editor_note.setText('Revisión: '+{'APPROVED':'Vigente','PENDING':'Pendiente','RETIRED':'Retirada'}.get(self.editor_version['state'],self.editor_version['state'])+' · Variante: '+STATES[row['state']]+' · Original protegido')
     def save_work(self):
+        self.commit_pending_properties()
         if self.current_variant_id is None:return super().save_work()
         if not self.editable():return False
         try:
@@ -142,10 +144,8 @@ class VariantsMixin:
         state=variant['state'] if variant else None
         base_state={'APPROVED':'Vigente','PENDING':'Pendiente','RETIRED':'Retirada'}
         header=menu.addAction('Revisión documental · '+(base_state[revision['state']] if revision else 'Sin selección'));header.setEnabled(False)
-        context=menu.addAction('Original y aprobación documental: menú Documento');context.setEnabled(False)
         menu.addSeparator()
         header=menu.addAction('Variante de diseño · '+(STATES[state] if state else 'Diseño heredado, sin variante'));header.setEnabled(False)
-        explanation=menu.addAction('La variante no sustituye la revisión documental');explanation.setEnabled(False)
         available=bool(revision and revision['state']!='RETIRED' and not self.legacy_process)
         commands=[
             ('Crear variante desde esta revisión',self.create_variant_ui,available,'Seleccione una revisión no retirada.'),
@@ -166,13 +166,27 @@ class VariantsMixin:
             action.setToolTip(text if enabled else ('Cierre primero la compatibilidad Tkinter.' if self.legacy_process else reason))
             action.setStatusTip(action.toolTip())
         if unavailable:
-            blocked=menu.addMenu('Otras acciones · requisitos');blocked.setToolTipsVisible(True)
-            for text,reason in unavailable:
-                action=blocked.addAction(text);action.setEnabled(False)
-                reason='Cierre primero la compatibilidad Tkinter.' if self.legacy_process else reason
-                action.setToolTip(reason);action.setStatusTip(reason)
-                explanation=blocked.addAction('↳ '+reason);explanation.setEnabled(False)
+            menu.addSeparator()
+            menu.addAction('¿Qué puedo hacer con este diseño?',self.explain_variant_actions)
         return menu
+
+    def explain_variant_actions(self):
+        revision=self.api.version(self.row['version_id']) if self.row else None
+        variant=self.api.variant(self.library_variant_id) if self.library_variant_id is not None else None
+        if self.legacy_process:
+            text='Cierre la ventana de compatibilidad anterior antes de modificar el diseño.'
+        elif not revision:text='Seleccione primero una revisión en la Biblioteca.'
+        elif revision['state']=='RETIRED':
+            text='Esta revisión está retirada. Puede consultar sus diseños, pero no modificarlos ni emitirlos.'
+        elif variant and variant['state']=='DRAFT':
+            text='Esta variante es un borrador editable. Guarde el diseño y envíelo a revisión. La aprobación externa solo se registra después, con una revisión documental vigente.'
+        elif variant and variant['state']=='PENDING':
+            text='Esta variante está pendiente de aprobación. Devuélvala a borrador para editarla. Solo puede registrar su aprobación externa cuando la revisión documental esté vigente.'
+        elif revision['state']=='APPROVED':
+            text='Esta revisión está aprobada. Para modificar el diseño, cree una nueva variante en borrador. No se cambia el original ni se hereda su aprobación.'
+        else:
+            text='La revisión documental está pendiente de aprobación. Puede editar su diseño pendiente o preparar una variante. Guardar o enviar a revisión no autoriza la emisión definitiva.'
+        QMessageBox.information(self,'Revisión documental y variante',text+'\n\nLos documentos originales, la aprobación externa y sus evidencias se consultan desde Documento o Revisiones y variantes. El nombre de la etiqueta de estado «Aprobado» no es una aprobación documental.')
     def create_variant_ui(self,derive=False,field_adjustment=False):
         if not self.row or not self.resolve_work():return
         if field_adjustment:

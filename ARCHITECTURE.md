@@ -111,3 +111,15 @@ servicios; la geometría de un gesto se confirma sin destruir el QGraphicsItem d
 de su evento nativo. Los borradores de estado avisan al descartar y cotejan el hash
 esperado dentro de su transacción. Sin esquema nuevo ni cambio del motor.
 Ver [auditoría, intervención y límites](docs/R8A_STABILITY_DIAGNOSTICS.md).
+
+## R8B: Editor y propiedades siempre accesibles
+
+`workspace.arrange_editor` reutiliza los widgets/controladores en tres zonas y
+separa el guardado del scroll. Las propiedades esenciales no están en Herramientas.
+La creación común y el dibujo directo usan el mismo lienzo Qt que Estados;
+creación especial conserva el formulario existente. Actualizar propiedades no
+reconstruye la escena y el gesto gráfico conserva el diferimiento R8A. Estados
+añade geometría visible y un historial local de edición, sin cambiar su contrato
+ni el controlador documental independiente. Los menús muestran acciones aplicables
+y una explicación contextual, conservando todos los estados y permisos de servicios.
+Ver [R8B, equivalencias y pruebas](docs/R8B_EDITOR_UX/README.md).

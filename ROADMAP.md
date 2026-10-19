@@ -177,3 +177,11 @@ local privado y exportable, estrés sintético source/portable extraído. Sin mi
 ni retirada de capacidades. [Alcance, evidencia y pruebas](docs/R8A_STABILITY_DIAGNOSTICS.md).
 No atribuye sin evidencia los cierres intermitentes a una causa única. R8B (Editor),
 R8C (propiedades visuales de estados) y R8D (asistentes) siguen fuera de alcance.
+
+## R8B — Rediseño funcional del Editor (dependiente de R8A, revisión pendiente)
+
+Tres zonas, propiedades esenciales desplegadas, alta/dibujo directo, foco y zoom
+retenidos, menús contextuales claros y coherencia de Estados sin ampliar el motor.
+Base PR #33, sin fusionar. Pruebas source/portable y comparación sintética a seis
+resoluciones/escalados; [informe y matriz de 87 capacidades](docs/R8B_EDITOR_UX/README.md).
+R8C/R8D y aceptación humana conjunta R8 siguen pendientes. No declara validación GMP.

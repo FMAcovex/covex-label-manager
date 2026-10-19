@@ -119,11 +119,14 @@ def test_variant_menu_explains_available_transitions(studio,state):
     actions={a.text():a for a in menu.actions()}
     for action in menu.actions():
         if action.menu():actions.update({a.text():a for a in action.menu().actions()})
-    assert actions['Enviar a revisión'].isEnabled()==(state=='DRAFT')
-    assert actions['Devolver a borrador'].isEnabled()==(state=='PENDING')
-    assert actions['Tamaño nominal reutilizable'].isEnabled()==(state=='DRAFT')
-    assert not actions['Registrar aprobación externa'].isEnabled() # base revision is pending
-    assert actions['Registrar aprobación externa'].toolTip()
+    # R8B keeps the lifecycle criteria, but unavailable commands are explained
+    # by one help action instead of a long disabled submenu.
+    assert ('Enviar a revisión' in actions)==(state=='DRAFT')
+    assert ('Devolver a borrador' in actions)==(state=='PENDING')
+    assert ('Tamaño nominal reutilizable' in actions)==(state=='DRAFT')
+    assert 'Registrar aprobación externa' not in actions # base revision is pending
+    assert actions['¿Qué puedo hacer con este diseño?'].isEnabled()
+    assert not any(a.menu() for a in menu.actions())
     assert api.variant(variant['id'])['state']==state
 
 

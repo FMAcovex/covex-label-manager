@@ -16,11 +16,11 @@ from PySide6.QtGui import QColor, QPen, QBrush
 from PySide6.QtWidgets import (
     QDialogButtonBox, QWidget, QHBoxLayout, QFormLayout, QLineEdit,
     QListWidget, QMessageBox, QCheckBox, QDoubleSpinBox, QGraphicsScene,
-    QGraphicsView, QGraphicsItem, QInputDialog,
+    QGraphicsView, QGraphicsItem, QInputDialog, QScrollArea, QSplitter,
 )
 
 from .window import label, button, vbox, pixmap, Preview
-from .responsive import AdaptiveDialog
+from .responsive import AdaptiveDialog, accessible_form
 from .resize_item import ResizableRect
 from ..status_design import validate_layout, StatusDesignError, MAX_FIELDS
 
@@ -139,12 +139,14 @@ class StatusFieldsDialog(AdaptiveDialog):
         self.image_size = self.image.size
         self.shapes = []
         self.busy = False
+        self.property_index = -1
+        self.undo_states = [];self.redo_states = []
         self.setWindowTitle("Editor visual · " + revision["kind"] +
                             " · revisión " + revision["revision"])
         self.resize(1150, 760)
         root = vbox(self, 12, 9)
         root.addWidget(label(
-            "Campos variables: dibujar, mover y redimensionar con el ratón",
+            "Editor de campos variables · etiqueta de estado",
             "panelTitle"))
         help_text = label(
             "Los elementos fijos del Word/PDF no se modifican. "
@@ -153,27 +155,40 @@ class StatusFieldsDialog(AdaptiveDialog):
             "Solo se guarda el borrador de esta etiqueta.", "subtle")
         help_text.setWordWrap(True)
         root.addWidget(help_text)
-        body = QHBoxLayout()
-        self.view = StatusFieldsCanvas(self.add_field_from_drag)
-        self.view.scene().selectionChanged.connect(self.scene_selected)
-        body.addWidget(self.view, 3)
-        aside = QWidget()
-        panel = vbox(aside, 9, 9)
-        panel.addWidget(label("CAMPOS DE ESTA ETIQUETA", "section"))
+        body = QSplitter()
+        body.setChildrenCollapsible(False)
+        elements = QWidget();left = vbox(elements,8,6)
+        left.addWidget(label('ELEMENTOS','section'))
         self.items = QListWidget()
         self.items.currentRowChanged.connect(self.select_field)
-        panel.addWidget(self.items, 2)
-        actions = QHBoxLayout()
-        self.new_field_button = button("Dibujar campo…", self.new_field)
-        actions.addWidget(self.new_field_button)
-        actions.addWidget(button("Eliminar", self.remove_field))
-        panel.addLayout(actions)
+        self.items.setMinimumSize(130,80)
+        self.items.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.items.setTextElideMode(Qt.TextElideMode.ElideRight)
+        self.items.setStyleSheet('QListWidget::item { padding:7px 5px; }')
+        left.addWidget(button('Añadir campo',self.quick_add_field))
+        self.new_field_button = button('Dibujar campo',self.new_field)
+        left.addWidget(self.new_field_button)
+        self.delete_field_button = button('Eliminar campo',self.remove_field)
+        left.addWidget(self.delete_field_button)
+        left.addWidget(self.items,1)
+        elements.setMaximumWidth(205);body.addWidget(elements)
+        self.view = StatusFieldsCanvas(self.add_field_from_drag)
+        self.view.setMinimumSize(160,140)
+        self.view.scene().selectionChanged.connect(self.scene_selected)
+        body.addWidget(self.view)
+        from .workspace import EditorProperties
+        self.properties_scroll=QScrollArea();self.properties_scroll.setWidgetResizable(True)
+        aside = EditorProperties(self.properties_scroll,minimum=245,maximum=310)
+        panel = vbox(aside, 8, 6)
+        panel.addWidget(label('PROPIEDADES','section'))
         self.draw_hint = label(
             "Pulse «Dibujar campo» y arrastre un rectángulo directamente sobre la etiqueta.",
             "subtle")
         self.draw_hint.setWordWrap(True)
         panel.addWidget(self.draw_hint)
         properties = QFormLayout()
+        properties.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+        properties.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
         self.key = QLineEdit()
         self.name = QLineEdit()
         self.font_size = QDoubleSpinBox()
@@ -183,17 +198,34 @@ class StatusFieldsDialog(AdaptiveDialog):
         self.required = QCheckBox("Obligatorio")
         properties.addRow("Identificador", self.key)
         properties.addRow("Nombre", self.name)
+        self.spins = {}
+        for key, caption in [('x','Posición X'),('y','Posición Y'),('w','Anchura'),('h','Altura')]:
+            entry=QDoubleSpinBox();entry.setRange(0,10000);entry.setDecimals(3)
+            entry.setSuffix(' mm');entry.setKeyboardTracking(False)
+            self.spins[key]=entry;properties.addRow(caption,entry)
         properties.addRow("Tamaño original (pt)", self.font_size)
         properties.addRow("Estilo", self.bold)
         properties.addRow("Validación", self.required)
+        accessible_form(properties)
         panel.addLayout(properties)
         panel.addWidget(button("Aplicar propiedades", self.apply_properties))
         self.geometry_note = label("", "subtle")
         self.geometry_note.setWordWrap(True)
         panel.addWidget(self.geometry_note)
+        panel.addWidget(self.draw_hint)
         panel.addStretch()
-        body.addWidget(aside, 2)
-        root.addLayout(body, 1)
+        self.properties_scroll.setWidget(aside);body.addWidget(self.properties_scroll)
+        aside.ensurePolished();aside.fit_width()
+        body.setSizes([170,600,270]);body.setStretchFactor(1,1)
+        tools=QHBoxLayout()
+        self.undo_button=button('Deshacer',self.undo_edit);self.redo_button=button('Rehacer',self.redo_edit)
+        tools.addWidget(self.undo_button);tools.addWidget(self.redo_button)
+        tools.addWidget(button('Ajustar a pantalla',self.fit))
+        tools.addWidget(button('−',lambda:self.view.zoom(1/1.2)))
+        tools.addWidget(button('+',lambda:self.view.zoom(1.2)))
+        root.addLayout(tools)
+        root.addWidget(label('Tipo de etiqueta: '+{'aprobado':'Aprobado','rechazado':'Rechazado','sin_analizar':'Sin analizar'}[revision['kind']]+' · Revisión '+revision['revision']+' · Borrador editable. El tipo no indica aprobación documental.','subtle'))
+        root.addWidget(body, 1)
         footer = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save |
             QDialogButtonBox.StandardButton.Cancel)
@@ -202,8 +234,17 @@ class StatusFieldsDialog(AdaptiveDialog):
         footer.accepted.connect(self.save)
         footer.rejected.connect(self.reject)
         root.addWidget(footer)
+        # This editor already has a dedicated property scroll and a flexible
+        # three-zone splitter. Do not wrap the whole canvas in another scroll:
+        # that would size it to an off-screen body instead of the viewport.
+        self._adaptive_ready = True
+        self.footer_widgets = [footer]
+        for entry in (self.key,self.name,self.font_size,*self.spins.values()):
+            entry.editingFinished.connect(self.commit_properties)
+        for check in (self.bold,self.required):
+            check.toggled.connect(self.commit_properties)
         self.draw()
-        QTimer.singleShot(0, self.fit)
+        QTimer.singleShot(0, self, self.fit)
 
     def fit(self):
         self.view.fit()
@@ -211,12 +252,14 @@ class StatusFieldsDialog(AdaptiveDialog):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if hasattr(self, "view") and not self.view.sceneRect().isEmpty():
-            QTimer.singleShot(0, self.fit)
+            QTimer.singleShot(0, self, self.fit)
 
     def draw(self, selected=None):
         if selected is None:
             selected = self.items.currentRow() if hasattr(self, "items") else -1
         self.busy = True
+        self.property_index = -1
+        self.view.end_draw()
         scene = self.view.scene()
         scene.clear()
         scene.addPixmap(pixmap(self.image))
@@ -228,12 +271,14 @@ class StatusFieldsDialog(AdaptiveDialog):
                                      self.image_size, self.moved)
             scene.addItem(shape)
             self.shapes.append(shape)
-            self.items.addItem(field["label"] + "  ·  " + field["key"])
+            self.items.addItem(field["label"] + "  ·  " + field["key"]+(' · obligatorio' if field['required'] else ''))
+            self.items.item(index).setToolTip(self.items.item(index).text())
         self.busy = False
         if self.shapes:
             self.items.setCurrentRow(max(0, min(selected, len(self.shapes)-1)))
         else:
             self.select_field(-1)
+        self.undo_button.setEnabled(bool(self.undo_states));self.redo_button.setEnabled(bool(self.redo_states))
 
     def scene_selected(self):
         if self.busy:
@@ -246,12 +291,18 @@ class StatusFieldsDialog(AdaptiveDialog):
     def select_field(self, index):
         if self.busy:
             return
+        if self.property_index != index and not self.apply_properties():
+            self.busy=True;self.items.setCurrentRow(self.property_index)
+            for shape in self.shapes:shape.setSelected(shape.index==self.property_index)
+            self.busy=False
+            return
         self.busy = True
+        self.property_index = index
         for shape in self.shapes:
             shape.setSelected(shape.index == index)
         valid = 0 <= index < len(self.design["fields"])
         for widget in (self.key, self.name, self.font_size,
-                       self.bold, self.required):
+                       self.bold, self.required, *self.spins.values()):
             widget.setEnabled(valid)
         if valid:
             field = self.design["fields"][index]
@@ -260,12 +311,33 @@ class StatusFieldsDialog(AdaptiveDialog):
             self.font_size.setValue(field["font_size"])
             self.bold.setChecked(field["bold"])
             self.required.setChecked(field["required"])
+            self.load_geometry(index)
             self.show_geometry(index)
         else:
             self.key.clear()
             self.name.clear()
             self.geometry_note.setText("Dibuje un campo o seleccione uno existente.")
         self.busy = False
+        self.delete_field_button.setEnabled(valid)
+
+    def load_geometry(self,index):
+        r=self.design['fields'][index]['rect'];mm=25.4/72
+        for key,value in zip(('x','y','w','h'),(r[0]-self.crop[0],r[1]-self.crop[1],r[2]-r[0],r[3]-r[1])):
+            self.spins[key].setValue(value*mm)
+        self.geometry_reference={k:e.value() for k,e in self.spins.items()}
+
+    def remember(self,before):
+        if before==self.design:return
+        self.undo_states.append(before);self.undo_states=self.undo_states[-100:];self.redo_states.clear()
+        self.undo_button.setEnabled(True);self.redo_button.setEnabled(False)
+
+    def undo_edit(self):
+        if not self.apply_properties() or not self.undo_states:return
+        self.redo_states.append(copy.deepcopy(self.design));self.design=self.undo_states.pop();self.draw()
+
+    def redo_edit(self):
+        if not self.apply_properties() or not self.redo_states:return
+        self.undo_states.append(copy.deepcopy(self.design));self.design=self.redo_states.pop();self.draw()
 
     def show_geometry(self, index):
         r = self.design["fields"][index]["rect"]
@@ -276,9 +348,10 @@ class StatusFieldsDialog(AdaptiveDialog):
             "Coordenadas respecto a la página fuente.")
 
     def apply_properties(self):
-        index = self.items.currentRow()
+        index = self.property_index
         if not 0 <= index < len(self.design["fields"]):
             return True
+        for entry in (*self.spins.values(),self.font_size):entry.interpretText()
         key = self.key.text().strip()
         name = self.name.text().strip()
         if (not re.fullmatch(r"[a-z][a-z0-9_]{0,39}", key)
@@ -291,13 +364,29 @@ class StatusFieldsDialog(AdaptiveDialog):
             QMessageBox.warning(self, "Nombre incorrecto",
                                 "Indique un nombre entre 1 y 80 caracteres.")
             return False
-        field = self.design["fields"][index]
+        before=copy.deepcopy(self.design);candidate=copy.deepcopy(self.design)
+        field = candidate["fields"][index]
         field.update(key=key, label=name,
                      font_size=self.font_size.value(),
                      bold=self.bold.isChecked(),
                      required=self.required.isChecked())
+        if any(entry.value()!=self.geometry_reference[k] for k,entry in self.spins.items()):
+            x,y,w,h=(self.spins[k].value()*72/25.4 for k in ('x','y','w','h'))
+            field['rect']=[self.crop[0]+x,self.crop[1]+y,self.crop[0]+x+w,self.crop[1]+y+h]
+        try:
+            with fitz.open(self.pdf) as document:validate_layout(candidate,document)
+        except (ValueError,OSError,RuntimeError) as ex:
+            QMessageBox.warning(self,'Cambio no realizado',str(ex));return False
+        self.design=candidate;self.remember(before)
         self.items.item(index).setText(name + "  ·  " + key)
+        shape=self.shapes[index];sx=self.image_size[0]/(self.crop[2]-self.crop[0]);sy=self.image_size[1]/(self.crop[3]-self.crop[1])
+        r=field['rect'];shape.setPos((r[0]-self.crop[0])*sx,(r[1]-self.crop[1])*sy)
+        shape.setRect(0,0,(r[2]-r[0])*sx,(r[3]-r[1])*sy);shape.position_handles()
+        self.load_geometry(index);self.show_geometry(index)
         return True
+
+    def commit_properties(self,*_):
+        if not self.busy:return self.apply_properties()
 
     def moved(self, index):
         if not 0 <= index < len(self.shapes):
@@ -310,10 +399,27 @@ class StatusFieldsDialog(AdaptiveDialog):
                 self.crop[1]+bounding.top()*sy,
                 self.crop[0]+bounding.right()*sx,
                 self.crop[1]+bounding.bottom()*sy]
-        self.design["fields"][index]["rect"] = rect
+        before=copy.deepcopy(self.design)
+        candidate=copy.deepcopy(self.design)
+        candidate['fields'][index]['rect']=rect
+        try:
+            with fitz.open(self.pdf) as document:validate_layout(candidate,document)
+        except (ValueError,OSError,RuntimeError) as ex:
+            # A native item/handle release is still on the C++ stack. Restore
+            # this item in place; never redraw/delete it inside that callback.
+            r=before['fields'][index]['rect']
+            shape.setPos((r[0]-self.crop[0])/sx,(r[1]-self.crop[1])/sy)
+            shape.setRect(0,0,(r[2]-r[0])/sx,(r[3]-r[1])/sy)
+            shape.position_handles()
+            self.draw_hint.setText('Cambio no realizado: '+str(ex))
+            return
+        self.design=candidate
+        self.remember(before)
+        self.load_geometry(index)
         self.show_geometry(index)
 
     def new_field(self):
+        if not self.apply_properties():return
         if self.view.drawing:
             self.view.end_draw()
             self.new_field_button.setText("Dibujar campo…")
@@ -328,7 +434,22 @@ class StatusFieldsDialog(AdaptiveDialog):
             "Arrastre con el botón izquierdo sobre la etiqueta para crear el campo. "
             "Después puede moverlo o redimensionarlo con sus asas.")
 
+    def quick_add_field(self):
+        if not self.apply_properties():return
+        # Find a free default box; never create overlapping fields silently.
+        width=self.image_size[0]*.35;height=self.image_size[1]*.12
+        for y in range(0,9):
+            for x in range(0,6):
+                region=QRectF(x*self.image_size[0]*.1,y*self.image_size[1]*.1,width,height)
+                if not self.view.sceneRect().contains(region):continue
+                if any(shape.mapRectToScene(shape.rect()).intersects(region) for shape in self.shapes):continue
+                self.add_field_from_drag(region);return
+        self.draw_hint.setText('No queda espacio para un campo propuesto. Utilice «Dibujar campo» en una zona libre.')
+
     def add_field_from_drag(self, region):
+        if not self.apply_properties():return
+        if len(self.design['fields'])>=MAX_FIELDS:
+            QMessageBox.warning(self,'Número de campos','Se ha alcanzado el máximo de campos.');return
         sx = (self.crop[2] - self.crop[0]) / self.image_size[0]
         sy = (self.crop[3] - self.crop[1]) / self.image_size[1]
         rect = [self.crop[0] + region.left() * sx,
@@ -344,16 +465,23 @@ class StatusFieldsDialog(AdaptiveDialog):
         existing = {field["key"] for field in self.design["fields"]}
         while f"campo_{n}" in existing:
             n += 1
+        before=copy.deepcopy(self.design)
         self.design["fields"].append({
             "key": f"campo_{n}", "label": f"Campo {n}",
             "rect": rect, "font_size": 10.0, "bold": False, "required": False,
         })
+        try:
+            with fitz.open(self.pdf) as document:validate_layout(self.design,document)
+        except (ValueError,OSError,RuntimeError) as ex:
+            self.design=before;self.draw_hint.setText(str(ex));return
+        self.remember(before)
         self.draw(len(self.design["fields"])-1)
         self.draw_hint.setText(
             "Campo creado. Edite el nombre y las propiedades, pulse Aplicar propiedades "
             "y finalmente Guardar diseño borrador.")
 
     def remove_field(self):
+        if not self.apply_properties():return
         i = self.items.currentRow()
         if not 0 <= i < len(self.design["fields"]):
             return
@@ -366,7 +494,9 @@ class StatusFieldsDialog(AdaptiveDialog):
             QMessageBox.StandardButton.Cancel,
         )
         if result == QMessageBox.StandardButton.Yes:
+            before=copy.deepcopy(self.design)
             self.design["fields"].pop(i)
+            self.remember(before)
             self.draw(i-1)
 
     def save(self):
@@ -387,6 +517,7 @@ class StatusFieldsDialog(AdaptiveDialog):
 
     def reject(self):
         import json
+        for entry in (*self.spins.values(),self.font_size):entry.interpretText()
         original = json.loads(self.revision["layout_json"])
         index = self.items.currentRow()
         properties_changed = False
@@ -397,6 +528,7 @@ class StatusFieldsDialog(AdaptiveDialog):
                 self.font_size.value() != field["font_size"],
                 self.bold.isChecked() != field["bold"],
                 self.required.isChecked() != field["required"]))
+            properties_changed=properties_changed or any(e.value()!=self.geometry_reference[k] for k,e in self.spins.items())
         if self.design != original or properties_changed:
             choice = QMessageBox.question(self, "Diseño sin guardar",
                 "Hay cambios sin guardar. ¿Desea guardar el borrador antes de cerrar?",

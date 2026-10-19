@@ -1,7 +1,29 @@
 """Presentation of the retained Editor, with all existing controller objects."""
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QEvent
 from PySide6.QtWidgets import (QWidget, QTabWidget, QBoxLayout, QPushButton, QScrollArea,
-    QComboBox, QVBoxLayout, QLabel)
+    QComboBox, QVBoxLayout, QLabel, QFormLayout, QHBoxLayout, QFrame, QSizePolicy)
+
+
+class EditorProperties(QFrame):
+    """Reserve the actual control minimum, including native font/style metrics."""
+    def __init__(self, scroll, minimum=260, maximum=320):
+        super().__init__();self.scroll=scroll
+        self.minimum_panel_width=minimum;self.maximum_panel_width=maximum
+
+    def event(self, event):
+        result=super().event(event)
+        if event.type() in (QEvent.Type.LayoutRequest, QEvent.Type.FontChange,
+                            QEvent.Type.StyleChange, QEvent.Type.PolishRequest):
+            self.fit_width()
+        return result
+
+    def fit_width(self):
+        scroll=getattr(self,'scroll',None)
+        if scroll is None or self.layout() is None:return
+        required=max(self.minimum_panel_width,self.minimumSizeHint().width()+
+                     scroll.verticalScrollBar().sizeHint().width()+2*scroll.frameWidth())
+        scroll.setMaximumWidth(max(self.maximum_panel_width,required))
+        scroll.setMinimumWidth(required)
 
 
 def arrange_editor(window):
@@ -19,9 +41,11 @@ def arrange_editor(window):
     variant_row.setDirection(QBoxLayout.Direction.LeftToRight)
     variant_row.itemAt(0).widget().hide()
     variant_menu=variant_row.itemAt(variant_row.count()-1).widget()
-    variant_menu.setText('⋯');variant_menu.setToolTip('Gestionar variantes de diseño')
+    variant_menu.setText('Gestionar variantes');variant_menu.setToolTip('Gestionar variantes de diseño')
+    w.editor_variant_menu_button = variant_menu
     variant_menu.setAccessibleName('Gestionar variantes de diseño')
-    w.properties_scroll.widget().layout().insertLayout(1, variant_row)
+    # A named command gets its own row; never squeeze the selector beside an ellipsis.
+    variant_row.removeWidget(variant_menu)
     w.editor_variant_selector.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
     w.editor_variant_selector.setMinimumContentsLength(6)
     w.editor_variant_selector.setAccessibleName('Variante de diseño del Editor')
@@ -30,8 +54,7 @@ def arrange_editor(window):
     toolbar.removeWidget(w.editor_reset_button)
     w.editor_advanced.layout().addWidget(w.editor_reset_button)
     outer.removeWidget(w.save_button)
-    toolbar.addWidget(w.save_button)
-    w.undo_button.setText('↶');w.redo_button.setText('↷')
+    w.undo_button.setText('Deshacer');w.redo_button.setText('Rehacer')
     w.undo_button.setAccessibleName('Deshacer cambio de diseño')
     w.redo_button.setAccessibleName('Rehacer cambio de diseño')
     w.undo_button.setToolTip('Deshacer (Ctrl+Z)')
@@ -60,13 +83,73 @@ def arrange_editor(window):
     w.editor_tip.setText('El PDF fijo está protegido. Seleccione un campo para editar sus propiedades.')
     w.editor_title.setStyleSheet('font-size:20px;')
     w.editor_note.hide()
-    w.editor_tools.setMinimumWidth(175);w.editor_tools.setMaximumWidth(245)
-    w.tools_scroll.setMinimumWidth(185);w.tools_scroll.setMaximumWidth(255)
-    w.properties_scroll.setMinimumWidth(245);w.properties_scroll.setMaximumWidth(340)
+    w.new_field_button.setText('Añadir campo')
+    w.delete_field_button = next(b for b in w.design_buttons if b.text() == 'Quitar campo')
+    w.delete_field_button.setText('Eliminar campo')
+    w.field_action_bar.layout().insertWidget(2, w.delete_field_button)
+    # Essential properties leave the collapsed technical sections. Keep all
+    # original widgets, signals, controllers and documentary checks.
+    previous_properties = w.properties_scroll.takeWidget()
+    properties = EditorProperties(w.properties_scroll);properties.setObjectName('editorProperties')
+    pl = QVBoxLayout(properties);pl.setContentsMargins(10, 8, 10, 8);pl.setSpacing(7)
+    pl.addWidget(QLabel('PROPIEDADES'))
+    w.field_title.setStyleSheet('font-size:15px;font-weight:700;')
+    pl.addWidget(w.field_title)
+    form = QFormLayout();form.setSpacing(5)
+    form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+    # Windows font metrics and enlarged text must wrap labels above controls,
+    # rather than force the narrow properties panel to scroll horizontally.
+    form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+    form.addRow('Nombre visible', w.name_input)
+    w.key_label = QLabel('Identificador');form.addRow(w.key_label, w.key_input)
+    for key, text in [('x','Posición X'),('y','Posición Y'),('w','Anchura'),('h','Altura')]:
+        w.spins[key].setKeyboardTracking(False)
+        form.addRow(text, w.spins[key])
+    w.font_size.setKeyboardTracking(False)
+    form.addRow('Tamaño de texto', w.font_size)
+    form.addRow(w.bold);form.addRow(w.required);form.addRow(w.locked)
+    form.addRow('Modo de texto', w.draw_mode);pl.addLayout(form)
+    pl.addWidget(QLabel('VARIANTE DE DISEÑO'))
+    pl.addLayout(variant_row);pl.addWidget(variant_menu)
+    pl.addStretch()
+    w.properties_scroll.setWidget(properties)
+    previous_properties.deleteLater()
+    # Plain technical headings stay discoverable; only the specialized bodies
+    # fold. Essential field properties do not depend on this switch.
+    w.editor_advanced_button.setChecked(True);w.editor_advanced.show()
+    w.editor_advanced_button.setToolTip('Mostrar u ocultar las herramientas técnicas de documento y composición. Las propiedades del campo permanecen accesibles.')
+    w.field_list.setMinimumHeight(100)
+    w.field_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+    w.field_list.setTextElideMode(Qt.TextElideMode.ElideRight)
+    w.field_list.setStyleSheet('QListWidget::item { padding:7px 5px; }')
+    w.editor_tools.layout().removeWidget(w.field_list)
+    w.editor_tools.layout().insertWidget(2,w.field_list,1)
+    for note in w.editor_tools.findChildren(QLabel):
+        if note.text()=='Campos':note.hide()
+    w.editor_tip.setToolTip(w.editor_tip.text());w.editor_tip.hide()
+    w.editor_tools.setMinimumWidth(165);w.editor_tools.setMaximumWidth(210)
+    w.editor_tools.layout().setContentsMargins(8,8,8,8);w.editor_tools.layout().setSpacing(6)
+    w.tools_scroll.setMinimumWidth(175);w.tools_scroll.setMaximumWidth(220)
+    w.properties_scroll.setMinimumWidth(260);w.properties_scroll.setMaximumWidth(320)
+    for control in properties.findChildren(QWidget):
+        if isinstance(control,(QComboBox,)):
+            control.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed)
+    properties.ensurePolished();properties.fit_width()
+    # Durable save/status footer is outside BOTH scroll areas and work tabs.
+    footer = QWidget();footer.setObjectName('editorFooter')
+    fl = QHBoxLayout(footer);fl.setContentsMargins(2,2,2,2);fl.setSpacing(8)
+    w.editor_document_note = QLabel();w.editor_document_note.setWordWrap(True)
+    fl.addWidget(w.editor_document_note, 2);fl.addWidget(w.edit_status, 1);fl.addWidget(w.save_button)
+    last = outer.takeAt(outer.count()-1)
+    if last.widget():
+        # Removal from a layout does not hide a parented QLabel. Hide the old
+        # work note immediately; deferred deletion may wait until the event loop.
+        last.widget().hide();last.widget().deleteLater()
+    outer.addWidget(footer)
     split = w.canvas.parentWidget()
     w.editor_context = QTabWidget()
-    w.editor_context.setMinimumWidth(255)
-    w.editor_context.addTab(w.properties_scroll, 'Campo y variante')
+    w.editor_context.setMinimumWidth(270)
+    w.editor_context.addTab(w.properties_scroll, 'Propiedades')
     # Retain the dock's enable/disable contract, but contain it inside Editor.
     w.removeDockWidget(w.work_dock)
     w.work_dock.setParent(w.editor_context)
@@ -79,7 +162,8 @@ def arrange_editor(window):
     w.editor_context.addTab(work_scroll, 'Trabajo de lote')
     w.editor_context.currentChanged.connect(lambda index: w.work_dock.setVisible(index == 1))
     split.addWidget(w.editor_context)
-    split.setSizes([190, 900, 285])
+    split.setChildrenCollapsible(False)
+    split.setSizes([185, 900, 285])
     w.editor_split = split
     w.work_dock.hide()
     for layout in (outer, toolbar):

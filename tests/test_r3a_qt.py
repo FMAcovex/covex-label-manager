@@ -1,24 +1,70 @@
 """Optional Qt regression suite; all data and PDFs are fictional and isolated."""
 import copy
 import json
+import atexit
+from functools import lru_cache
+from pathlib import Path
+import shutil
+import tempfile
 import pytest
 pytest.importorskip('PySide6')
+from PySide6.QtCore import QCoreApplication,QEvent
 from PySide6.QtWidgets import QApplication,QMessageBox
 from covex_label_manager.qt_ui.demo import DemoSession
+from covex_label_manager.qt_transition import TransitionServices
+from covex_label_manager.storage import Store
 from covex_label_manager.qt_ui.functional import FunctionalWindow
 from covex_label_manager.qt_legacy import launch_legacy
+
+
+@lru_cache(maxsize=1)
+def _prepared_demo():
+    """Build the complete real synthetic library once, then close its SQLite DB.
+
+    GUI tests do not need to repeat fresh v3→v4 setup for every widget assertion.
+    Constructor/migration tests still call DemoSession/Store directly.
+    """
+    seed=DemoSession()
+    assert seed.services._repository.db.execute('PRAGMA user_version').fetchone()[0]==4
+    assert seed.services._repository.db.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
+    seed.services.close()
+    atexit.register(seed.temp.cleanup)
+    return seed
+
+
+class IsolatedDemoSession(DemoSession):
+    """Private full-file copy, never a shared DB, hard link, or mock service."""
+    def __init__(self):
+        seed=_prepared_demo()
+        self.temp=tempfile.TemporaryDirectory(prefix='covex_qt_fictional_')
+        self.root=Path(self.temp.name)
+        shutil.copytree(seed.root,self.root,dirs_exist_ok=True)
+        self.services=TransitionServices(Store(self.root/'demo-data',seed=False))
+        self.initial_id=seed.initial_id
+
 
 @pytest.fixture
 def studio():
     app=QApplication.instance() or QApplication([])
-    session=DemoSession();session.fictional=True
+    # Match main_qt.py, including on Windows: native platform events, Fusion UI.
+    # Changing the global style midway through a suite repolishes live widgets.
+    if app.style().objectName().lower()!='fusion':app.setStyle('Fusion')
+    session=IsolatedDemoSession();session.fictional=True
     w=FunctionalWindow(session);w.show();app.processEvents()
     yield w,session,app
     if getattr(w,'preview_timer',None):w.preview_timer.stop();w.preview_pending=False
     if getattr(w,'preview_task',None):
         assert w.preview_task.wait(30000)
         app.processEvents()
-    w.dirty=False;w.legacy_process=None;w.legacy_timer.stop();w.poll_timer.stop();w.hide();w.deleteLater();app.processEvents();session.close()
+    w.dirty=False;w.legacy_process=None;w.legacy_timer.stop();w.poll_timer.stop()
+    for name in ('work_timer','_gesture_redraw'):
+        timer=getattr(w,name,None)
+        if timer is not None:timer.stop()
+    w.hide();w.deleteLater()
+    # processEvents() alone does not deliver DeferredDelete without app.exec().
+    # Destroy native widgets before releasing SQLite and the synthetic session.
+    QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
+    app.processEvents();session.close()
 
 def test_filter_preference_and_hidden_summary(studio):
     w,s,app=studio
