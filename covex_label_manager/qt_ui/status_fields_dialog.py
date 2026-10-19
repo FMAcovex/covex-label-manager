@@ -226,6 +226,7 @@ class StatusFieldsDialog(AdaptiveDialog):
         self.pdf_preview=EditorPdfPane(api);self.preview_stack=canvas_pdf_stack(self.view,self.pdf_preview)
         body.replaceWidget(index,self.preview_stack);placeholder.hide();placeholder.deleteLater()
         self.pdf_timer=QTimer(self);self.pdf_timer.setSingleShot(True);self.pdf_timer.timeout.connect(self.refresh_pdf)
+        self.finished.connect(self.pdf_timer.stop)
         tools=QHBoxLayout()
         self.undo_button=button('Deshacer',self.undo_edit);self.redo_button=button('Rehacer',self.redo_edit)
         tools.addWidget(self.undo_button);tools.addWidget(self.redo_button)

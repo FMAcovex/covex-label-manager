@@ -159,7 +159,7 @@ def test_trial_rejects_fixed_artwork_identity_and_locked_geometry(work):
         with pytest.raises(ValueError):apply_trial(v,dict(contract=1,fields={key:patch}))
     fields=json.loads(v['fields_json']);next(f for f in fields if f['key']=='lote')['locked']=True
     v['fields_json']=json.dumps(fields)
-    with pytest.raises(ValueError,match='bloqueada'):apply_trial(v,dict(contract=1,fields={'lote':{'x':.1}}))
+    with pytest.raises(ValueError,match='Campo bloqueado: lote'):apply_trial(v,dict(contract=1,fields={'lote':{'x':.1}}))
 
 
 def test_combined_explicit_fit_keeps_documentary_identity_and_records_transform(context,tmp_path):
@@ -242,3 +242,20 @@ def test_tiny_fixed_source_text_warns_in_proof_and_blocks_definitive(tmp_path):
         assert any('Texto fijo demasiado pequeño' in warning for warning in report['warnings'])
         with pytest.raises(ValueError,match='Texto fijo demasiado pequeño'):
             paint_status(page,src,layout,{},fitz.Rect(0,120,200,220),strict=True)
+
+
+def test_trial_move_preserves_anchor_mask_and_continuation_contracts(work):
+    api,w=work;v=dict(api.version(w['binding']['revision_id']))
+    fields=json.loads(v['fields_json']);field=next(f for f in fields if f['key']=='lote')
+    field['locked']=False;field['anchor']={'dx_pt':1.5,'dy_pt':0}
+    field['erase']=[field['x'],field['y'],.05,.02]
+    field['second_x']=field['x'];field['next_w']=.05
+    before=deepcopy(field);v['fields_json']=json.dumps(fields)
+    delta=-.005 if field['x']>.005 else .005
+    effective=apply_trial(v,dict(contract=1,fields={'lote':{'x':field['x']+delta}}))
+    changed=next(f for f in json.loads(effective['fields_json']) if f['key']=='lote')
+    width=json.loads(v['crop_json'])[2]-json.loads(v['crop_json'])[0]
+    assert changed['erase'][0]==pytest.approx(before['erase'][0]+delta)
+    assert changed['second_x']==pytest.approx(before['second_x']+delta)
+    assert changed['anchor']['dx_pt']==pytest.approx(before['anchor']['dx_pt']+delta*width)
+    assert json.loads(v['fields_json'])==fields # no original layout mutation

@@ -185,13 +185,18 @@ def validate_trial(trial):
 
 def apply_trial(version, trial):
     """Appearance only, no variable values/source/fixed artwork changes."""
-    from .editor_layout import layout_from_version, version_with_layout, validate_layout, check_locked_changes
+    from .editor_layout import layout_from_version, version_with_layout, validate_layout, check_locked_changes, move_field
     validate_trial(trial)
     before = layout_from_version(version); after = deepcopy(before)
     indexed = {field['key']:field for field in after['fields']}
     for key, patch in trial['fields'].items():
         if key not in indexed:raise ValueError('Campo variable de prueba inexistente: '+key)
-        indexed[key].update(deepcopy(patch))
+        field=indexed[key]
+        # Use the existing geometry command so a moved anchored field carries
+        # its offset, continuation and authorized mask WITH it into a variant.
+        # Direct assignment would leave those contracts at the old position.
+        move_field(field,patch.get('x',field['x'])-field['x'],patch.get('y',field['y'])-field['y'],after['crop'])
+        field.update(deepcopy(patch))
         if 'typography' in patch and patch['typography'] is None:indexed[key].pop('typography',None)
     validate_layout(after); check_locked_changes(before, after)
     return version_with_layout(version, after)

@@ -66,10 +66,13 @@ def test_new_appearance_controls_reachable_and_scene_survives(studio,width,heigh
 
 def test_editor_real_pdf_preserves_canvas_and_renders_sample(studio):
     w,s,app=studio;w.open_editor();item=w.field_items[0]
+    select(w.text_appearance.family,'sans')
     w.example_input.setText('SYN-EXAMPLE');w.example_input.editingFinished.emit()
     w.editor_pdf_toggle.setChecked(True);w.editor_pdf_timer.stop();w.refresh_editor_pdf()
     assert w.editor_pdf.path is not None
-    with fitz.open(w.editor_pdf.path) as doc:assert 'SYN-EXAMPLE' in doc[0].get_text() and 'PRUEBA' in doc[0].get_text()
+    with fitz.open(w.editor_pdf.path) as doc:
+        assert 'SYN-EXAMPLE' in doc[0].get_text() and 'PRUEBA' in doc[0].get_text()
+        assert any(font[4].startswith('R8C_') for font in doc[0].get_fonts())
     w.editor_pdf_toggle.setChecked(False);assert w.field_items[0] is item
 
 
@@ -159,4 +162,13 @@ def test_status_native_scene_teardown_does_not_call_deleted_shapes(studio,tmp_pa
     errors=[];monkeypatch.setattr(sys,'excepthook',lambda *args:errors.append(args))
     dialog.view.deleteLater();QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
     app.processEvents();assert not errors
+    dialog.deleteLater()
+
+
+def test_proof_timers_stop_on_dialog_close_and_runtime_shutdown(studio):
+    w,s,app=studio;make_work(w)
+    dialog=EmissionAppearanceDialog(w);dialog.timer.start(10000);dialog.reject()
+    assert not dialog.timer.isActive()
+    w.editor_pdf_timer.start(10000);w.shutdown_runtime()
+    assert not w.editor_pdf_timer.isActive()
     dialog.deleteLater()

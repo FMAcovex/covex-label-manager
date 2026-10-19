@@ -45,6 +45,7 @@ class EmissionAppearanceDialog(AdaptiveDialog):
         self.buttons.button(QDialogButtonBox.StandardButton.Apply).clicked.connect(self.apply)
         self.buttons.rejected.connect(self.reject);root.addWidget(self.buttons)
         self.timer=QTimer(self);self.timer.setSingleShot(True);self.timer.timeout.connect(self.preview)
+        self.finished.connect(self.timer.stop)
         self.field.currentIndexChanged.connect(self.load_field);self.font_size.valueChanged.connect(self.changed);self.bold.toggled.connect(self.changed);self.appearance.edited.connect(self.changed)
         self.load_field();self.preview()
 
@@ -93,7 +94,7 @@ class EmissionAppearanceDialog(AdaptiveDialog):
 
     def preview(self):
         try:
-            if not self.input_valid:return
+            if not self.input_valid or getattr(self.controller,'_runtime_shutting_down',False):return
             self.verify_origin()
             work=deepcopy(self.work);work['profile']=self.profile();profile,indices,count,copies=parameters(work)
             path=self.api.output_path('cache','r8c-appearance-'+uuid.uuid4().hex+'.pdf')

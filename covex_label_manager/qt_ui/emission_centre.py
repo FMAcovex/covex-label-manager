@@ -412,7 +412,7 @@ class EmissionCentreMixin:
         """
         from ..diagnostics import event
         self._runtime_shutting_down=True
-        for name in ('preview_timer', 'work_timer', 'legacy_timer', 'poll_timer', '_gesture_redraw'):
+        for name in ('preview_timer', 'work_timer', 'legacy_timer', 'poll_timer', '_gesture_redraw','editor_pdf_timer'):
             timer = getattr(self, name, None)
             if timer is not None:timer.stop()
         self.preview_pending=False

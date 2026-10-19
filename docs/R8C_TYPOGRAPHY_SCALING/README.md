@@ -31,6 +31,8 @@ Centro de emisión → **Ajustar apariencia del campo…**. Selección de campo 
 
 No hay rangos operativos de apariencia previamente autorizados en el contrato base. Por tanto **ningún** parche temporal se trata como autorizado para producción. Un ajuste vacío pero explícito tampoco concede aprobación. Los cambios externos, generación y token de vista previa siguen invalidando resultados obsoletos.
 
+Mover un campo temporal utiliza el comando geométrico existente: conserva conjuntamente desplazamiento de ancla, máscara autorizada y continuación al trasladarlo a variante. No se deja un ancla antigua que pueda revertir la posición al relocalizar posteriormente. El original y sus valores permanecen intactos; las regresiones comprueban las coordenadas auxiliares.
+
 ## R8C4 — escalado de estados
 
 Trabajo → Estado → Composición física:
@@ -87,6 +89,8 @@ Snapshots/PDF antiguos no se migran ni reinterpretan. Una reimpresión individua
 Windows usa backend nativo para interacciones/regresiones. Las capturas grandes exactas usan Qt **offscreen en Windows**, porque el escritorio alojado limita el tamaño de ventanas. Esto no sustituye aceptación física Windows 10/11, Word, impresora o validación GMP. Los controles antiguos source/frozen, importador, estabilidad R8A, R8B, variantes, Qt↔Tk e historial siguen en la CI.
 
 Primera CI Qt (`39220939672`): los 86 self-checks y regresiones nativas previas pasaron, pero la captura de Estados a 125 % solicitó 1068 px y recibió 1073 px. Se mantiene la aceptación exacta: el PDF inactivo deja de imponer su mínimo al lienzo y su barra de herramientas se reorganiza en dos filas en paneles estrechos, sin reducir letra ni retirar comandos. Se añaden regresiones de mínimo oculto, herramientas accesibles y destrucción de shapes/canvas nativos. No se cambia el límite temporal de los jobs ni se elimina ninguna comprobación histórica.
+
+Segunda CI (`39222467851`): resoluciones exactas R8B ya satisfactorias; la extracción de texto del ejemplo con **Arial histórica Windows** devolvió el guion como U+00AD. Se conserva esa ruta/métrica histórica. La regresión R8C selecciona explícitamente la nueva fuente embebida y sigue exigiendo `SYN-EXAMPLE` exacto, además de comprobar su recurso PDF R8C. La comparación de raster anterior/posterior sigue comprobando la ruta histórica sin normalizar caracteres ni omitir aserciones. Los nuevos temporizadores se detienen al cerrar diálogos y al apagar la sesión.
 
 ### Comparación visual y ejemplos PDF
 

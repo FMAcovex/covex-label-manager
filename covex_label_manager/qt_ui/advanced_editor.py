@@ -494,7 +494,7 @@ class AdvancedEditorMixin:
             self.editor_document_note.setToolTip('El original Word/PDF permanece protegido. '+('Edición permitida; guardar no aprueba.' if self.editable() else 'Diseño protegido. Cree una variante en borrador desde una revisión vigente para modificar los campos.'))
 
     def refresh_editor_pdf(self):
-        if self.design is None:return
+        if self.design is None or getattr(self,'_runtime_shutting_down',False):return
         try:
             profile=self.output_profile or dict(width_mm=self.editor_version['base_w_mm'],height_mm=self.editor_version['base_h_mm'],margin_mm=8,gap_mm=3,start_slot=1)
             examples={f['key']:f.get('example','') for f in self.design.state['fields'] if f['key'] not in ('texto_fijo','numero')}
