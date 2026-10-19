@@ -44,6 +44,7 @@ on:
       - 'tests/test_r8b*.py'
       - 'tests/test_r8c*.py'
       - 'tests/test_r8d*.py'
+      - 'tests/test_r8_rc2*.py'
       - 'scripts/r8d*.py'
       - 'covex_label_manager/typography.py'
       - 'covex_label_manager/status_scaling.py'
@@ -116,6 +117,11 @@ jobs:
         run: >-
           python -m pytest -q -o faulthandler_timeout=60
           --junitxml=test-results/acceptance-fixes.xml tests/test_r6b_acceptance_fixes_qt.py
+      - name: R8-RC2 acceptance correction regressions
+        timeout-minutes: 3
+        run: >-
+          python -m pytest -q -x -o faulthandler_timeout=45
+          --junitxml=test-results/r8-rc2.xml tests/test_r8_rc2_acceptance_qt.py
       - name: R8A privacy and native lifecycle regressions
         timeout-minutes: 3
         run: >-

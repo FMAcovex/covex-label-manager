@@ -187,6 +187,10 @@ class StatusManagerMixin:
         uid = self._library_status_uid() if hasattr(self, "table") else None
         if uid is None:
             self._active_status_uid = None
+            if hasattr(self,'inspector_editor_button'):self.inspector_editor_button.setText('Abrir en Editor')
+            for name in ('favorite_button','prepare_button','test_button','native_approval_button'):
+                control=getattr(self,name,None)
+                if control is not None:control.setVisible(True)
             if hasattr(self, "favorite_button"):
                 self.favorite_button.setEnabled(True)
             return super().selected()
@@ -235,6 +239,14 @@ class StatusManagerMixin:
                 ("Aprobación externa: " + rec["approval_ref"] if rec["approval_ref"]
                  else "Borrador/pendiente: emitir únicamente PDF de prueba."))
             self.favorite_button.setEnabled(False)
+            # Status revision operations live in the state manager. Do not show
+            # product-only inactive controls that appear broken on this selection.
+            for name in ('favorite_button','prepare_button','test_button','native_approval_button'):
+                control=getattr(self,name,None)
+                if control is not None:control.setVisible(False)
+            self.inspector_editor_button.setText('Consultar revisión de estado' if rec['state'] != 'DRAFT' else 'Editar borrador de estado')
+            self.inspector_editor_button.setToolTip('Abrir el gestor de estados y sus revisiones.' if rec['state'] != 'DRAFT' else 'Editar campos variables de esta revisión en borrador.')
+            self.inspector_editor_button.setEnabled(True)
             self.recheck_actions()
         except (ValueError, OSError, RuntimeError) as err:
             self._active_status_uid = uid
@@ -267,6 +279,7 @@ class StatusManagerMixin:
                     self, "Diseño protegido",
                     "Solo puede editar una revisión en Borrador.\n"
                     "En Estados → Nueva revisión podrá crear un borrador independiente.")
+                self.open_library_status(rec['kind'])
             return
         return super().open_editor()
 

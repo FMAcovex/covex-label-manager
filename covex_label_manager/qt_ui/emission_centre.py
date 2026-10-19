@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from PySide6.QtCore import Qt,QTimer
 from PySide6.QtWidgets import (QApplication,QWidget,QScrollArea,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
-    QDialog,QDialogButtonBox,QComboBox,QLineEdit,QMessageBox,QFileDialog,QInputDialog,QPushButton,QMenu)
+    QDialog,QDialogButtonBox,QComboBox,QLineEdit,QMessageBox,QFileDialog,QInputDialog,QPushButton,QMenu,QSizePolicy,QFrame)
 from .window import label,button,vbox,box
 from .responsive import AdaptiveDialog as QDialog
 from .work import WorkPanel
@@ -54,6 +54,23 @@ class EmissionCentreMixin:
         footer=box();self.emission_footer=footer;footer.setObjectName('emissionFooter');fl=vbox(footer,12,5)
         self.emission_summary=label('Sin trabajo seleccionado.','emissionSummary');self.emission_summary.setObjectName('emissionSummary');self.emission_summary.setWordWrap(True);fl.addWidget(self.emission_summary)
         self.emission_feedback=label('Guardar borrador no registra una emisión.','subtle');self.emission_feedback.setWordWrap(True);fl.addWidget(self.emission_feedback)
+        self.emission_blockers=label('','subtle');self.emission_blockers.setWordWrap(True);self.emission_blockers.setObjectName('emissionBlockers')
+        # Blocking reasons must remain accessible without consuming the PDF viewport
+        # at 1366x768 / 150% scaling. Scroll the full list instead of clipping it.
+        self.emission_blockers_scroll=QScrollArea()
+        self.emission_blockers_scroll.setObjectName('emissionBlockersScroll')
+        self.emission_blockers_scroll.setWidgetResizable(True)
+        self.emission_blockers_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.emission_blockers_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.emission_blockers_scroll.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Maximum)
+        self.emission_blockers_scroll.setWidget(self.emission_blockers)
+        fl.addWidget(self.emission_blockers_scroll)
+        self.compact_blockers_button=button('Ver motivos de bloqueo…',self.show_emission_blockers)
+        self.compact_blockers_button.setToolTip('Consultar los motivos completos sin reducir la vista previa del PDF.')
+        self.compact_blockers_button.hide();fl.addWidget(self.compact_blockers_button)
+        self.fit_status_button=button('Estado: volver a ajustar sin deformar',self.restore_fit_composition)
+        self.fit_status_button.setToolTip('Alternativa segura al recorte: conserva todo el contenido y puede dejar márgenes. Sólo modifica la composición del trabajo.')
+        self.fit_status_button.hide();fl.addWidget(self.fit_status_button)
         actions=QHBoxLayout();self.native_save=button('Guardar trabajo',self.flush_emission_work);actions.addWidget(self.native_save)
         self.native_proof=button('PDF de prueba',self.proof_emission_work);actions.addWidget(self.native_proof)
         self.native_options=button('Opciones…',self.work_options);actions.addWidget(self.native_options);actions.addStretch()
@@ -166,11 +183,12 @@ class EmissionCentreMixin:
         if not w:
             self._emission_document_full='Seleccione un trabajo o cree uno nuevo.'
             self.refresh_emission_caption()
-            self.emission_summary.setText('Sin trabajo seleccionado.');self.work_review=None;return None
+            self.emission_summary.setText('Sin trabajo seleccionado.');self.emission_blockers.setText('Emisión no disponible: seleccione un trabajo.');self.fit_status_button.hide();self.work_review=None;return None
         try:review=self.api.review_work(w['uid'],w['generation'])
         except (ValueError,OSError,sqlite3.Error) as ex:
             review={'errors':[{'target':'work','message':self.operator_error(ex),'recipient':None}], 'warnings':[], 'summary':None,'proof_allowed':False,'production_allowed':False}
         self.work_review=review
+        self.fit_status_button.setVisible(w['phase']=='DRAFT' and w.get('status',{}).get('composition',{}).get('mode')=='fill')
         b=w['binding'];v=self.api.version(b['revision_id']);variant=self.api.variant(b['variant_id']) if b['variant_id'] else None
         self._emission_document_full=f"{v['name']} · Revisión {v['version']} · "+(f"Variante {variant['code']}" if variant else 'Diseño heredado')+' · '+w['name']
         self.refresh_emission_caption()
@@ -185,8 +203,67 @@ class EmissionCentreMixin:
         self.native_proof.setEnabled(review['proof_allowed'] and not self.native_busy);self.preview_work_button.setEnabled(review['proof_allowed'] and not self.native_busy)
         valid=self.preview_matches(review)
         self.native_issue.setEnabled(review['production_allowed'] and valid and not self.work_preview['result']['warnings'] and not self.native_busy and not self.legacy_process and self.preview_task is None)
-        self.native_issue.setToolTip('Confirmar y registrar la emisión definitiva.' if valid else 'Espere la vista previa automática o revise los errores del trabajo.')
+        blockers=[item['message'] for item in review['errors']]
+        if not review['production_allowed'] and not blockers:
+            blockers.append('La revisión, variante o datos actuales no autorizan una emisión definitiva.')
+        if w['phase']!='DRAFT':blockers.append('Este trabajo ya no está en borrador.')
+        if w['profile'].get('trial_appearance'):
+            blockers.append('Hay ajustes de apariencia PRUEBA / NO GMP. Restaure el diseño o solicite aprobación documental.')
+        if self.work_dirty_panel:blockers.append('Hay cambios pendientes de guardar.')
+        if self.preview_task is not None:blockers.append('Se está calculando la vista previa.')
+        elif not valid:blockers.append('La vista previa PDF no está actualizada. Actualícela antes de emitir.')
+        if self.work_preview and self.work_preview['result'].get('warnings'):
+            blockers.extend(self.work_preview['result']['warnings'])
+        if self.native_busy or self.legacy_process:blockers.append('Hay una operación en curso.')
+        blockers=list(dict.fromkeys(str(s) for s in blockers if s))
+        self.emission_blockers.setText(
+            'No se puede emitir definitivamente:\n'+'\n'.join('• '+s for s in blockers)
+            if not self.native_issue.isEnabled() else 'Lista para emisión definitiva, previa confirmación.')
+        self.emission_blockers_scroll.setToolTip(self.emission_blockers.text())
+        self.compact_blockers_button.setText(
+            f'Ver motivos de bloqueo ({len(blockers)})…' if blockers else 'Estado: lista para emitir')
+        self.compact_blockers_button.setToolTip(self.emission_blockers.text())
+        self.native_issue.setToolTip('\n'.join(blockers) if blockers else 'Confirmar y registrar la emisión definitiva.')
         return review
+
+    def show_emission_blockers(self):
+        """Full reasons stay readable in compact mode without stealing PDF height."""
+        dialog=QDialog(self)
+        dialog.setWindowTitle('Estado y motivos de emisión')
+        dialog.resize(650,360)
+        layout=vbox(dialog,12,8)
+        explanation='\n\n'.join(part for part in (
+            self.emission_summary.text(),self.emission_feedback.text(),
+            self.emission_blockers.text()) if part)
+        detail=label(explanation,'subtle')
+        detail.setWordWrap(True)
+        detail.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        scroll=QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(detail)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        layout.addWidget(scroll,1)
+        close=QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        close.rejected.connect(dialog.reject)
+        layout.addWidget(close)
+        dialog.exec()
+
+    def restore_fit_composition(self):
+        """Explicit, lossless user choice; never alters an approved layout."""
+        if (self.native_busy or self.legacy_process or not self.emission_work
+                or self.emission_work['phase']!='DRAFT' or not self.flush_emission_work()):
+            return
+        try:
+            from copy import deepcopy
+            work=self.emission_work
+            status=deepcopy(work['status'])
+            if status.get('composition',{}).get('mode')!='fill':return
+            status['composition']['mode']='fit'
+            self.emission_work=self.api.work.save(work['uid'],work['generation'],{'status':status})
+            self.refresh_work_panels()
+            self.emission_feedback.setText(
+                'Ajustar sin deformar activado: el contenido permanece completo; pueden quedar márgenes. Compruebe el nuevo PDF.')
+        except (ValueError,OSError) as ex:self.emission_error(ex)
 
     def adjust_field_appearance(self):
         if self.native_busy or self.legacy_process or self.preview_task is not None or not self.emission_work or not self.flush_emission_work():return
@@ -377,6 +454,23 @@ class EmissionCentreMixin:
         footer_layout=self.emission_footer.layout()
         footer_layout.setContentsMargins(*(10,7,10,7) if compact else (12,12,12,12))
         footer_layout.setSpacing(3 if compact else 5)
+        # Both the warning list and the feedback can grow by several lines.
+        # Bound their height in compact mode and retain the entire warning list
+        # through the vertical scrollbar; do not shrink the PDF verification area.
+        self.emission_blockers_scroll.setMaximumHeight(48 if compact else 132)
+        self.emission_blockers_scroll.setVisible(not compact)
+        self.emission_feedback.setVisible(not compact)
+        self.compact_blockers_button.setVisible(compact)
+        self.compact_blockers_button.setStyleSheet('padding:3px 8px;' if compact else '')
+        self.emission_summary.setMaximumHeight(21 if compact else 16777215)
+        self.emission_summary.setVisible(not compact)
+        self.emission_summary.setToolTip(self.emission_summary.text())
+        self.compact_blockers_button.setToolTip(
+            '\n'.join(part for part in (self.emission_summary.text(),
+                self.emission_feedback.text(),self.emission_blockers.text()) if part))
+        self.emission_feedback.setToolTip(self.emission_feedback.text())
+        self.emission_pdf.note.setMaximumHeight(22 if compact else 16777215)
+        self.emission_pdf.note.setToolTip(self.emission_pdf.note.text())
         self.emission_summary.setStyleSheet('font-size:13px;' if compact else '')
         for action in (self.native_save,self.native_proof,self.native_options,self.native_issue,self.native_print):
             action.setStyleSheet('padding:6px 10px;' if compact else '')
