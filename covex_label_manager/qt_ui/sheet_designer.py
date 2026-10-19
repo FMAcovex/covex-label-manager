@@ -109,7 +109,7 @@ class SheetDesigner(QDialog):
         self.quantity_summary=label('','subtle');self.quantity_summary.setWordWrap(True)
         form.addRow(self.quantity_summary)
         for control in (self.vessel_count,self.copy_count):
-            control.valueChanged.connect(self.update_quantity_summary)
+            control.valueChanged.connect(self.quantities_changed)
         form.addRow(button('Distribuir estas posiciones',self.arrange))
         form.addRow(button('Ajustar automáticamente',self.auto_arrange))
         self.used_slots_button=button('Marcar casillas ya utilizadas…',self.mark_used_slots)
@@ -201,19 +201,29 @@ class SheetDesigner(QDialog):
             else:boxes=slots(self.profile)
             reserved=set(self.profile.get('occupied_slots',[]))
             start=int(self.profile.get('start_slot',1))
+            from ..emission_work import selection_indices
+            from ..sheet_layout import physical_placements
+            selected_count=len(selection_indices(
+                self.initial_quantities.get('selection',''),self.vessel_count.value()))
+            physical=selected_count*self.copy_count.value()
+            planned_first=set()
+            plan=plan_sheet(self.profile,1)
+            for page_number,slot_index in physical_placements(self.profile,plan.capacity,physical):
+                if page_number>0:break
+                planned_first.add(slot_index)
             for i,b in enumerate(boxes):
                 item=SlotItem(b,i,self,self.profile.get('layout_mode')=='free');scene.addItem(item);self.items.append(item)
                 if i+1<start or i+1 in reserved:
                     item.setBrush(QBrush(QColor(191,74,65,100)))
                     item.setPen(QPen(QColor('#AD4742'),.55))
-                if self.thumbnail:
+                if self.thumbnail and i in planned_first:
                     image=scene.addPixmap(pixmap(self.thumbnail));image.setParentItem(item);scale=min(b.width/self.thumbnail.width,b.height/self.thumbnail.height);image.setScale(scale);image.setPos((b.width-self.thumbnail.width*scale)/2,(b.height-self.thumbnail.height*scale)/2);image.setAcceptedMouseButtons(Qt.MouseButton.NoButton);image.setZValue(-1)
-                t=scene.addText(str(i+1)+(' · USADA' if i+1<start or i+1 in reserved else ''));t.setParentItem(item);t.setScale(.3);t.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+                t=scene.addText(str(i+1)+(' · USADA' if i+1<start or i+1 in reserved else ' · ETIQUETA' if i in planned_first else ' · VACÍA'));t.setParentItem(item);t.setScale(.3);t.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
             scene.setSceneRect(-12,-9,pw+20,ph+18)
             plan=plan_sheet(self.profile,1)
             from ..sheet_layout import available_first_page
             usable=available_first_page(self.profile,plan.capacity)
-            self.error.setText(f'{pw:g} × {ph:g} mm · {plan.capacity} posiciones / hoja · {len(usable)} libres en la primera hoja · casillas rojas = ocupadas · Zoom independiente del PDF')
+            self.error.setText(f'{pw:g} × {ph:g} mm · {plan.capacity} posiciones / hoja · {len(usable)} libres · {len(planned_first)} se imprimirán en la primera hoja · casillas rojas = ocupadas · Zoom independiente del PDF')
             self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(True)
         except (ValueError,KeyError,TypeError) as ex:
             self.error.setText('No se puede aplicar: '+str(ex));self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
@@ -258,6 +268,10 @@ class SheetDesigner(QDialog):
     def undo(self):self.history.undo();self.profile=copy.deepcopy(self.history.state);self.sync();self.redraw();self.update_quantity_summary()
     def redo(self):self.history.redo();self.profile=copy.deepcopy(self.history.state);self.sync();self.redraw();self.update_quantity_summary()
     def reset(self):self.push(copy.deepcopy(self.history.clean),'Restablecer')
+    def quantities_changed(self,*_):
+        self.update_quantity_summary()
+        self.redraw()
+
     def quantities(self):
         return {'count':str(self.vessel_count.value()),'copies':str(self.copy_count.value())}
 
