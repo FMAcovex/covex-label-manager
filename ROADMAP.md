@@ -1,5 +1,7 @@
 # COVEX Label Manager — Plan maestro vivo
 
+R8-RC1: #33–#36 fusionadas por el propietario; `main` `504e542b17bbb8bfe2210fca8c9e19016aa42970`, árbol idéntico a R8D validado. [Paquete operativo de aceptación](docs/R8_RC1_ACCEPTANCE/PRUEBAS_USUARIO.md), [revisión consolidada](docs/R8_RC1_ACCEPTANCE/REVISION_CONSOLIDADA.md) y [entrega técnica](docs/R8_RC1_ACCEPTANCE/ENTREGA.md). Fase sin nuevas funcionalidades; CI manuales y portable sobre main, no reutilización del build de rama. Aceptación humana, Word/impresora/Windows 10/11, licencias y GMP pendientes. Los párrafos siguientes conservan el estado histórico de sus fases.
+
 R8D: [Inicio por tareas y asistente de cuatro pasos](docs/R8D_GUIDED_WORKFLOW/README.md), base R8C `8859f21`. Mismo trabajo/CAS/PDF/servicios, Centro avanzado, 87 capacidades y SQLite v4. Cadena #33 → #34 → #35 → R8D sin fusionar. [Aceptación integral pendiente](docs/R8_INTEGRAL_ACCEPTANCE_PLAN.md); resultados finales en PR, sin aceptación funcional/GMP automática.
 
 Situación R6B-UX: [implementación UX-1/2/3 y evidencias](docs/R6B_UX_INTEGRATED/README.md),
