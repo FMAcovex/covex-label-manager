@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from PySide6.QtCore import Qt,QTimer
 from PySide6.QtWidgets import (QApplication,QWidget,QScrollArea,QHBoxLayout,QVBoxLayout,QFormLayout,QSplitter,
-    QDialog,QDialogButtonBox,QComboBox,QLineEdit,QMessageBox,QFileDialog,QInputDialog,QPushButton,QMenu)
+    QDialog,QDialogButtonBox,QComboBox,QLineEdit,QMessageBox,QFileDialog,QInputDialog,QPushButton,QMenu,QSizePolicy,QFrame)
 from .window import label,button,vbox,box
 from .responsive import AdaptiveDialog as QDialog
 from .work import WorkPanel
@@ -54,7 +54,17 @@ class EmissionCentreMixin:
         footer=box();self.emission_footer=footer;footer.setObjectName('emissionFooter');fl=vbox(footer,12,5)
         self.emission_summary=label('Sin trabajo seleccionado.','emissionSummary');self.emission_summary.setObjectName('emissionSummary');self.emission_summary.setWordWrap(True);fl.addWidget(self.emission_summary)
         self.emission_feedback=label('Guardar borrador no registra una emisión.','subtle');self.emission_feedback.setWordWrap(True);fl.addWidget(self.emission_feedback)
-        self.emission_blockers=label('','subtle');self.emission_blockers.setWordWrap(True);self.emission_blockers.setObjectName('emissionBlockers');fl.addWidget(self.emission_blockers)
+        self.emission_blockers=label('','subtle');self.emission_blockers.setWordWrap(True);self.emission_blockers.setObjectName('emissionBlockers')
+        # Blocking reasons must remain accessible without consuming the PDF viewport
+        # at 1366x768 / 150% scaling. Scroll the full list instead of clipping it.
+        self.emission_blockers_scroll=QScrollArea()
+        self.emission_blockers_scroll.setObjectName('emissionBlockersScroll')
+        self.emission_blockers_scroll.setWidgetResizable(True)
+        self.emission_blockers_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.emission_blockers_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.emission_blockers_scroll.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Maximum)
+        self.emission_blockers_scroll.setWidget(self.emission_blockers)
+        fl.addWidget(self.emission_blockers_scroll)
         self.fit_status_button=button('Estado: volver a ajustar sin deformar',self.restore_fit_composition)
         self.fit_status_button.setToolTip('Alternativa segura al recorte: conserva todo el contenido y puede dejar márgenes. Sólo modifica la composición del trabajo.')
         self.fit_status_button.hide();fl.addWidget(self.fit_status_button)
@@ -206,6 +216,7 @@ class EmissionCentreMixin:
         self.emission_blockers.setText(
             'No se puede emitir definitivamente:\n'+'\n'.join('• '+s for s in blockers)
             if not self.native_issue.isEnabled() else 'Lista para emisión definitiva, previa confirmación.')
+        self.emission_blockers_scroll.setToolTip(self.emission_blockers.text())
         self.native_issue.setToolTip('\n'.join(blockers) if blockers else 'Confirmar y registrar la emisión definitiva.')
         return review
 
@@ -415,6 +426,12 @@ class EmissionCentreMixin:
         footer_layout=self.emission_footer.layout()
         footer_layout.setContentsMargins(*(10,7,10,7) if compact else (12,12,12,12))
         footer_layout.setSpacing(3 if compact else 5)
+        # Both the warning list and the feedback can grow by several lines.
+        # Bound their height in compact mode and retain the entire warning list
+        # through the vertical scrollbar; do not shrink the PDF verification area.
+        self.emission_blockers_scroll.setMaximumHeight(48 if compact else 132)
+        self.emission_feedback.setMaximumHeight(25 if compact else 16777215)
+        self.emission_feedback.setToolTip(self.emission_feedback.text())
         self.emission_summary.setStyleSheet('font-size:13px;' if compact else '')
         for action in (self.native_save,self.native_proof,self.native_options,self.native_issue,self.native_print):
             action.setStyleSheet('padding:6px 10px;' if compact else '')
