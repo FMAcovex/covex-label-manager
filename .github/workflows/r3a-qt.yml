@@ -167,7 +167,16 @@ jobs:
         timeout-minutes: 3
         run: >-
           python -m pytest -vv -x -o faulthandler_timeout=45
-          --junitxml=test-results/r8d.xml tests/test_r8d_guided_qt.py
+          --junitxml=test-results/r8d-native.xml tests/test_r8d_guided_qt.py
+          -k "not test_four_pages_fit_keyboard_and_persistent_actions"
+      - name: R8D exact six viewports without hosted desktop clamping
+        timeout-minutes: 3
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: >-
+          python -m pytest -vv -x -o faulthandler_timeout=45
+          --junitxml=test-results/r8d-viewports.xml tests/test_r8d_guided_qt.py
+          -k test_four_pages_fit_keyboard_and_persistent_actions
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: 8859f21ab77878b3e5c874bfac0023d0c8ad2ca3
