@@ -18,6 +18,10 @@ class TextAppearance(QWidget):
         for key,title in FAMILIES.items():self.family.addItem(title,key)
         self.family.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.family.setMinimumContentsLength(5);form.addRow('Fuente',self.family)
+        self.activate_font=QPushButton('Activar opciones de texto (sólo prueba o borrador)')
+        self.activate_font.setToolTip('Cambiar expresamente a Helvetica embebida. No modifica ningún maestro aprobado.')
+        self.activate_font.clicked.connect(self.select_editable_font)
+        form.addRow(self.activate_font)
         self.italic=QCheckBox('Cursiva');form.addRow(self.italic)
         self.color=QLineEdit();self.color.setMaxLength(7);self.color.setPlaceholderText('#RRGGBB')
         self.swatch=QPushButton('Color…');row=QWidget();hl=QHBoxLayout(row);hl.setContentsMargins(0,0,0,0);hl.addWidget(self.color,1);hl.addWidget(self.swatch);form.addRow('Color',row)
@@ -45,8 +49,14 @@ class TextAppearance(QWidget):
         self._baseline=field.get('draw') in ('baseline','continuation')
         self.loading=False;self.enable_controls()
 
+    def select_editable_font(self):
+        self.family.setCurrentIndex(self.family.findData('sans'))
+        self.changed()
+
     def enable_controls(self):
         active=self.family.currentData() is not None
+        self.activate_font.setVisible(not active)
+        self.hint.setText('Fuente histórica: su alineación y estilo permanecen protegidos. Pulse «Activar opciones» para una prueba con otra fuente.' if not active else ('La línea base no admite alineación vertical ni ajuste de párrafos; cree un campo de caja editable en un borrador.' if self._baseline else 'Sin reducción ni recorte automático de texto.'))
         for widget in self._controls:widget.setEnabled(active)
         self.valign.setEnabled(active and not self._baseline)
         self.wrap.setEnabled(active and not self._baseline)

@@ -88,7 +88,7 @@ def paint(page, source, layout, values, target, *, settings=None, strict=True,
     report['critical_losses']=losses
     if losses:
         details='; '.join(item['content'] for item in losses[:4])
-        raise ValueError('Relleno bloqueado: se recortaría contenido crítico ('+details+'). Use Ajustar sin deformar, amplíe el área o prepare una variante documental.')
+        raise ValueError('Relleno bloqueado: se recortaría contenido crítico ('+details+'). El documento no se ha modificado. Use el botón «Estado: volver a ajustar sin deformar», amplíe el área o prepare una nueva revisión documental.')
     crop=fitz.Rect(layout['crop']); warnings=[]
     visible=fitz.Rect(report['source_clip'])
     for block in source_page.get_text('dict')['blocks']:
@@ -118,7 +118,7 @@ def paint(page, source, layout, values, target, *, settings=None, strict=True,
                 # the historical source baseline/font/color and block overflow.
                 font='hebo' if field['bold'] else 'helv'
                 if size*1.2>rect.height or fitz.get_text_length(text,fontname=font,fontsize=size)>rect.width-2:
-                    raise ValueError('El dato excede el campo de estado '+field['label']+'.')
+                    raise ValueError('El dato excede el campo de estado '+field['label']+f' (caja {rect.width*25.4/72:.2f} × {rect.height*25.4/72:.2f} mm; fuente {size:g} pt). Incluso un carácter puede exceder la altura. Amplíe la caja o reduzca la fuente en una nueva revisión documental.')
                 layer.insert_text((rect.x0+1,rect.y0+size*1.1),text,fontname=font,fontsize=size,color=default_color)
             if size*report['scale']<6:
                 message=field['label']+f": texto final demasiado pequeño ({size*report['scale']:.2f} pt); mínimo 6 pt."

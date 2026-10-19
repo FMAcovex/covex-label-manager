@@ -262,8 +262,10 @@ class SheetDesigner(QDialog):
         return {'count':str(self.vessel_count.value()),'copies':str(self.copy_count.value())}
 
     def update_quantity_summary(self,*_):
-        total=self.vessel_count.value()*self.copy_count.value()
         try:
+            from ..emission_work import selection_indices
+            selected=len(selection_indices(self.initial_quantities.get('selection',''),self.vessel_count.value()))
+            total=selected*self.copy_count.value()
             from ..sheet_layout import physical_placements
             plan=plan_sheet(self.profile,1)
             last=None
@@ -271,7 +273,7 @@ class SheetDesigner(QDialog):
                 pass
             pages=last[0]+1
             self.quantity_summary.setText(
-                f'{total} etiquetas reales · {plan.capacity} posiciones por hoja · {pages} hojas. '
+                f'{selected} recipientes elegidos · {total} etiquetas reales · {plan.capacity} posiciones por hoja · {pages} hojas. '
                 'Las posiciones vacías no generan copias. '
                 'Los cambios de cantidades se guardarán al aplicar el diseño.')
         except (ValueError,KeyError,TypeError) as ex:

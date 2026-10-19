@@ -37,7 +37,7 @@ class EmissionAppearanceDialog(AdaptiveDialog):
         form.addRow(button('Restablecer diseño de origen',self.restore_all))
         self.variant_button=button('Crear variante documental…',self.create_variant);form.addRow(self.variant_button)
         help_text=label('Reutilizar: Copiar trabajo conserva formato, composición y ajustes de prueba sin aprobarlos. Las variantes conservan diseños documentales; los perfiles sólo guardan formato físico.','subtle');help_text.setWordWrap(True);form.addRow(help_text)
-        scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(panel);scroll.setMinimumWidth(270);scroll.setMaximumWidth(355);split.addWidget(scroll)
+        scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(panel);scroll.setMinimumWidth(335);scroll.setMaximumWidth(425);split.addWidget(scroll)
         self.pdf=PdfPane(self.api);split.addWidget(self.pdf);split.setStretchFactor(1,1);root.addWidget(split,1)
         self.error=label('','subtle');self.error.setWordWrap(True);root.addWidget(self.error)
         self.buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Apply|QDialogButtonBox.StandardButton.Cancel)

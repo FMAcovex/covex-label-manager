@@ -55,6 +55,9 @@ class EmissionCentreMixin:
         self.emission_summary=label('Sin trabajo seleccionado.','emissionSummary');self.emission_summary.setObjectName('emissionSummary');self.emission_summary.setWordWrap(True);fl.addWidget(self.emission_summary)
         self.emission_feedback=label('Guardar borrador no registra una emisión.','subtle');self.emission_feedback.setWordWrap(True);fl.addWidget(self.emission_feedback)
         self.emission_blockers=label('','subtle');self.emission_blockers.setWordWrap(True);self.emission_blockers.setObjectName('emissionBlockers');fl.addWidget(self.emission_blockers)
+        self.fit_status_button=button('Estado: volver a ajustar sin deformar',self.restore_fit_composition)
+        self.fit_status_button.setToolTip('Alternativa segura al recorte: conserva todo el contenido y puede dejar márgenes. Sólo modifica la composición del trabajo.')
+        self.fit_status_button.hide();fl.addWidget(self.fit_status_button)
         actions=QHBoxLayout();self.native_save=button('Guardar trabajo',self.flush_emission_work);actions.addWidget(self.native_save)
         self.native_proof=button('PDF de prueba',self.proof_emission_work);actions.addWidget(self.native_proof)
         self.native_options=button('Opciones…',self.work_options);actions.addWidget(self.native_options);actions.addStretch()
@@ -167,11 +170,12 @@ class EmissionCentreMixin:
         if not w:
             self._emission_document_full='Seleccione un trabajo o cree uno nuevo.'
             self.refresh_emission_caption()
-            self.emission_summary.setText('Sin trabajo seleccionado.');self.emission_blockers.setText('Emisión no disponible: seleccione un trabajo.');self.work_review=None;return None
+            self.emission_summary.setText('Sin trabajo seleccionado.');self.emission_blockers.setText('Emisión no disponible: seleccione un trabajo.');self.fit_status_button.hide();self.work_review=None;return None
         try:review=self.api.review_work(w['uid'],w['generation'])
         except (ValueError,OSError,sqlite3.Error) as ex:
             review={'errors':[{'target':'work','message':self.operator_error(ex),'recipient':None}], 'warnings':[], 'summary':None,'proof_allowed':False,'production_allowed':False}
         self.work_review=review
+        self.fit_status_button.setVisible(w['phase']=='DRAFT' and w.get('status',{}).get('composition',{}).get('mode')=='fill')
         b=w['binding'];v=self.api.version(b['revision_id']);variant=self.api.variant(b['variant_id']) if b['variant_id'] else None
         self._emission_document_full=f"{v['name']} · Revisión {v['version']} · "+(f"Variante {variant['code']}" if variant else 'Diseño heredado')+' · '+w['name']
         self.refresh_emission_caption()
@@ -204,6 +208,23 @@ class EmissionCentreMixin:
             if not self.native_issue.isEnabled() else 'Lista para emisión definitiva, previa confirmación.')
         self.native_issue.setToolTip('\n'.join(blockers) if blockers else 'Confirmar y registrar la emisión definitiva.')
         return review
+
+    def restore_fit_composition(self):
+        """Explicit, lossless user choice; never alters an approved layout."""
+        if (self.native_busy or self.legacy_process or not self.emission_work
+                or self.emission_work['phase']!='DRAFT' or not self.flush_emission_work()):
+            return
+        try:
+            from copy import deepcopy
+            work=self.emission_work
+            status=deepcopy(work['status'])
+            if status.get('composition',{}).get('mode')!='fill':return
+            status['composition']['mode']='fit'
+            self.emission_work=self.api.work.save(work['uid'],work['generation'],{'status':status})
+            self.refresh_work_panels()
+            self.emission_feedback.setText(
+                'Ajustar sin deformar activado: el contenido permanece completo; pueden quedar márgenes. Compruebe el nuevo PDF.')
+        except (ValueError,OSError) as ex:self.emission_error(ex)
 
     def adjust_field_appearance(self):
         if self.native_busy or self.legacy_process or self.preview_task is not None or not self.emission_work or not self.flush_emission_work():return
