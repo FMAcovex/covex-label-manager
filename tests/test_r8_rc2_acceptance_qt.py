@@ -114,8 +114,9 @@ def test_compact_emission_keeps_all_blockers_and_pdf_space(studio):
     w.emission_compact.setCurrentIndex(1)  # PDF tab must be the active compact pane.
     app.processEvents()
     assert w.emission_compact.isVisible()
-    assert w.emission_blockers_scroll.maximumHeight() <= 48
-    assert w.emission_feedback.maximumHeight() <= 25
+    assert not w.emission_blockers_scroll.isVisible()
+    assert not w.emission_feedback.isVisible()
+    assert w.compact_blockers_button.isVisible()
     assert "número 11" in w.emission_blockers.text()
-    assert w.emission_blockers_scroll.verticalScrollBar().maximum() > 0
+    assert "número 11" in w.compact_blockers_button.toolTip()
     assert w.emission_pdf.view.height() > 70
