@@ -32,6 +32,7 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
         print('R8D CAPTURE',name,w.width(),w.height(),flush=True)
     def click(control,name):
         assert control.isEnabled(),name
+        assert control.isVisible(),('Control hidden in current presentation',name)
         action=dict(action=name,kind='activation');actions.append(action)
         QTest.mouseClick(control,Qt.MouseButton.LeftButton);settle()
         return action
@@ -57,6 +58,13 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
         assert w.preview_matches() and w.preview_task is None,w.emission_feedback.text()
     def review():
         if baseline:
+            if w.emission_compact.isVisible() and w.emission_compact.currentIndex()==0:
+                # R8C compact mode separates data and PDF. Operate the REAL
+                # selector before clicking a button in that pane; a synthetic
+                # click sent to a hidden widget is not a user interaction.
+                w.emission_compact.setFocus()
+                QTest.keyClick(w.emission_compact,Qt.Key.Key_Down);settle()
+                actions.append(dict(action='Mostrar vista previa PDF',kind='screen'))
             # R8C already has automatic previews. Wait for its disposable
             # reader before invoking the existing manual button, as instructed
             # by the UI. Waiting is not an additional user action.
@@ -76,8 +84,10 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
         work=api.work.create(approved,variant_id,name='SYNTHETIC-R8D-'+name)
         if values:work=api.work.save(work['uid'],work['generation'],{'values':values})
         w.emission_work=work;w.refresh_work_panels()
-        if baseline:w.navigate('emission')
+        if baseline:
+            w.navigate('emission');w.emission_compact.setCurrentIndex(0)
         else:g.resume()
+        (w.emission_panel if baseline else g.panel).tabs.setCurrentIndex(0)
         w.preview_timer.stop();w.preview_pending=False
         actions.clear();return w.emission_panel if baseline else g.panel
     try:
@@ -170,7 +180,9 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
             assert w.emission_work['status']['kind']=='aprobado'
             trace('anadir_estado','Trabajo vinculado con lote; seleccionar tipo, revisión, ubicación y composición, revisar PDF')
             # Recovery uses the actual list/open/continue controls.
-            pending=w.emission_work;w.navigate('emission' if baseline else 'home');actions.clear()
+            pending=w.emission_work;w.navigate('emission' if baseline else 'home')
+            if baseline:w.emission_compact.setCurrentIndex(0)
+            actions.clear()
             choice=w.emission_panel.choice if baseline else g.recent
             choice.setCurrentIndex(choice.findData(pending['uid']));actions.append(dict(action='Elegir trabajo guardado',kind='selection'))
             if baseline:w.emission_panel.open_selected();actions.append(dict(action='Abrir trabajo',kind='activation'))
