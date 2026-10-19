@@ -65,6 +65,9 @@ class EmissionCentreMixin:
         self.emission_blockers_scroll.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Maximum)
         self.emission_blockers_scroll.setWidget(self.emission_blockers)
         fl.addWidget(self.emission_blockers_scroll)
+        self.compact_blockers_button=button('Ver motivos de bloqueo…',self.show_emission_blockers)
+        self.compact_blockers_button.setToolTip('Consultar los motivos completos sin reducir la vista previa del PDF.')
+        self.compact_blockers_button.hide();fl.addWidget(self.compact_blockers_button)
         self.fit_status_button=button('Estado: volver a ajustar sin deformar',self.restore_fit_composition)
         self.fit_status_button.setToolTip('Alternativa segura al recorte: conserva todo el contenido y puede dejar márgenes. Sólo modifica la composición del trabajo.')
         self.fit_status_button.hide();fl.addWidget(self.fit_status_button)
@@ -217,8 +220,30 @@ class EmissionCentreMixin:
             'No se puede emitir definitivamente:\n'+'\n'.join('• '+s for s in blockers)
             if not self.native_issue.isEnabled() else 'Lista para emisión definitiva, previa confirmación.')
         self.emission_blockers_scroll.setToolTip(self.emission_blockers.text())
+        self.compact_blockers_button.setText(
+            f'Ver motivos de bloqueo ({len(blockers)})…' if blockers else 'Estado: lista para emitir')
+        self.compact_blockers_button.setToolTip(self.emission_blockers.text())
         self.native_issue.setToolTip('\n'.join(blockers) if blockers else 'Confirmar y registrar la emisión definitiva.')
         return review
+
+    def show_emission_blockers(self):
+        """Full reasons stay readable in compact mode without stealing PDF height."""
+        dialog=QDialog(self)
+        dialog.setWindowTitle('Estado y motivos de emisión')
+        dialog.resize(650,360)
+        layout=vbox(dialog,12,8)
+        detail=label(self.emission_blockers.text(),'subtle')
+        detail.setWordWrap(True)
+        detail.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        scroll=QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(detail)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        layout.addWidget(scroll,1)
+        close=QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        close.rejected.connect(dialog.reject)
+        layout.addWidget(close)
+        dialog.exec()
 
     def restore_fit_composition(self):
         """Explicit, lossless user choice; never alters an approved layout."""
@@ -430,8 +455,15 @@ class EmissionCentreMixin:
         # Bound their height in compact mode and retain the entire warning list
         # through the vertical scrollbar; do not shrink the PDF verification area.
         self.emission_blockers_scroll.setMaximumHeight(48 if compact else 132)
-        self.emission_feedback.setMaximumHeight(25 if compact else 16777215)
+        self.emission_blockers_scroll.setVisible(not compact)
+        self.emission_feedback.setVisible(not compact)
+        self.compact_blockers_button.setVisible(compact)
+        self.compact_blockers_button.setStyleSheet('padding:3px 8px;' if compact else '')
+        self.emission_summary.setMaximumHeight(21 if compact else 16777215)
+        self.emission_summary.setToolTip(self.emission_summary.text())
         self.emission_feedback.setToolTip(self.emission_feedback.text())
+        self.emission_pdf.note.setMaximumHeight(22 if compact else 16777215)
+        self.emission_pdf.note.setToolTip(self.emission_pdf.note.text())
         self.emission_summary.setStyleSheet('font-size:13px;' if compact else '')
         for action in (self.native_save,self.native_proof,self.native_options,self.native_issue,self.native_print):
             action.setStyleSheet('padding:6px 10px;' if compact else '')
