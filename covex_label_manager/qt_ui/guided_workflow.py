@@ -301,6 +301,13 @@ class GuidedWorkflow:
         self.proof_button.setEnabled(bool(w.native_proof.isEnabled() and ready))
         self.issue_button.setEnabled(bool(w.native_issue.isEnabled() and ready))
         self.issue_button.setToolTip(w.native_issue.toolTip() if review['production_allowed'] else '\n'.join(messages) or 'Esta revisión no está autorizada. Genere una prueba o seleccione una revisión vigente.')
+        if not self.issue_button.isEnabled() and work['phase']=='DRAFT':
+            detail=w.emission_blockers.text().strip() if hasattr(w,'emission_blockers') else ''
+            if detail:
+                existing=self.feedback.text().strip()
+                # Visible in the final step, where the user sees the disabled button.
+                self.feedback.setText((existing+'\n' if existing else '')+detail if detail not in existing else existing)
+
         self.print_button.setEnabled(bool(w.native_print.isEnabled() and ready))
         self.print_button.setToolTip('Requiere una emisión registrada. Generar un PDF no confirma la impresión física.')
         self.appearance.setEnabled(bool(w.appearance_button.isEnabled() and ready))
