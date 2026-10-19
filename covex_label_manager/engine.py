@@ -314,8 +314,15 @@ def _paint_status(page,status_source,status_master,view_rect,values,status,font_
         from .status_scaling import geometry, critical_losses
         crop=fitz.Rect(_loaded_json(status_master['crop_json'],[]))
         report=geometry(crop,view_rect,status['composition'])
+        if 8.2*report['scale']<6:
+            message='Estado histórico demasiado pequeño tras la composición; amplíe el área o use emisión independiente (mínimo 6 pt).'
+            if not test_mode:raise LayoutError(message)
+            warnings.append(message)
         with fitz.open() as composed:
             layer=composed.new_page(width=status_source[0].rect.width,height=status_source[0].rect.height)
+            if font_regular:
+                layer.insert_font(fontname='CovexRegular',fontfile=font_regular)
+                layer.insert_font(fontname='CovexBold',fontfile=font_bold)
             original=dict(status);original.pop('composition')
             _paint_status(layer,status_source,status_master,crop,values,original,font_regular,font_bold,warnings,test_mode)
             if report['mode']=='fill' and critical_losses(layer,{'crop':list(crop),'fields':[]},report['source_clip']):

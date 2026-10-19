@@ -221,10 +221,10 @@ class StatusFieldsDialog(AdaptiveDialog):
         self.properties_scroll.setWidget(aside);body.addWidget(self.properties_scroll)
         aside.ensurePolished();aside.fit_width()
         body.setSizes([170,600,270]);body.setStretchFactor(1,1)
-        from PySide6.QtWidgets import QStackedWidget
-        from .pdf_view import PdfPane
-        self.preview_stack=QStackedWidget();body.replaceWidget(body.indexOf(self.view),self.preview_stack)
-        self.preview_stack.addWidget(self.view);self.pdf_preview=PdfPane(api);self.preview_stack.addWidget(self.pdf_preview)
+        from .pdf_view import EditorPdfPane,canvas_pdf_stack
+        index=body.indexOf(self.view);placeholder=QWidget();body.replaceWidget(index,placeholder)
+        self.pdf_preview=EditorPdfPane(api);self.preview_stack=canvas_pdf_stack(self.view,self.pdf_preview)
+        body.replaceWidget(index,self.preview_stack);placeholder.hide();placeholder.deleteLater()
         self.pdf_timer=QTimer(self);self.pdf_timer.setSingleShot(True);self.pdf_timer.timeout.connect(self.refresh_pdf)
         tools=QHBoxLayout()
         self.undo_button=button('Deshacer',self.undo_edit);self.redo_button=button('Rehacer',self.redo_edit)
@@ -297,9 +297,12 @@ class StatusFieldsDialog(AdaptiveDialog):
         self.undo_button.setEnabled(bool(self.undo_states));self.redo_button.setEnabled(bool(self.redo_states))
 
     def scene_selected(self):
+        from shiboken6 import isValid
+        if not isValid(self.view) or not isValid(self.items):return
         if self.busy:
             return
         for shape in self.shapes:
+            if not isValid(shape):continue  # native scene teardown, not a gesture
             if shape.isSelected() and self.items.currentRow() != shape.index:
                 self.items.setCurrentRow(shape.index)
                 return
@@ -417,7 +420,8 @@ class StatusFieldsDialog(AdaptiveDialog):
             path=self.api.output_path('cache','r8c-status-'+uuid.uuid4().hex+'.pdf')
             values={f['key']:f.get('example','') for f in self.design['fields']}
             render_proof(self.pdf,self.design,values,path)
-            self.pdf_preview.load(path,'PDF real · ejemplos de estado','PRUEBA / NO GMP · No modifica los textos fijos ni registra una emisión.')
+            with fitz.open(path) as pdf:details=pdf.metadata.get('subject','')
+            self.pdf_preview.load(path,'PDF real · ejemplos de estado',details or 'PRUEBA / NO GMP · No modifica los textos fijos ni registra una emisión.')
         except (ValueError,OSError,RuntimeError) as ex:self.pdf_preview.clear('Prueba bloqueada: '+str(ex))
 
     def commit_properties(self,*_):

@@ -89,7 +89,7 @@ def _lines(text, width, font, size, wrap):
 
 
 def paint(page, text, rect, size, bold, style, *, strict=True, baseline=False,
-          continuation=None):
+          continuation=None, check_minimum=True):
     """Lay out and measure the SAME embedded glyphs that will enter the PDF.
 
     No silent shrink or truncation. Baseline/continuation preserve their source
@@ -133,7 +133,7 @@ def paint(page, text, rect, size, bold, style, *, strict=True, baseline=False,
         free = rect.height-height
         first_y = rect.y0+ascent+({'top':0, 'middle':.5, 'bottom':1}[style['valign']])*free
     warnings = []
-    if size < 6:
+    if check_minimum and size < 6:
         message = f'Texto demasiado pequeño ({size:.2f} pt); mínimo operativo 6 pt.'
         if strict:raise ValueError(message)
         warnings.append(message)

@@ -136,3 +136,27 @@ def test_canvas_destruction_has_no_python_callback_exception(studio,monkeypatch)
     monkeypatch.setattr(sys,'excepthook',lambda *args:errors.append(args))
     w.canvas.deleteLater();QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete);app.processEvents()
     assert not errors
+
+
+def test_hidden_pdf_minimum_does_not_enlarge_status_geometry_and_tools_wrap(studio,tmp_path):
+    w,s,app=studio;source=synthetic_source(tmp_path);uids=add_three(s.services.status_catalog,source)
+    dialog=StatusFieldsDialog(s.services,s.services.status_catalog.get(uids[0]),w)
+    dialog.pdf_preview.setMinimumWidth(1200) # hidden page must NOT widen canvas
+    dialog.resize(1068,550);dialog.show();app.processEvents();dialog.resize(1068,550);app.processEvents()
+    assert dialog.width()<=1068
+    dialog.pdf_preview.setMinimumWidth(0);dialog.pdf_toggle.setChecked(True)
+    dialog.resize(886,550);app.processEvents()
+    pane=dialog.pdf_preview
+    assert pane._editor_narrow and pane._editor_tool_grid.rowCount()>=2
+    for control in (*pane._editor_tool_controls,pane.pages,pane.expand_button):
+        assert pane.rect().contains(control.mapTo(pane,control.rect().center())),(control,pane.size())
+    dialog.reject();dialog.deleteLater()
+
+
+def test_status_native_scene_teardown_does_not_call_deleted_shapes(studio,tmp_path,monkeypatch):
+    w,s,app=studio;source=synthetic_source(tmp_path);uids=add_three(s.services.status_catalog,source)
+    dialog=StatusFieldsDialog(s.services,s.services.status_catalog.get(uids[0]),w);dialog.quick_add_field()
+    errors=[];monkeypatch.setattr(sys,'excepthook',lambda *args:errors.append(args))
+    dialog.view.deleteLater();QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
+    app.processEvents();assert not errors
+    dialog.deleteLater()

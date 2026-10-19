@@ -100,6 +100,16 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
                 assert issued.read_bytes()==reprint.read_bytes()
         # Every kind's artwork and fields have been exercised in the real engine.
         result['standalone_kinds']=3
+        if not baseline:
+            blocked=session.root/'SYNTHETIC-CRITICAL-CROP.pdf'
+            with fitz.open() as doc:
+                page=doc.new_page(width=200,height=100)
+                page.insert_text((2,30),'SYNTHETIC CRITICAL EDGE',fontsize=8);doc.save(blocked)
+            blocked_layout=make_layout(blocked,'aprobado')
+            try:render_proof(blocked,blocked_layout,{},out/'forbidden-crop.pdf',width_mm=70,height_mm=70,composition=dict(FIT,mode='fill'))
+            except ValueError as exc:assert 'crítico' in str(exc)
+            else:raise AssertionError('Critical source crop was not blocked')
+            assert not (out/'forbidden-crop.pdf').exists();result['critical_crop_blocked']=True
         for width,height in ((1366,768),(1920,1080)):
             logical=QSize(math.floor(width/result['scale']),math.floor(height/result['scale'])-40)
             present_viewport(w,logical,settle);w.select_version(initial);w.open_editor();settle()
@@ -138,7 +148,9 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
             pdf_record(f'{width}-historical-unchanged',legacy)
             if not baseline:
                 trial=EmissionAppearanceDialog(w);dialogs.append(trial)
-                trial.field.setCurrentIndex(trial.field.findData('lote'));trial.font_size.setValue(9);trial.changed();trial.timer.stop();trial.preview()
+                trial.field.setCurrentIndex(trial.field.findData('lote'))
+                index=trial.appearance.family.findData('sans');trial.appearance.family.setCurrentIndex(index);trial.appearance.family.activated.emit(index)
+                trial.font_size.setValue(9);trial.changed();trial.timer.stop();trial.preview()
                 present_viewport(trial,QSize(min(1050,logical.width()-24),min(740,logical.height()-24)),settle)
                 assert trial.pdf.path;snapshot(f'{width}-trial-appearance',trial);trial.apply()
                 work=w.emission_work
@@ -168,6 +180,30 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
                     assert rendered['composition'][0]['mode']==mode
                     pdf_record('combined-'+rec['kind']+'-'+mode,path)
             result['combined_cases']=6
+            # DemoSession intentionally has NO legacy masters. Populate this
+            # disposable check fixture explicitly, never from resources/user
+            # data. They remain PENDING; only proof rendering is exercised.
+            from ..geometry import STATUS_CROPS,STATUS_NAMES,STATUS_COLORS
+            from ..storage import sha256
+            legacy=api._repository.root/'status_masters'/'SYNTHETIC-R8C-LEGACY.pdf'
+            with fitz.open() as doc:
+                page=doc.new_page(width=595,height=842)
+                for kind,box in STATUS_CROPS.items():
+                    rect=fitz.Rect(box);page.draw_rect(rect,fill=STATUS_COLORS[kind])
+                    page.insert_text((90,rect.y0+35),'SYNTHETIC '+kind,fontsize=8)
+                doc.save(legacy)
+            relative=legacy.relative_to(api._repository.root).as_posix();sha=sha256(legacy)
+            with api._repository.txn() as db:
+                for kind,box in STATUS_CROPS.items():
+                    db.execute("""INSERT INTO status_masters(kind,name,version,state,master_pdf,original_file,pdf_sha256,source_sha256,crop_json)
+                               VALUES(?,?,?,'PENDING',?,?,?,?,?)""",
+                               (kind,STATUS_NAMES[kind],'SYN-00',relative,relative,sha,sha,json.dumps(box)))
+            for kind in ('sin_analizar','aprobado','rechazado'):
+                state=dict(kind=kind,placement='integrada',fecha='19/10/2026',persona='SYN',composition=FIT)
+                rendered=api.render(api.resolved_design(approved,row['id']),values,profile,[1],1,1,
+                    api.output_path('cache','r8c-legacy-'+kind+'.pdf'),True,status=state)
+                assert rendered['composition'][0]['mode']=='fit'
+            result['legacy_compositions']=3
             result.update(trial_production_blocked=True,status_exact_reprint=True)
         result.update(ok=True,exact_viewports=True,approved_revision_unchanged=True,
                       sqlite_v4=api._repository.db.execute('PRAGMA user_version').fetchone()[0]==4,

@@ -179,7 +179,7 @@ def render_proof(pdf_path, layout, values, destination, *, width_mm=None, height
             enhanced=design['contract']==2 or composition is not None or height_mm is not None
             if enhanced:
                 from .status_scaling import paint
-                paint(page,source,design,data,dest,settings=composition,strict=False)
+                composition_report=paint(page,source,design,data,dest,settings=composition,strict=False)
             else:page.show_pdf_page(dest, source, design["page"], clip=crop, keep_proportion=True)
             for field in ([] if enhanced else design["fields"]):
                 value = data[field["key"]]
@@ -204,6 +204,9 @@ def render_proof(pdf_path, layout, values, destination, *, width_mm=None, height
                              color=(0.7, 0.05, 0.05), overlay=True)
             output.set_metadata({"title": "COVEX - PRUEBA de etiqueta de estado",
                                "subject": "No autorizada para uso GMP"})
+            if enhanced:
+                from .status_scaling import describe
+                output.set_metadata(dict(output.metadata,subject='PRUEBA / NO GMP · '+describe(composition_report)+' · '+' · '.join(composition_report['warnings'])))
             destination.parent.mkdir(parents=True, exist_ok=True)
             if destination.exists():
                 raise FileExistsError("No se sobrescribe una prueba existente.")

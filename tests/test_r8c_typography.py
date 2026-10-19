@@ -209,3 +209,36 @@ def test_contrast_does_not_claim_uniform_background_from_only_corners():
         # Not at a corner or the centre: a nine-point sample would miss it.
         page.draw_rect(fitz.Rect(18,18,28,28),fill=(0,0,0),color=None)
         assert contrast_warning(page,page.rect,'#FFFFFF') is None
+
+
+@pytest.mark.parametrize('kind',['sin_analizar','aprobado','rechazado'])
+def test_legacy_status_composition_registers_fonts_on_its_own_source_layer(context,tmp_path,kind):
+    store,api,catalog,v,p,values,uids=context
+    status=dict(kind=kind,placement='integrada',fecha='19/10/2026',persona='SYN',composition=FIT)
+    result=api.render(v,values,p,[1],1,1,tmp_path/(kind+'-legacy.pdf'),True,status=status)
+    assert result['composition'] and result['composition'][0]['mode']=='fit'
+    with fitz.open(result['path']) as doc:
+        assert '19/10/2026' in doc[0].get_text() and 'PRUEBA' in doc[0].get_text()
+
+
+def test_legibility_uses_final_physical_size_not_source_size(tmp_path):
+    path,layout=source(tmp_path);layout['fields'][0]['font_size']=5
+    with fitz.open(path) as src,fitz.open() as out:
+        page=out.new_page()
+        result=paint_status(page,src,layout,{'lote':'SYN'},fitz.Rect(0,0,400,200))
+        assert not result['warnings'] # 5 source points × 2 = 10 printed points
+        with pytest.raises(ValueError,match='demasiado pequeño'):
+            paint_status(page,src,layout,{'lote':'SYN'},fitz.Rect(0,250,100,300))
+
+
+def test_tiny_fixed_source_text_warns_in_proof_and_blocks_definitive(tmp_path):
+    path=tmp_path/'SYNTHETIC-TINY-FIXED.pdf'
+    with fitz.open() as src:
+        page=src.new_page(width=200,height=100);page.insert_text((60,30),'SYNTHETIC TINY',fontsize=3);src.save(path)
+    layout=make_layout(path,'aprobado')
+    with fitz.open(path) as src,fitz.open() as out:
+        page=out.new_page()
+        report=paint_status(page,src,layout,{},fitz.Rect(0,0,200,100),strict=False)
+        assert any('Texto fijo demasiado pequeño' in warning for warning in report['warnings'])
+        with pytest.raises(ValueError,match='Texto fijo demasiado pequeño'):
+            paint_status(page,src,layout,{},fitz.Rect(0,120,200,220),strict=True)

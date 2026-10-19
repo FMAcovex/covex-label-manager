@@ -400,6 +400,7 @@ class StatusCatalogue:
         source_crop = fitz.Rect(design["crop"])
         with fitz.open(pdf) as source:
             out = fitz.open()
+            composition_report=None
             try:
                 capacity = cols * rows
                 for number in range(count):
@@ -412,7 +413,7 @@ class StatusCatalogue:
                     enhanced=design['contract']==2 or composition is not None or height_mm is not None
                     if enhanced:
                         from .status_scaling import paint
-                        paint(page,source,design,values,rect,settings=composition,strict=not proof)
+                        composition_report=paint(page,source,design,values,rect,settings=composition,strict=not proof)
                     else:page.show_pdf_page(rect, source, design["page"], clip=source_crop, keep_proportion=True)
                     scale = rect.width / source_crop.width
                     for field in ([] if enhanced else design["fields"]):
@@ -435,7 +436,11 @@ class StatusCatalogue:
                         page.draw_rect(strip, color=(0.85, 0.1, 0.1), fill=(1, 0.9, 0.9))
                         page.insert_text((strip.x0 + 3, strip.y0 + min(11, strip.height * 0.8)),
                                          warning, fontsize=7, color=(0.7, 0, 0))
-                out.set_metadata({"title": "COVEX - " + ("PRUEBA NO GMP" if proof else "Etiqueta de estado")})
+                metadata={"title": "COVEX - " + ("PRUEBA NO GMP" if proof else "Etiqueta de estado")}
+                if composition_report:
+                    from .status_scaling import describe
+                    metadata['subject']=describe(composition_report)+' · '+' · '.join(composition_report['warnings'])
+                out.set_metadata(metadata)
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 out.save(destination, deflate=True, garbage=4)
             finally:

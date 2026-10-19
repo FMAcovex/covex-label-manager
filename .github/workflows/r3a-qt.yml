@@ -451,7 +451,7 @@ jobs:
             $process = Start-Process -FilePath $executable -ArgumentList @('--typography-check', $report, '--capture', $captures) -Wait -PassThru
             if ($process.ExitCode -ne 0 -or !(Test-Path $report)) { if (Test-Path $report) { Get-Content $report -Raw }; throw 'R8C extracted check failed' }
             $result = Get-Content $report -Raw | ConvertFrom-Json
-            if (!$result.ok -or !$result.integrity -or !$result.sqlite_v4 -or !$result.exact_viewports -or !$result.approved_revision_unchanged -or !$result.trial_production_blocked -or !$result.status_exact_reprint -or $result.embedded_fonts -ne 12 -or $result.combined_cases -ne 6 -or $result.captures.Count -ne 12 -or $result.os -ne 'win32') { Get-Content $report -Raw; throw 'R8C extracted coverage incomplete' }
+            if (!$result.ok -or !$result.integrity -or !$result.sqlite_v4 -or !$result.exact_viewports -or !$result.approved_revision_unchanged -or !$result.trial_production_blocked -or !$result.status_exact_reprint -or !$result.critical_crop_blocked -or $result.embedded_fonts -ne 12 -or $result.combined_cases -ne 6 -or $result.legacy_compositions -ne 3 -or $result.captures.Count -ne 12 -or $result.os -ne 'win32') { Get-Content $report -Raw; throw 'R8C extracted coverage incomplete' }
           }
           Remove-Item Env:QT_SCALE_FACTOR
       # User-facing download: application only, no screenshots or CI reports.

@@ -639,12 +639,10 @@ class StatusManagerMixin:
                     values={key:widget.text() for key,widget in controls.items()}
                     dest=self.api.status_catalog.preview(rec['uid'],values,**settings())
                     pane.load(dest,'PDF real · PRUEBA / NO GMP',f"{NAMES[rec['kind']]} · Revisión {rec['revision']} · "+('Sin deformación · el recorte crítico bloquea el PDF.' if composition.currentData() else 'Proporción histórica.'))
-                    if composition.currentData():
-                        import fitz
-                        from ..status_scaling import geometry,describe
-                        design=json.loads(rec['layout_json'])
-                        report=geometry(design['crop'],fitz.Rect(0,0,width.value()*72/25.4,height.value()*72/25.4),settings()['composition'])
-                        pane.note.setText(pane.note.text()+'\n'+describe(report))
+                    import fitz
+                    with fitz.open(dest) as pdf:
+                        details=pdf.metadata.get('subject','')
+                    if details:pane.note.setText(pane.note.text()+'\n'+details)
                 except (ValueError,OSError,RuntimeError) as err:pane.clear('Prueba bloqueada: '+str(err))
             timer.timeout.connect(live_preview)
             for control in (count,width,height):control.valueChanged.connect(lambda *_:timer.start(350))

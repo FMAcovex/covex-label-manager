@@ -86,6 +86,14 @@ def paint(page, source, layout, values, target, *, settings=None, strict=True,
         details='; '.join(item['content'] for item in losses[:4])
         raise ValueError('Relleno bloqueado: se recortaría contenido crítico ('+details+'). Use Ajustar sin deformar, amplíe el área o prepare una variante documental.')
     crop=fitz.Rect(layout['crop']); warnings=[]
+    visible=fitz.Rect(report['source_clip'])
+    for block in source_page.get_text('dict')['blocks']:
+        for line in block.get('lines',[]):
+            for span in line['spans']:
+                if span['text'].strip() and not (fitz.Rect(span['bbox'])&visible).is_empty and span['size']*report['scale']<6:
+                    message=f"Texto fijo demasiado pequeño ({span['size']*report['scale']:.2f} pt): "+span['text'][:60]+'. Amplíe el área o prepare una revisión de origen.'
+                    if strict:raise ValueError(message)
+                    warnings.append(message)
     with fitz.open() as composed:
         layer=composed.new_page(width=source_page.rect.width,height=source_page.rect.height)
         layer.show_pdf_page(layer.rect,source,layout['page'])
@@ -98,7 +106,9 @@ def paint(page, source, layout, values, target, *, settings=None, strict=True,
                 if warning:
                     if strict:raise ValueError(field['label']+': '+warning)
                     warnings.append(field['label']+': '+warning)
-                warnings.extend(paint_text(layer,text,rect,size,field['bold'],field['typography'],strict=False))
+                # The layer is in source points. Minimum legibility is checked
+                # below in FINAL physical points, not before scaling.
+                warnings.extend(paint_text(layer,text,rect,size,field['bold'],field['typography'],strict=False,check_minimum=False))
             else:
                 # Explicit composition may be used with an old layout: preserve
                 # the historical source baseline/font/color and block overflow.

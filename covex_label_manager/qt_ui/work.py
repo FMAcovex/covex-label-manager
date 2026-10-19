@@ -112,6 +112,9 @@ class WorkPanel(QWidget):
         for title,key in [('Arriba','top'),('Centro','middle'),('Abajo','bottom')]:self.state_align_y.addItem(title,key)
         for title,combo in [('Alineación horizontal',self.state_align_x),('Alineación vertical',self.state_align_y)]:
             combo.currentIndexChanged.connect(self.changed);f.addRow(title,combo)
+        def composition_controls(*_):
+            for combo in (self.state_align_x,self.state_align_y):combo.setEnabled(self.composition.currentData() is not None)
+        self.composition.currentIndexChanged.connect(composition_controls);composition_controls()
         scaling_note=label('Ajustar conserva proporciones y puede dejar margen. Rellenar recorta sólo fondo no crítico; si afecta texto, símbolos o campos, se bloquea. El zoom de pantalla no cambia el tamaño físico.','subtle');scaling_note.setWordWrap(True);f.addRow(scaling_note)
         self.status_inputs={}
         for key,title in [('fecha','Fecha'),('persona','Responsable'),('caducidad_reanalisis','Caducidad / reanálisis')]:

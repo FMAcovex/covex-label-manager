@@ -41,6 +41,8 @@ Trabajo → Estado → Composición física:
 
 Fondo y variables se componen en puntos de la página fuente y se transforman **juntos**. R7A/R7B utilizan la misma implementación en PDF individual y combinado. El maestro histórico conserva su compositor original en una capa intermedia cuando se solicita composición explícita; el recorte sigue protegido. En independiente, el destino es la casilla física completa, no una caja previamente ajustada.
 
+La capa del maestro histórico registra también sus fuentes propias; regresión para los tres tipos. El mínimo tipográfico se mide después de la transformación (p. ej. 5 pt fuente × 2 = 10 pt físicos), no se confunde con el tamaño del original. La ruta nueva avisa/bloquea también texto fijo visible demasiado pequeño y conserva ese diagnóstico en los metadatos del PDF de prueba y en su vista previa.
+
 Si el fondo contiene un límite o contenido crítico en el borde, rellenar puede ser imposible: se indica el contenido afectado y se ofrece ajustar, ampliar el área o preparar revisión/variante. No se elimina el borde para lograr un resultado aparentemente lleno. El tipo «Aprobado» sigue siendo distinto de la aprobación documental.
 
 ## R8C5 — campos de estados
@@ -83,6 +85,8 @@ Snapshots/PDF antiguos no se migran ni reinterpretan. Una reimpresión individua
 `scripts/r8c_visual.py`: misma fixture sobre R8B exacta y R8C, 1366×768 / 1920×1080, 100/125/150 %. Antes: seis capturas por escala. Después y ZIP extraído: doce por escala. Guarda PNG, PDFs sintéticos, hashes e informe JSON; comprueba doce fuentes y seis combinaciones producto/estado. `r8c_compare_evidence.py` exige raster histórico idéntico. `r8c_backward_gate.py` ejecuta lectores R8B sin modificar y exige rechazo de nuevos trabajos/reproducciones incompatibles.
 
 Windows usa backend nativo para interacciones/regresiones. Las capturas grandes exactas usan Qt **offscreen en Windows**, porque el escritorio alojado limita el tamaño de ventanas. Esto no sustituye aceptación física Windows 10/11, Word, impresora o validación GMP. Los controles antiguos source/frozen, importador, estabilidad R8A, R8B, variantes, Qt↔Tk e historial siguen en la CI.
+
+Primera CI Qt (`39220939672`): los 86 self-checks y regresiones nativas previas pasaron, pero la captura de Estados a 125 % solicitó 1068 px y recibió 1073 px. Se mantiene la aceptación exacta: el PDF inactivo deja de imponer su mínimo al lienzo y su barra de herramientas se reorganiza en dos filas en paneles estrechos, sin reducir letra ni retirar comandos. Se añaden regresiones de mínimo oculto, herramientas accesibles y destrucción de shapes/canvas nativos. No se cambia el límite temporal de los jobs ni se elimina ninguna comprobación histórica.
 
 ### Comparación visual y ejemplos PDF
 

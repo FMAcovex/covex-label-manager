@@ -178,13 +178,13 @@ def arrange_editor(window):
     w.work_dock.hide()
     # The drawing scene remains alive while inspecting the actual generated
     # PDF. Returning to geometry never loses selection, zoom or native items.
-    from PySide6.QtWidgets import QStackedWidget
     from PySide6.QtCore import QTimer
-    from .pdf_view import PdfPane
-    w.editor_preview_stack=QStackedWidget()
-    index=split.indexOf(w.canvas);split.replaceWidget(index,w.editor_preview_stack)
-    w.editor_preview_stack.addWidget(w.canvas)
-    w.editor_pdf=PdfPane(w.api);w.editor_preview_stack.addWidget(w.editor_pdf)
+    from .pdf_view import EditorPdfPane,canvas_pdf_stack
+    index=split.indexOf(w.canvas)
+    # Reparent only after removing the old splitter slot.
+    placeholder=QWidget();split.replaceWidget(index,placeholder)
+    w.editor_pdf=EditorPdfPane(w.api);w.editor_preview_stack=canvas_pdf_stack(w.canvas,w.editor_pdf)
+    split.replaceWidget(index,w.editor_preview_stack);placeholder.hide();placeholder.deleteLater()
     w.editor_pdf_toggle=QPushButton('PDF real');w.editor_pdf_toggle.setCheckable(True)
     w.editor_pdf_toggle.setToolTip('Ver el PDF de prueba con los ejemplos introducidos. No modifica ni aprueba el diseño.')
     toolbar.insertWidget(1,w.editor_pdf_toggle)

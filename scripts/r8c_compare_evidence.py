@@ -11,6 +11,7 @@ assert before['baseline'] and not after['baseline'] and before['scale']==after['
 assert before['source_commit'] in (None,'56399394424896a1adbd56a91882a7eb49282632')
 assert len(before['captures'])==6 and len(after['captures'])==12
 assert after['combined_cases']==6 and after['embedded_fonts']==12 and after['trial_production_blocked']
+assert after['legacy_compositions']==3 and after['critical_crop_blocked']
 comparisons=[]
 for width in (1366,1920):
     name=f'{width}-historical-unchanged'
