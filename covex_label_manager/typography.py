@@ -88,10 +88,12 @@ def _lines(text, width, font, size, wrap):
             output.append(paragraph)
             continue
         current = ''
-        for word in paragraph.split():
+        # Keep literal interior spaces: a lot identifier is not prose that may
+        # silently be normalized. Only physical line breaks are introduced.
+        for word in re.findall(r' +|[^ ]+',paragraph):
             if measured(word) > width + .001:
                 raise ValueError('Una palabra no cabe en el campo; amplíelo o prepare una variante.')
-            candidate = (current + ' ' + word).strip()
+            candidate = current + word
             if current and measured(candidate) > width:
                 output.append(current); current = word
             else:
@@ -110,6 +112,8 @@ def paint(page, text, rect, size, bold, style, *, strict=True, baseline=False,
     anchors; vertical alignment applies only to boxes/paragraphs.
     """
     style = validate(style); rect = fitz.Rect(rect)
+    if '\t' in text:
+        raise ValueError('Tabulación no admitida en el campo; revise el dato sin sustituirlo silenciosamente.')
     if type(bold) is not bool or isinstance(size, bool) or not math.isfinite(size) or size <= 0 or rect.is_empty:
         raise ValueError('Tipografía o geometría inválida.')
     if baseline and style['valign'] != 'top':
@@ -123,8 +127,11 @@ def paint(page, text, rect, size, bold, style, *, strict=True, baseline=False,
     if continuation is not None:
         full_x, full_w, maximum = continuation
         lines = []; current = ''; width = rect.width
-        for word in text.split():
-            candidate = (current+' '+word).strip()
+        for word in re.findall(r'\n| +|[^ \n]+',text):
+            if word=='\n':
+                lines.append(current);current='';width=full_w
+                continue
+            candidate = current+word
             il,ir=ink_width(candidate,font,size)
             if ir-il <= width:
                 current = candidate

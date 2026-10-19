@@ -285,3 +285,15 @@ def test_fill_blocks_fixed_italic_overhang_beyond_extraction_box(tmp_path):
         assert critical_losses(src[0],layout,[50,0,150,100])
         with pytest.raises(ValueError,match='Relleno bloqueado'):
             paint_status(out.new_page(),src,layout,{},fitz.Rect(0,0,100,100),settings=dict(FIT,mode='fill'))
+
+
+def test_typography_preserves_interior_spaces_and_rejects_silent_tab_substitution():
+    with fitz.open() as doc:
+        page=doc.new_page()
+        paint(page,'SYN  LOT',fitz.Rect(20,20,300,70),12,False,DEFAULT)
+        assert 'SYN  LOT' in page.get_text()
+        with pytest.raises(ValueError,match='Tabulación'):
+            paint(page,'SYN\tLOT',fitz.Rect(20,80,300,130),12,False,DEFAULT)
+        with pytest.raises(ValueError,match='Demasiadas líneas'):
+            paint(page,'SYN\nLOT\nEXTRA',fitz.Rect(20,160,200,260),12,False,DEFAULT,
+                  baseline=True,continuation=(20,180,2))

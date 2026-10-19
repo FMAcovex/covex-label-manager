@@ -10,6 +10,8 @@ Los doce programas de fuente se obtienen de los recursos incorporados de PyMuPDF
 
 Se miden también los trazos reales de cada glifo y sus salientes, no sólo el ancho de avance. Una «f» cursiva puede sobresalir por ambos lados: el origen se compensa únicamente si escaparía de la caja y se bloquea si los trazos completos no caben. El recorte de texto fijo reserva además un margen conservador de un em; puede exigir área mayor/variante aun si el cuadro de extracción parecía caber. Regresiones izquierda/centro/derecha y comprobación adicional en el EXE extraído. La ruta histórica no se modifica.
 
+El ajuste por palabras conserva los espacios interiores de los datos, sin normalizar identificadores como `SYN  LOT` a `SYN LOT`. Una tabulación no representable se bloquea y pide revisar el dato, en vez de sustituirla sin aviso.
+
 Los campos **sin** `typography` conservan la ruta histórica `_fonts()` y sus métricas; no se añaden valores por defecto a JSON anteriores. La prueba comparativa exige raster PDF histórico idéntico entre R8B y R8C en el mismo Windows. Esto no convierte la selección histórica dependiente del sistema en una garantía entre SO.
 
 Fuentes URW bajo SIL OFL 1.1: [copyright y licencia íntegros](URW-FONTS-OFL.txt), incluidos en ambos ZIP. Origen oficial: [MuPDF 1.26.11, recursos URW](https://github.com/ArtifexSoftware/mupdf/tree/1.26.11/resources/fonts/urw). El CFF Nimbus Sans Regular oficial tiene el mismo SHA-256 que el recurso utilizado (`366720e0…91d706`). No se añaden TTF propietarios. PyMuPDF mantiene su licencia dual AGPL/comercial preexistente; esta fase no cambia ni acredita el régimen jurídico de distribución de toda la aplicación.

@@ -69,6 +69,8 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
                 span=next(s for b in page.get_text('dict')['blocks'] for l in b.get('lines',[]) for s in l['spans'] if s['text']=='f')
                 font,_=font_resource('serif',False,True);il,ir=ink_width('f',font,12)
                 assert span['origin'][0]+il>=box.x0-.001 and span['origin'][0]+ir<=box.x1+.001
+                paint(page,'SYN  LOT',fitz.Rect(25,650,400,680),12,False,DEFAULT)
+                assert 'SYN  LOT' in page.get_text()
                 doc.save(fonts)
             # pdf_record expects a separate source path.
             with fitz.open(fonts) as doc:
@@ -76,6 +78,7 @@ def run(report,capture=None,*,baseline=False,source_commit=None):
                 assert all(len(doc.extract_font(f[0])[3])>1000 for f in doc[0].get_fonts())
             result['embedded_fonts']=12;result['font_hashes']=FONT_SHA256
             result['italic_ink_checked']=True
+            result['literal_spaces_checked']=True
         uids=[]
         for kind,color in [('sin_analizar',(1,.92,.3)),('aprobado',(.25,.8,.4)),('rechazado',(.9,.3,.3))]:
             path=session.root/('SYNTHETIC-'+kind+'.pdf')
