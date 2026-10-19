@@ -98,3 +98,23 @@ def test_bulk_import_classification_never_forces_blocked_rows(studio, tmp_path):
     with pytest.raises(ValueError, match="seleccione destino"):
         dialog.selected()
     dialog.reject()
+
+
+def test_compact_emission_keeps_all_blockers_and_pdf_space(studio):
+    """Short viewport must never let a long warning list hide the native PDF."""
+    w, session, app = studio
+    w.navigate("emission")
+    w.resize(910, 472)  # 1366x768 desktop with Windows scale factor 150 %
+    w.emission_blockers.setText(
+        "No se puede emitir definitivamente:\n"
+        + "\n".join(f"• Motivo de bloqueo documental número {n}" for n in range(12))
+    )
+    w.emission_feedback.setText("Revise antes de emitir: " + "Error documental. " * 8)
+    w.adapt_emission_layout()
+    app.processEvents()
+    assert w.emission_compact.isVisible()
+    assert w.emission_blockers_scroll.maximumHeight() <= 48
+    assert w.emission_feedback.maximumHeight() <= 25
+    assert "número 11" in w.emission_blockers.text()
+    assert w.emission_blockers_scroll.verticalScrollBar().maximum() > 0
+    assert w.emission_pdf.view.height() > 70
