@@ -42,15 +42,16 @@ class ControlledImportDialog(QDialog):
         self.folder_summary=label('PDF, Word e imágenes; se incluyen subcarpetas.','subtle');self.folder_summary.setWordWrap(True);fl.addWidget(self.folder_summary);fl.addStretch();self.pages.addWidget(first)
         review=QWidget();rl=vbox(review,0,6)
         self.review_path=label('','subtle');self.review_path.setWordWrap(True);rl.addWidget(self.review_path)
-        hint=label('Sugerencias no confirmadas: edite identidad y elija acción. En Nueva revisión se conserva la identidad del destino; solo cambia la revisión. Desplace la tabla para ver código, categoría y comprobaciones.','subtle');hint.setWordWrap(True);rl.addWidget(hint)
+        hint=label('Seleccione varias filas con Ctrl/Mayús o Seleccionar todas. Use Nueva etiqueta / Nueva revisión a seleccionadas. Sugerencias no confirmadas: edite identidad y elija acción. En Nueva revisión se conserva la identidad del destino; solo cambia la revisión. Desplace la tabla para ver código, categoría y comprobaciones.','subtle');hint.setWordWrap(True);rl.addWidget(hint)
         self.table=QTableWidget(0,9);self.table.setAccessibleName('Documentos e identidad editable')
         self.table.setHorizontalHeaderLabels(['Archivo','Nombre editable','Revisión','Acción','Destino existente','Código','Categoría / tipo','Comprobación previa','Resultado'])
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.table.verticalHeader().hide();self.table.setMinimumHeight(100)
         for col,width in enumerate((150,180,80,160,210,130,180,250,250)):self.table.setColumnWidth(col,width)
         self.table.itemChanged.connect(self.identity_changed);rl.addWidget(self.table,1)
-        tools=QHBoxLayout();tools.addWidget(button('Identidad de la fila…',self.edit_identity))
+        tools=QHBoxLayout();tools.addWidget(button('Seleccionar todas',self.select_all_rows));tools.addWidget(button('Nueva etiqueta a seleccionadas',self.bulk_new_labels));tools.addWidget(button('Nueva revisión a seleccionadas',self.bulk_new_revisions));tools.addWidget(button('Identidad de la fila…',self.edit_identity))
         tools.addWidget(button('Datos a filas seleccionadas…',self.bulk_identity))
         tools.addWidget(button('Vista previa…',self.preview_selected));rl.addLayout(tools)
         self.confirm_identity=QCheckBox('He revisado identidades, sugerencias y destinos seleccionados.')
@@ -172,6 +173,36 @@ class ControlledImportDialog(QDialog):
 
     def previous_page(self):
         if not self.running and not self.processed:self.pages.setCurrentIndex(0)
+
+    def selected_rows(self):
+        return sorted({item.row() for item in self.table.selectedItems()})
+
+    def select_all_rows(self):
+        if not self.running and not self.processed:self.table.selectAll()
+
+    def bulk_new_labels(self):
+        self.apply_bulk_action('NEW_LABEL')
+
+    def bulk_new_revisions(self):
+        self.apply_bulk_action('NEW_REVISION')
+
+    def apply_bulk_action(self,action):
+        if self.running or self.processed:return
+        indices=self.selected_rows()
+        if not indices:
+            self.status.setText('Seleccione varias filas con Ctrl/Mayús o «Seleccionar todas».')
+            return
+        count=0
+        for i in indices:
+            choice=self.row_actions[i].findData(action)
+            if choice<0:continue  # Duplicate, ambiguous and unsafe sources are never forced.
+            self.row_actions[i].setCurrentIndex(choice)
+            count+=1
+        self.confirm_identity.setChecked(False)
+        self.status.setText(
+            f'{count} filas preparadas como '+('nueva etiqueta.' if action=='NEW_LABEL' else
+            'nueva revisión. Seleccione expresamente un destino para cada fila.')+
+            ' Revise identidades y confirme antes de importar.')
 
     def edit_identity(self):
         i=self.table.currentRow()

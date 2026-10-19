@@ -218,7 +218,7 @@ class StudioWindow(QMainWindow):
         dl.addStretch();document_scroll=QScrollArea();document_scroll.setWidgetResizable(True);document_scroll.setWidget(documents)
         document_scroll.setFrameShape(QFrame.Shape.NoFrame);self.inspector_tabs.addTab(document_scroll,'Documentos')
         actions=QHBoxLayout();self.favorite_button=button('Favorita',self.favorite,ico='star');actions.addWidget(self.favorite_button)
-        actions.addWidget(button('Abrir en Editor',self.open_editor,'primary','arrow'));il.addLayout(actions)
+        self.inspector_editor_button=button('Abrir en Editor',self.open_editor,'primary','arrow');actions.addWidget(self.inspector_editor_button);il.addLayout(actions)
         il.addWidget(button('Ver accesos de emisión',lambda:self.navigate('emission'),ico='print'))
         self.inspector_panel=QScrollArea();self.inspector_panel.setWidgetResizable(True)
         self.inspector_panel.setWidget(self.inspector);self.inspector_panel.setFrameShape(QFrame.Shape.NoFrame)

@@ -116,9 +116,9 @@ class WorkPanel(QWidget):
             for combo in (self.state_align_x,self.state_align_y):combo.setEnabled(self.composition.currentData() is not None)
         self.composition.currentIndexChanged.connect(composition_controls);composition_controls()
         scaling_note=label('Ajustar conserva proporciones y puede dejar margen. Rellenar recorta sólo fondo no crítico; si afecta texto, símbolos o campos, se bloquea. El zoom de pantalla no cambia el tamaño físico.','subtle');scaling_note.setWordWrap(True);f.addRow(scaling_note)
-        self.status_inputs={}
+        self.status_inputs={};self.status_common_rows={}
         for key,title in [('fecha','Fecha'),('persona','Responsable'),('caducidad_reanalisis','Caducidad / reanálisis')]:
-            e=QLineEdit();e.textEdited.connect(self.changed);self.status_inputs[key]=e;f.addRow(title,self.with_error(e,'status:'+key))
+            e=QLineEdit();e.textEdited.connect(self.changed);self.status_inputs[key]=e;holder=self.with_error(e,'status:'+key);self.status_common_rows[key]=holder;f.addRow(title,holder)
         status_scroll=QScrollArea();status_scroll.setWidgetResizable(True);status_scroll.setWidget(status);self.tabs.addTab(status_scroll,'Estado')
         row=QHBoxLayout();self.save=button('Guardar trabajo',window.flush_emission_work);row.addWidget(self.save)
         self.recover=button('Recuperar',window.recover_emission_work);row.addWidget(self.recover);layout.addLayout(row)
@@ -323,13 +323,25 @@ class WorkPanel(QWidget):
         self.r7b_field_widgets={}
         self.r7b_field_holders={}
         uid=self.status_revision.currentData()
+        # The historical master uses the three legacy values; an explicit
+        # approved R7B revision shows only the fields in its signed layout.
         if not uid:
+            legacy=self.status_kind.currentData() not in (None,'ninguna')
+            for holder in self.status_common_rows.values():
+                self.status_form.setRowVisible(holder,legacy)
             return
         # A revision cannot silently swap its field contract while this work
         # is open. The preview and issue gate verify the same UID/hash again.
         try:
             rec=self.controller.api.status_catalog.verify(uid)
             design=json.loads(rec["layout_json"])
+            defined={field['key']:field for field in design['fields']}
+            for key,holder in self.status_common_rows.items():
+                visible=key in defined
+                self.status_form.setRowVisible(holder,visible)
+                if visible:
+                    field_label=self.status_form.labelForField(holder)
+                    if field_label is not None:field_label.setText(defined[key]['label']+(' *' if defined[key]['required'] else ''))
         except (ValueError,OSError,RuntimeError) as err:
             self.status_revision.setToolTip("Revisión no válida: "+str(err))
             return
