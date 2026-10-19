@@ -169,3 +169,11 @@ Configuración/CM/maestros de estado/auditoría/Inicio heredado.
 Entrega sujeta a revisión de PR, sin squash/merge autorizado. CI se ejecuta sobre
 el commit entregado; enlaces y resultados en la PR. Word real, impresión física,
 Windows 10/11/equipos COVEX, aceptación y validación GMP siguen pendientes.
+
+## R8A — Estabilización y diagnóstico (pendiente de revisión)
+
+Auditoría de ciclos de vida, protección de borradores y concurrencia, diagnóstico
+local privado y exportable, estrés sintético source/portable extraído. Sin migración
+ni retirada de capacidades. [Alcance, evidencia y pruebas](docs/R8A_STABILITY_DIAGNOSTICS.md).
+No atribuye sin evidencia los cierres intermitentes a una causa única. R8B (Editor),
+R8C (propiedades visuales de estados) y R8D (asistentes) siguen fuera de alcance.

@@ -71,7 +71,7 @@ def exercise_advanced(w,app,captures=None):
     dialog=RectangleDialog(w,'Recorte sintético',image,list(bounds),original['crop'],20)
     dialog.show(); settle(); dialog.from_drag([5,5,427,295]); dialog.accept_valid()
     check(dialog.result()==dialog.DialogCode.Accepted,'Visual crop coordinates accepted')
-    candidate=recrop(original,dialog.rect); candidate['area']=[.7,.82,.2,.1]
+    candidate=recrop(original,dialog.selection_rect); candidate['area']=[.7,.82,.2,.1]
     check(w.command('Crop and status',candidate),'Crop+status command applies')
     check(w.dirty and w.save_button.isEnabled(),'Pending layout dirty/save enabled')
     snap('R3B1_Recorte_Zona_Cambios_Pendientes.png')

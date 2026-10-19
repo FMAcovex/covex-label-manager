@@ -81,12 +81,12 @@ class RectangleDialog(QDialog):
 
     def from_form(self):
         if self.busy: return
-        self.rect = [s.value()/MM_PER_POINT for s in self.inputs]
-        self.view.paint_rect(self.rect)
-        self.error.setText(f'Tamaño seleccionado: {(self.rect[2]-self.rect[0])*MM_PER_POINT:.3f} × {(self.rect[3]-self.rect[1])*MM_PER_POINT:.3f} mm')
+        self.selection_rect = [s.value()/MM_PER_POINT for s in self.inputs]
+        self.view.paint_rect(self.selection_rect)
+        self.error.setText(f'Tamaño seleccionado: {(self.selection_rect[2]-self.selection_rect[0])*MM_PER_POINT:.3f} × {(self.selection_rect[3]-self.selection_rect[1])*MM_PER_POINT:.3f} mm')
 
     def accept_valid(self):
-        b = self.bounds; r = self.rect
+        b = self.bounds; r = self.selection_rect
         if not (b[0] <= r[0] < r[2] <= b[2]+.001 and b[1] <= r[1] < r[3] <= b[3]+.001):
             self.error.setText('Los límites deben estar dentro del documento.'); return
         if min(r[2]-r[0],r[3]-r[1]) < self.min_side:
@@ -121,6 +121,7 @@ class EditorFieldItem(ResizableRect):
 
 class AdvancedEditorMixin:
     def __init__(self, session):
+        self._gesture_dispatch = False
         self.design = None; self.expected_layout = None; self.output_profile = None
         self._drawing = False; self._selection_sync = False
         super().__init__(session)
@@ -237,6 +238,17 @@ class AdvancedEditorMixin:
         self.editor_version = version_with_layout(self.editor_version,self.design.state)
 
     def draw_editor(self, fit=False):
+        # A release callback still has C++ QGraphicsItem/ResizeHandle frames on
+        # the stack. Commit geometry now, but never scene.clear() those objects
+        # until Qt has returned from their virtual mouseReleaseEvent.
+        if self._gesture_dispatch:
+            if not hasattr(self, '_gesture_redraw'):
+                self._gesture_redraw = QTimer(self)
+                self._gesture_redraw.setSingleShot(True)
+                self._gesture_redraw.timeout.connect(self.draw_editor)
+            self._gesture_redraw.start(0)
+            return
+        if hasattr(self, '_gesture_redraw'):self._gesture_redraw.stop()
         if self.design is None: return
         indices = self.selected_indices(); self._drawing = True; self.loading = True
         self.sync_design(); v = self.editor_version
@@ -263,7 +275,7 @@ class AdvancedEditorMixin:
             text.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
         self.field_list.clear()
         for i,f in enumerate(self.fields):
-            item = EditorFieldItem(f,i,im.width,im.height,self.design.state['crop'],self.editable(),self.drag_finished)
+            item = EditorFieldItem(f,i,im.width,im.height,self.design.state['crop'],self.editable(),self.finish_graphic_gesture)
             item.feedback=lambda item=item:self.statusBar().showMessage(f"Campo: X {(item.x()+item.rect().x())/self.image_w*self.editor_version['base_w_mm']:.2f} mm · Y {(item.y()+item.rect().y()-item.offset)/self.image_h*self.editor_version['base_h_mm']:.2f} mm · Ancho {item.rect().width()/self.image_w*self.editor_version['base_w_mm']:.2f} mm · Alto {item.rect().height()/self.image_h*self.editor_version['base_h_mm']:.2f} mm")
             scene.addItem(item); self.field_items.append(item); self.field_list.addItem(f['label'])
             text = scene.addText(f['key']); text.setDefaultTextColor(QColor('#147D71')); text.setParentItem(item); text.setPos(4,-3)
@@ -370,6 +382,11 @@ class AdvancedEditorMixin:
         # Kept for callers of the R3A controller; graphical gestures commit on release.
         self.drag_finished()
 
+    def finish_graphic_gesture(self):
+        self._gesture_dispatch = True
+        try:self.drag_finished()
+        finally:self._gesture_dispatch = False
+
     def drag_finished(self):
         if not self.editable(): self.draw_editor(); return
         candidate=copy.deepcopy(self.design.state)
@@ -438,6 +455,8 @@ class AdvancedEditorMixin:
 
     def poll_legacy(self):
         if self.legacy_process is None or self.legacy_process.poll() is None: return
+        from ..diagnostics import event
+        event('legacy_finish', returncode=self.legacy_process.returncode)
         code=self.legacy_process.returncode; self.legacy_process=None
         self.set_mutations_enabled(True); self.refresh_facets(); self.refresh()
         if self.current_editor_id is not None:
@@ -465,7 +484,7 @@ class AdvancedEditorMixin:
         dialog=RectangleDialog(self,'Dibujar campo variable',self.api.thumbnail(self.editor_version,width_px=1000),[0,0,w,h],[w*.1,h*.1,w*.5,h*.2])
         dialog.view.setCursor(Qt.CursorShape.CrossCursor)
         if dialog.exec()==QDialog.DialogCode.Accepted:
-            r=dialog.rect; self.add_field([r[0]/w,r[1]/h,(r[2]-r[0])/w,(r[3]-r[1])/h])
+            r=dialog.selection_rect; self.add_field([r[0]/w,r[1]/h,(r[2]-r[0])/w,(r[3]-r[1])/h])
 
     def add_field(self, rect=None):
         if not self.editable(): return
@@ -507,7 +526,7 @@ class AdvancedEditorMixin:
             image,rect,_=self.api.master_preview(self.editor_version,width=950,height=700)
             dialog=RectangleDialog(self,'Recorte del documento',image,list(rect),self.design.state['crop'],20)
             if dialog.exec()==QDialog.DialogCode.Accepted:
-                self.apply_operation('Recorte',lambda:recrop(self.design.state,dialog.rect))
+                self.apply_operation('Recorte',lambda:recrop(self.design.state,dialog.selection_rect))
                 self.canvas.fit()
         except (ValueError,OSError) as ex: QMessageBox.warning(self,'Recorte no disponible',str(ex))
 
@@ -522,7 +541,7 @@ class AdvancedEditorMixin:
         for m in self.api.status_masters(): master.addItem(m['name']+' / '+m['version']+' / '+m['state'],dict(m))
         dialog.extra.addWidget(master)
         if dialog.exec()!=QDialog.DialogCode.Accepted: return
-        r=dialog.rect; area=[r[0]/w,r[1]/h,(r[2]-r[0])/w,(r[3]-r[1])/h] if use.isChecked() else []
+        r=dialog.selection_rect; area=[r[0]/w,r[1]/h,(r[2]-r[0])/w,(r[3]-r[1])/h] if use.isChecked() else []
         m=master.currentData()
         if area and m:
             mc=json.loads(m['crop_json']); ratio=(mc[2]-mc[0])/(mc[3]-mc[1]); actual=(r[2]-r[0])/(r[3]-r[1])

@@ -109,6 +109,7 @@ class SettingsMixin:
         ))
         info.addWidget(button('Diagnóstico de preaceptación…', self.open_acceptance_readiness))
         info.addWidget(button('Sesiones de pruebas presenciales…', self.open_uat_session))
+        info.addWidget(button('Exportar informe de diagnóstico…', self.export_diagnostic_report))
         info.addWidget(button('Ir a Biblioteca', lambda: self.navigate('library')))
         overview.addStretch()
 
@@ -178,6 +179,23 @@ class SettingsMixin:
         footer.addWidget(button('Configuración clásica (compatibilidad)…', lambda: self.open_legacy('admin')))
         layout.addLayout(footer)
         return page
+
+    def export_diagnostic_report(self):
+        from ..diagnostics import Diagnostics
+        diagnostic = getattr(self, 'diagnostics', None)
+        owned = diagnostic is None
+        try:
+            if owned:diagnostic = Diagnostics(self.api.location(), install_hooks=False)
+            filename, _ = QFileDialog.getSaveFileName(self, 'Exportar informe de diagnóstico',
+                'COVEX-diagnostico.zip', 'Informe ZIP (*.zip)')
+            if not filename:return
+            diagnostic.export(filename)
+            self.statusBar().showMessage('Informe técnico exportado. No incluye documentos, trabajos ni registros GMP.')
+        except (ValueError, OSError):
+            QMessageBox.warning(self, 'Informe no exportado',
+                'No se pudo guardar el informe. Elija una carpeta local escribible y vuelva a intentarlo.')
+        finally:
+            if owned and diagnostic is not None:diagnostic.close()
 
     def navigate(self, key):
         if key == 'settings' and getattr(self, 'settings_ready', False):

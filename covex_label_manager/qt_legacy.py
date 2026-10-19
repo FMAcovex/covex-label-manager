@@ -5,6 +5,15 @@ import subprocess
 from pathlib import Path
 from .paths import installation_dir
 
+
+def report_callback_error(app, kind, exception, tb):
+    """Tk's callback hook is separate from sys.excepthook; no raw traceback UI."""
+    from .diagnostics import error
+    error('python_error', exception.with_traceback(tb))
+    # Persistent, non-modal indication, not a repeating messagebox.
+    if hasattr(app,'top_title'):
+        app.top_title.configure(text='Operación no completada · Revise el trabajo y exporte el diagnóstico desde Qt')
+
 def legacy_command():
     if getattr(sys,'frozen',False):
         return [str(installation_dir()/'legacy'/'COVEXLabelManager_Legacy.exe')]
@@ -38,6 +47,8 @@ def run_legacy(target,version_id=None,mode='production',smoke_report=None,varian
         """PR #2 idea: retain screens; no changes to the distributed legacy application."""
         def __init__(self,*args):
             self._qt_views={};super().__init__(*args)
+        def report_callback_exception(self,kind,exception,tb):
+            report_callback_error(self,kind,exception,tb)
         def issue_pdf(self):
             original_question=messagebox.askyesno
             def question(title,message,*args,**kwargs):

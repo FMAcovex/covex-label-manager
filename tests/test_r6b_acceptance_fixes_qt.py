@@ -44,7 +44,7 @@ def test_wizard_row_controls_fit_and_footer_remains_reachable(studio,tmp_path,si
     w,s,app=studio;source(tmp_path)
     d=ControlledImportDialog(w,s.services,tmp_path);d.next_page();d.show();d.fit_available(QSize(*size));app.processEvents()
     assert d.width()<=size[0] and d.height()<=size[1]
-    assert d.table.rowHeight(0)>=d.actions[0].sizeHint().height()+8
+    assert d.table.rowHeight(0)>=d.row_actions[0].sizeHint().height()+8
     assert d.table.horizontalScrollBar().maximum()>0
     assert d.table.item(0,7).text()=='Revisar identidad y elegir acción'
     assert not d.targets[0].isEnabled() and not d.go.isEnabled()
@@ -62,7 +62,7 @@ def test_wizard_folder_identity_confirm_pending_summary_editor(studio,tmp_path,m
     d=ControlledImportDialog(w,s.services);assert not d.next.isEnabled()
     d.set_folder(folder);assert d.folder_path.text()==str(folder)
     assert d.metadata[0]['category']==folder.name
-    d.next_page();d.actions[0].setCurrentIndex(1)
+    d.next_page();d.row_actions[0].setCurrentIndex(1)
     d.table.item(0,1).setText('SYNTHETIC editable');d.table.item(0,5).setText('SYN-CODE');d.table.item(0,2).setText('12')
     d.confirm_identity.setChecked(True)
     d.table.item(0,6).setText('SYNTHETIC confirmed category');assert not d.confirm_identity.isChecked()
@@ -108,7 +108,7 @@ def test_imported_long_name_never_expands_dialog_beyond_viewport(studio):
 
 def test_wizard_revision_target_and_safe_hash_rejection(studio,tmp_path,monkeypatch):
     w,s,app=studio;path=source(tmp_path)
-    d=ControlledImportDialog(w,s.services,tmp_path);d.next_page();d.actions[0].setCurrentIndex(2)
+    d=ControlledImportDialog(w,s.services,tmp_path);d.next_page();d.row_actions[0].setCurrentIndex(2)
     assert d.targets[0].isEnabled()
     with pytest.raises(ValueError,match='destino'):d.selected()
     d.targets[0].setCurrentIndex(1);d.table.item(0,2).setText('SYN-NEW')

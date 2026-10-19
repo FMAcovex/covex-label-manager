@@ -48,7 +48,10 @@ def run_job(job_path):
         if retry_read(lambda:api.review_work(uid,generation)).get('token')!=token:
             raise ValueError('El trabajo o los documentos cambiaron durante el cálculo.')
         payload['sha256']=sha256(path)
-    except Exception as ex:payload['error']=str(ex)
+    except Exception as ex:
+        from .diagnostics import technical_exception
+        payload['error']=str(ex)
+        payload['technical_error']=technical_exception(ex)
     finally:
         if api is not None:api.close()
     atomic_json(job_path.with_suffix('.result.json'),payload)

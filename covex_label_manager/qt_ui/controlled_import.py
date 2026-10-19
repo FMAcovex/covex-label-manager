@@ -23,7 +23,7 @@ DIAGNOSES={
 class ControlledImportDialog(QDialog):
     def __init__(self,parent,api,folder=None):
         super().__init__(parent)
-        self.api=api;self.folder=None;self.rows=[];self.metadata=[];self.actions=[];self.targets=[]
+        self.api=api;self.folder=None;self.rows=[];self.metadata=[];self.row_actions=[];self.targets=[]
         # Never shadow QDialog.done(int): Qt calls this virtual method on closing.
         self.processed=0;self.ok=0;self.failures=[];self.running=False;self.cancelled=False
         self.queue=[];self.imported=[];self.editor_version_id=None;self.close_when_stopped=False
@@ -131,7 +131,7 @@ class ControlledImportDialog(QDialog):
         rows=self.api.catalog_migration_preview(folder)['files'];self.folder=Path(folder);self.rows=rows
         self.folder_path.setText(str(self.folder));self.folder_path.setToolTip(str(self.folder));self.review_path.setText('Carpeta: '+str(self.folder))
         self.folder_summary.setText(f'{len(rows)} documentos detectados. Continúe para revisar identidades y coincidencias.')
-        self.confirm_identity.setChecked(False);self.metadata=[];self.actions=[];self.targets=[]
+        self.confirm_identity.setChecked(False);self.metadata=[];self.row_actions=[];self.targets=[]
         self.table.blockSignals(True);self.table.setRowCount(len(rows));labels=list(self.api.labels())
         for i,r in enumerate(rows):
             meta=dict(name=r.get('name',''),version=r.get('version','00'),category=r.get('category',''),origin='COVEX',code='',annex='',customer='',ref_customer='');self.metadata.append(meta)
@@ -143,7 +143,7 @@ class ControlledImportDialog(QDialog):
             action=QComboBox();action.addItem('Omitir',None)
             if r['status'] in ('REVIEW_REQUIRED','IDENTITY_CONFLICT'):
                 action.addItem('Nueva etiqueta','NEW_LABEL');action.addItem('Nueva revisión','NEW_REVISION')
-            action.setAccessibleName(f'Acción documento {i+1}');self.table.setCellWidget(i,3,action);self.actions.append(action)
+            action.setAccessibleName(f'Acción documento {i+1}');self.table.setCellWidget(i,3,action);self.row_actions.append(action)
             target=QComboBox();target.addItem('Seleccione etiqueta existente',None)
             for entry in labels:target.addItem(entry['name']+' / '+entry['code'],entry['id'])
             target.setEnabled(False);target.setAccessibleName(f'Destino documento {i+1}');self.table.setCellWidget(i,4,target);self.targets.append(target)
@@ -153,10 +153,10 @@ class ControlledImportDialog(QDialog):
         self.table.blockSignals(False);self.update_buttons()
 
     def action_changed(self,i):
-        self.targets[i].setEnabled(self.actions[i].currentData()=='NEW_REVISION');self.confirm_identity.setChecked(False)
+        self.targets[i].setEnabled(self.row_actions[i].currentData()=='NEW_REVISION');self.confirm_identity.setChecked(False)
         for col in (1,5,6):
             item=self.table.item(i,col)
-            editable=self.actions[i].currentData()!='NEW_REVISION'
+            editable=self.row_actions[i].currentData()!='NEW_REVISION'
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable if editable else item.flags() & ~Qt.ItemFlag.ItemIsEditable)
 
     def target_changed(self,i):
@@ -204,8 +204,8 @@ class ControlledImportDialog(QDialog):
                 if not bulk or checks[key].isChecked():self.metadata[i][key]=edit.text().strip()
             for col,key in ((1,'name'),(5,'code'),(2,'version'),(6,'category')):self.table.item(i,col).setText(self.metadata[i][key])
             if bulk and action_check.isChecked():
-                choice=self.actions[i].findData(action.currentData())
-                if choice>=0:self.actions[i].setCurrentIndex(choice)
+                choice=self.row_actions[i].findData(action.currentData())
+                if choice>=0:self.row_actions[i].setCurrentIndex(choice)
         self.confirm_identity.setChecked(False)
 
     def preview_selected(self):
@@ -224,7 +224,7 @@ class ControlledImportDialog(QDialog):
 
     def selected(self):
         items=[]
-        for i,action in enumerate(self.actions):
+        for i,action in enumerate(self.row_actions):
             if not action.currentData():continue
             meta={**self.metadata[i],'action':action.currentData(),'target_label_id':self.targets[i].currentData()}
             if not meta['name'] or not meta['version']:raise ValueError(f'Fila {i+1}: nombre y revisión obligatorios.')

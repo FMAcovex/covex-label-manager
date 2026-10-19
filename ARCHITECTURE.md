@@ -102,3 +102,12 @@ Ver [rutas y equivalencia funcional](docs/R6B_UX_INTEGRATED/CAMBIOS_Y_ESTADO.md)
 
 La [ampliación tras NO CONFORME](docs/R6B_UX_INTEGRATED/CORRECCIONES_ACEPTACION.md) incorpora un asistente sobre R5B, unidades kg/g/mg y `PreviewTask`: QThread espera un único proceso `preview_render` no productivo, con conexión SQLite y estado MuPDF propios, snapshot de entrada y comprobación de generación/token antes de adoptar el PDF. El render no comparte los hilos del visor Qt ni mantiene el bloqueo exclusivo de trabajo; no registra emisiones. El sufijo documental determina la conversión de masa, sin modificar maestros ni SQLite v4. Los contadores de importación no pueden ocultar `QDialog.done(int)`.
 Las secciones anteriores documentan la evolución previa.
+
+## R8A: ciclo de vida y diagnóstico privado
+
+`diagnostics.py` registra únicamente eventos técnicos de esquema cerrado y exporta
+un ZIP separado del backup documental. El cierre drena PreviewTask antes de liberar
+servicios; la geometría de un gesto se confirma sin destruir el QGraphicsItem dentro
+de su evento nativo. Los borradores de estado avisan al descartar y cotejan el hash
+esperado dentro de su transacción. Sin esquema nuevo ni cambio del motor.
+Ver [auditoría, intervención y límites](docs/R8A_STABILITY_DIAGNOSTICS.md).

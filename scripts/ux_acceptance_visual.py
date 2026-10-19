@@ -72,7 +72,7 @@ try:
     if a.baseline:capture('01-importador',d)
     else:
         capture('01-carpeta',d);d.next_page();capture('02-identidades',d)
-        d.actions[0].setCurrentIndex(1);d.table.item(0,5).setText('SYNTHETIC-CODE');d.confirm_identity.setChecked(True)
+        d.row_actions[0].setCurrentIndex(1);d.table.item(0,5).setText('SYNTHETIC-CODE');d.confirm_identity.setChecked(True)
         d.table.selectRow(0)
         real_exec=QDialog.exec
         def preview_dialog(dialog):

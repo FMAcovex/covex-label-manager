@@ -109,12 +109,14 @@ class BaseFunctionalWindow(StudioWindow):
             self.save_button.setEnabled(self.dirty and not busy and editable)
             self.save_button.setToolTip('Edición bloqueada mientras está abierta la versión anterior.' if busy else ('Revisión vigente o retirada: solo lectura.' if not editable else ('Guardar los cambios pendientes del borrador.' if self.dirty else 'Sin cambios pendientes de guardar.')))
     def open_legacy(self,target='maestro',mode='production'):
+        from ..diagnostics import event
         if self.legacy_process is not None:
             QMessageBox.information(self,'Versión anterior abierta','Continúe en la ventana de la versión anterior y ciérrela antes de abrir otra tarea.');return
         if not self.resolve_work():return
         vid=self.current_editor_id if target=='editor' else (self.row['version_id'] if self.row else None)
         try:
             self.legacy_process=launch_legacy(self.api,target,vid,mode)
+            event('legacy_start')
             self.set_mutations_enabled(False);self.recheck_actions()
             self.statusBar().showMessage('Versión anterior abierta · Usa los mismos datos · Edición Qt bloqueada hasta cerrarla')
         except (ValueError,OSError) as ex:QMessageBox.warning(self,'No abierto',str(ex))
@@ -265,6 +267,8 @@ class BaseFunctionalWindow(StudioWindow):
         self.field_list.setMaximumHeight(165 if self.editor_advanced.isVisible() else 16777215)
         self.editor_advanced.layout().setSpacing(6)
     def open_editor(self):
+        from ..diagnostics import event
+        event('editor_open')
         if not self.row:return
         vid=self.row['version_id']
         try:self.api.open_document(vid)
