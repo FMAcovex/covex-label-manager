@@ -408,8 +408,62 @@ class EmissionCentreMixin:
                 self.emission_work=self.api.work.create(revision.currentData(),variant.currentData(),name.text());self.refresh_work_panels();dialog.accept()
             except (ValueError,OSError) as ex:error.setText(self.operator_error(ex))
         buttons.accepted.connect(create);buttons.rejected.connect(dialog.reject);layout.addWidget(buttons);return dialog.exec()==QDialog.DialogCode.Accepted
+    def open_emission_size_settings(self):
+        """Expose physical size settings, which never alter the approved master."""
+        if not self.emission_work:
+            QMessageBox.information(self,'Tamaño de etiqueta','Seleccione o cree un trabajo antes de cambiar el tamaño.')
+            return
+        if self.emission_work['phase']!='DRAFT':
+            QMessageBox.information(
+                self,'Trabajo no editable',
+                'El trabajo ya no está en borrador. Use «Opciones → Recuperar '
+                'trabajo» si hay un intento interrumpido, o «Copiar» si está '
+                'emitido. Se conservará el historial anterior.')
+            return
+        self.navigate('emission')
+        self.emission_compact.setCurrentIndex(0)
+        # Free layout uses slot rectangles for PDF geometry. Editing the
+        # legacy width_mm text would NOT resize a single free slot.
+        # Open the actual sheet editor instead of offering an inert control.
+        if self.emission_work['profile'].get('layout_mode')=='free':
+            self.emission_panel.design_sheet()
+            return
+        self.emission_panel.tabs.setCurrentIndex(2)
+        control=self.emission_panel.profile_inputs['width_mm']
+        control.setFocus()
+        control.selectAll()
+
+    def explain_container_numbering(self):
+        """Provide a discoverable safe route to the versioned numbering field."""
+        if not self.emission_work:return
+        b=self.emission_work['binding']
+        version=self.api.resolved_design(b['revision_id'],b['variant_id'])
+        import json
+        fields=json.loads(version['fields_json']) if isinstance(version['fields_json'],str) else version['fields_json']
+        has_number=any(f.get('key')=='numero' for f in fields)
+        if has_number:
+            message=('Esta revisión o variante ya contiene el campo «Numeración». '
+                     'Al generar cinco recipientes imprimirá 1/5, 2/5, …, 5/5 '
+                     'en sus respectivos espacios. Revise el PDF de prueba.')
+        else:
+            message=('El diseño seleccionado no tiene el campo «Numeración»; '
+                     'por eso no aparece 1/5 en el PDF. Para añadirlo, abra '
+                     'una revisión en borrador o cree una variante editable '
+                     'en Biblioteca → Editor → + Nuevo campo → '
+                     'Tipo «Numeración» (clave «numero»), colóquelo en el '
+                     'recuadro documental correspondiente y complete su '
+                     'aprobación antes de emitir. No se añade de forma '
+                     'automática a una revisión ya aprobada.')
+        QMessageBox.information(self,'Numeración por recipiente (1/N)',message)
+
     def work_options(self):
-        menu=QMenu(self);menu.addAction('Recuperar trabajo…',self.recover_emission_work);menu.addAction('Actualizar vínculo documental…',self.refresh_work_binding);menu.exec(self.cursor().pos())
+        menu=QMenu(self)
+        menu.addAction('Cambiar tamaño y distribución de etiqueta…',self.open_emission_size_settings)
+        menu.addAction('Numeración por recipiente (1/N)…',self.explain_container_numbering)
+        menu.addSeparator()
+        menu.addAction('Recuperar trabajo…',self.recover_emission_work)
+        menu.addAction('Actualizar vínculo documental…',self.refresh_work_binding)
+        menu.exec(self.cursor().pos())
     def paste_work_containers(self):
         if not self.emission_work or not self.flush_emission_work():return
         from ..vessels import parse_tabular_vessels
