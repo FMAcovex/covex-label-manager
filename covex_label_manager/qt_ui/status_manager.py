@@ -279,7 +279,7 @@ class StatusManagerMixin:
                     self, "Diseño protegido",
                     "Solo puede editar una revisión en Borrador.\n"
                     "En Estados → Nueva revisión podrá crear un borrador independiente.")
-                self.open_library_status(rec['kind'])
+                self.open_library_status(rec['kind'], uid=uid)
             return
         return super().open_editor()
 
@@ -297,9 +297,27 @@ class StatusManagerMixin:
     def document_details(self):
         if getattr(self, "_active_status_uid", None):
             rec = self.api.status_catalog.get(self._active_status_uid)
-            self.open_library_status(rec["kind"])
+            self.open_library_status(rec["kind"], uid=rec["uid"])
             return
         return super().document_details()
+
+    def show_access(self, key):
+        """Status inspector links must open the selected status, not product-only pages."""
+        uid = self._library_status_uid() if hasattr(self, "table") else None
+        if uid and key in ("document", "import"):
+            rec = self.api.status_catalog.get(uid)
+            self.open_library_status(rec["kind"], uid=uid)
+            return
+        return super().show_access(key)
+
+    def inspector_emission(self):
+        """Route inspector emission access to the independent status issue flow."""
+        uid = self._library_status_uid() if hasattr(self, "table") else None
+        if uid:
+            rec = self.api.status_catalog.get(uid)
+            self.open_library_status(rec["kind"], uid=uid)
+            return
+        return super().inspector_emission()
 
     def document_menu(self):
         if getattr(self, "_active_status_uid", None):
@@ -311,13 +329,14 @@ class StatusManagerMixin:
             return menu
         return super().document_menu()
 
-    def open_library_status(self, kind):
+    def open_library_status(self, kind, uid=None):
         self.navigate("status-manager")
         if self.stack.currentWidget() is not getattr(self, "status_manager", None):
             return
         revisions = self.api.status_catalog.list_revisions(kind)
+        selected = next((r for r in revisions if r["uid"] == uid), None) if uid else None
         active = next((r for r in revisions if r["state"] == "APPROVED"), None)
-        chosen = active or (revisions[0] if revisions else None)
+        chosen = selected or active or (revisions[0] if revisions else None)
         if chosen:
             for row in range(self.status_table.rowCount()):
                 item = self.status_table.item(row, 0)

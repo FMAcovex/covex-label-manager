@@ -219,7 +219,7 @@ class StudioWindow(QMainWindow):
         document_scroll.setFrameShape(QFrame.Shape.NoFrame);self.inspector_tabs.addTab(document_scroll,'Documentos')
         actions=QHBoxLayout();self.favorite_button=button('Favorita',self.favorite,ico='star');actions.addWidget(self.favorite_button)
         self.inspector_editor_button=button('Abrir en Editor',self.open_editor,'primary','arrow');actions.addWidget(self.inspector_editor_button);il.addLayout(actions)
-        il.addWidget(button('Ver accesos de emisión',lambda:self.navigate('emission'),ico='print'))
+        il.addWidget(button('Ver accesos de emisión',self.inspector_emission,ico='print'))
         self.inspector_panel=QScrollArea();self.inspector_panel.setWidgetResizable(True)
         self.inspector_panel.setWidget(self.inspector);self.inspector_panel.setFrameShape(QFrame.Shape.NoFrame)
         self.inspector_panel.setMinimumWidth(340);self.inspector_panel.setMaximumWidth(380);self.inspector.setMinimumHeight(535)
@@ -353,6 +353,8 @@ class StudioWindow(QMainWindow):
         info=QLabel(text);info.setWordWrap(True);info.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(info);lay.addWidget(scroll,1)
         lay.addWidget(button('Cerrar',dialog.accept));dialog.exec()
+    def inspector_emission(self):
+        self.navigate('emission')
     def show_access(self,key):
         self.navigate(key)
     def exchange_menu(self):
