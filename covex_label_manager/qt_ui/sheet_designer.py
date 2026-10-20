@@ -227,7 +227,7 @@ class SheetDesigner(QDialog):
                         if len(planned_first)>=physical:break
             invalid_positions=set()
             if plan_error:
-                match=re.search(r'(?:Posición|Solapamiento en posición) (\\d+)',plan_error)
+                match=re.search(r'(?:Posición|Solapamiento en posición) (\d+)',plan_error)
                 if match:invalid_positions.add(int(match.group(1)))
             for i,b in enumerate(boxes):
                 item=SlotItem(b,i,self,self.profile.get('layout_mode')=='free');scene.addItem(item);self.items.append(item)
