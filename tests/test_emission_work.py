@@ -233,3 +233,16 @@ def test_status_lot_can_be_inherited_or_overridden_by_each_container(work):
         api.work.issue(candidate['uid'],candidate['generation'],'SYNTHETIC OPERATOR')
     assert api.work.get(candidate['uid'])['phase']=='DRAFT'
     assert not api.issues()
+
+
+def test_review_warns_before_issuing_status_without_container_lot(work):
+    api,previous=work
+    draft=api.work.save(previous['uid'],previous['generation'],
+                        {'values':dict(previous['values'],lote=''),
+                         'per_container':{},
+                         'status':{'kind':'sin_analizar','fecha':'20/10/2026'}})
+    report=api.review_work(draft['uid'],draft['generation'])
+    assert not report['production_allowed']
+    assert any('Recipiente 1' in e['message']
+               and 'lote' in e['message'] for e in report['errors'])
+    assert api.work.get(draft['uid'])['phase']=='DRAFT'
