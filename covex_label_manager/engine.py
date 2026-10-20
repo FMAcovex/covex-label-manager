@@ -16,6 +16,19 @@ class LayoutError(ValueError):
     pass
 
 
+def is_mini_advisory(message):
+    """Only font legibility warnings, never real clipping/contrast/document guards."""
+    text=str(message).lower()
+    return ('texto pequeno (' in text or 'texto pequeño' in text
+            or 'demasiado pequeño' in text)
+
+
+def blocking_render_warnings(warnings,profile):
+    """Mini opt-in downgrades size notices, never actual PDF content loss."""
+    return [msg for msg in warnings if not
+            (profile.get('mini_mode',False) and is_mini_advisory(msg))]
+
+
 @dataclass(frozen=True)
 class SheetPlan:
     cols: int
@@ -36,7 +49,8 @@ def _plan_sheet(profile, physical_count):
     m=float(profile.get('margin_mm',8)); gap=float(profile.get('gap_mm',3))
     first=int(profile.get('start_slot',1))
     p_w,p_h=paper_size(profile)
-    if not (0<=m<=40 and 0<=gap<=50 and (mode=='free' or (10<=w<=p_w and 10<=h<=p_h))):
+    minimum=5 if profile.get('mini_mode',False) else 10
+    if not (0<=m<=40 and 0<=gap<=50 and (mode=='free' or (minimum<=w<=p_w and minimum<=h<=p_h))):
         raise LayoutError('Compruebe el tamano de etiqueta, margenes y separacion.')
     cols=math.floor((p_w-2*m+gap+1e-9)/(w+gap))
     rows=math.floor((p_h-2*m+gap+1e-9)/(h+gap))
@@ -182,7 +196,8 @@ def _overlay_field(page,field,values,number,total,view_rect,font_regular,font_bo
         try:
             warnings.extend(paint(page,txt,fitz.Rect(x,y,x+maxw,y+maxh),size,
                 field.get('bold',False),field['typography'],strict=not test_mode,
-                baseline=field.get('draw') in ('baseline','continuation'),continuation=continuation))
+                baseline=field.get('draw') in ('baseline','continuation'),continuation=continuation,
+                check_minimum=not values.get('_mini_mode',False)))
         except ValueError as exc:
             raise LayoutError(field.get('label',key)+': '+str(exc)) from exc
         return
@@ -256,7 +271,8 @@ def _paint_status_r7b(page, source, asset, target, material, status, test_mode, 
         data=field_values(layout,material,status,strict=not test_mode)
         try:
             report=paint(page,source,layout,data,target,settings=status.get('composition'),
-                         strict=not test_mode,default_color=(1,1,1) if asset['kind']=='rechazado' else (0,0,0))
+                         strict=not test_mode,allow_mini=material.get('_mini_mode',False),
+                         default_color=(1,1,1) if asset['kind']=='rechazado' else (0,0,0))
         except ValueError as exc:raise LayoutError(str(exc)) from exc
         warnings.extend(report['warnings'])
         material.setdefault('_composition_reports',[]).append(report)
@@ -289,9 +305,10 @@ def _paint_status_r7b(page, source, asset, target, material, status, test_mode, 
         box = fitz.Rect(field["rect"])
         size = field["font_size"] * factor
         if size < 6:
-            message = "Campo de estado demasiado pequeño (" + field["label"] + "): ajuste el tamaño o use emisión independiente."
-            if not test_mode:
+            message = "Campo de estado demasiado pequeño (" + field["label"] + "): compruebe la legibilidad física al 100 %."
+            if not test_mode and not material.get('_mini_mode',False):
                 raise LayoutError(message)
+            warnings.append(message)
         font = "hebo" if field["bold"] else "helv"
         x = rect.x0 + (box.x0 - crop.x0) * factor
         y = rect.y0 + (box.y0 - crop.y0) * factor
@@ -315,8 +332,8 @@ def _paint_status(page,status_source,status_master,view_rect,values,status,font_
         crop=fitz.Rect(_loaded_json(status_master['crop_json'],[]))
         report=geometry(crop,view_rect,status['composition'])
         if 8.2*report['scale']<6:
-            message='Estado histórico demasiado pequeño tras la composición; amplíe el área o use emisión independiente (mínimo 6 pt).'
-            if not test_mode:raise LayoutError(message)
+            message='Estado histórico demasiado pequeño tras la composición; comprobar legibilidad física al 100 %.'
+            if not test_mode and not values.get('_mini_mode',False):raise LayoutError(message)
             warnings.append(message)
         with fitz.open() as composed:
             layer=composed.new_page(width=status_source[0].rect.width,height=status_source[0].rect.height)
@@ -337,7 +354,7 @@ def _paint_status(page,status_source,status_master,view_rect,values,status,font_
     factor=min(view_rect.width/source_crop.width,view_rect.height/source_crop.height)
     if 8.2*factor<6:
         msg=f'Texto pequeño en etiqueta de estado ({8.2*factor:.1f} pt): revise el tamaño.'
-        if not test_mode:raise LayoutError(msg)
+        if not test_mode and not values.get('_mini_mode',False):raise LayoutError(msg)
         warnings.append(msg)
     ww,hh=source_crop.width*factor,source_crop.height*factor
     dest=fitz.Rect(view_rect.x0+(view_rect.width-ww)/2,view_rect.y0+(view_rect.height-hh)/2,
@@ -528,6 +545,7 @@ def render_emission(version,root,values,profile,indices,count_containers,copies_
         try:validate_vessel_masses(item,number)
         except ValueError as ex:raise LayoutError(str(ex)) from ex
         item['_label_scale']=fit_scale
+        item['_mini_mode']=bool(profile.get('mini_mode',False))
         item['_fields_json']=fields
         item['_label_name']=version['name']
         item['_crop_x0']=crop.x0
@@ -535,7 +553,8 @@ def render_emission(version,root,values,profile,indices,count_containers,copies_
         if placement!='independiente':
             page.show_pdf_page(view,orig,0,clip=crop,overlay=True,keep_proportion=True)
             warn=validate_fields(version,item,{**profile,'width_mm':width_mm,'height_mm':height_mm},strict=False)
-            if warn and not test_mode:raise LayoutError('; '.join(warn))
+            blocking=blocking_render_warnings(warn,profile)
+            if blocking and not test_mode:raise LayoutError('; '.join(blocking))
             issues.extend(warn)
             before_spans=span_count(page)
             for f in fields:
