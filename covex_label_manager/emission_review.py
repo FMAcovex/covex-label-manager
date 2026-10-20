@@ -81,7 +81,9 @@ def review(api,uid,generation):
             if not str(merged.get('lote','')).strip():
                 error('container:lote' if 'lote' in overrides else 'value:lote',
                       f'Recipiente {number}: el estado del material necesita identificación de lote. '
-                      'Complete Datos de lote o la fila del recipiente antes de emitir.',
+                      'Introduzca el lote en Recipientes o utilice un campo documental '
+                      'de tipo lote. Un «Campo 1» genérico no se identifica '
+                      'automáticamente como lote.',
                       number if 'lote' in overrides else None)
     if kind!='ninguna':
         try:
