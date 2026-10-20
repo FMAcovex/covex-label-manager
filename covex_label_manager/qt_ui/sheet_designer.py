@@ -96,9 +96,11 @@ class SheetDesigner(QDialog):
         self.orientation=QComboBox();self.orientation.addItem('Vertical','portrait');self.orientation.addItem('Horizontal','landscape');form.addRow('Orientación',self.orientation)
         self.mode=QComboBox();self.mode.addItem('Cuadrícula clásica','grid');self.mode.addItem('Distribución libre','free');form.addRow('Composición',self.mode)
         self.measures={}
-        for key,title,default,low,high in [('paper_width_mm','Papel ancho',210,50,1000),('paper_height_mm','Papel alto',297,50,1000),('width_mm','Casilla ancho',80,10,1000),('height_mm','Casilla alto',50,10,1000),('margin_mm','Margen',8,0,40),('gap_mm','Separación',3,0,50),('start_slot','Casilla inicial',1,1,1000)]:
+        for key,title,default,low,high in [('paper_width_mm','Papel ancho',210,50,1000),('paper_height_mm','Papel alto',297,50,1000),('width_mm','Casilla ancho',80,5,1000),('height_mm','Casilla alto',50,5,1000),('margin_mm','Margen',8,0,40),('gap_mm','Separación',3,0,50),('start_slot','Casilla inicial',1,1,1000)]:
             e=QDoubleSpinBox();e.setDecimals(0 if key=='start_slot' else 2);e.setRange(low,high);e.setValue(float(profile.get(key,default)));e.setSuffix('' if key=='start_slot' else ' mm');form.addRow(title,e);self.measures[key]=e
             e.valueChanged.connect(self.controls_changed)
+        for key in ('width_mm','height_mm'):
+            self.measures[key].setToolTip('Entre 5 y 10 mm requiere activar «Permitir etiqueta mini» en Formato y emisión.')
         self.count=QSpinBox();self.count.setRange(1,100);self.count.setValue(len(profile.get('slots',[])) or 5);form.addRow('Posiciones / hoja',self.count)
         # Quantity and sheet geometry are edited together in a detached draft.
         self.vessel_count=QSpinBox();self.vessel_count.setRange(1,10000)

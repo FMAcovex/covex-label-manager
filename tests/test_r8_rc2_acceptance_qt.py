@@ -123,6 +123,61 @@ def test_compact_emission_keeps_all_blockers_and_pdf_space(studio):
     assert w.emission_pdf.view.height() > 70
 
 
+def test_mini_mode_allows_small_pdf_with_visible_legibility_notice(studio):
+    """Mini mode is explicitly chosen, durable and limited to size advisories."""
+    import fitz
+    w,session,app=studio
+    api=session.services
+    vid=next(row['version_id'] for row in api.library.entries() if row['state']=='APPROVED')
+    work=api.work.create(vid,name='DEMO tamaño mini, ensayo de lectura')
+    v=api.version(vid)
+    width=35.
+    height=width*float(v['base_h_mm'])/float(v['base_w_mm'])
+    physical=dict(work['profile'],width_mm=width,height_mm=height)
+    ready=api.work.save(work['uid'],work['generation'],{
+        'profile':physical,'values':{'lote':'MINI-001','pn':'1 kg','pb':'2 kg'},
+        'count':'3'})
+    review=api.review_work(ready['uid'],ready['generation'])
+    assert not review['production_allowed']
+    assert any('pequeno' in entry['message'].lower() for entry in review['errors'])
+    w.load_emission_work(ready['uid'])
+    w.navigate('emission')
+    panel=w.emission_panel
+    assert not panel.mini_mode.isChecked()
+    panel.mini_mode.setChecked(True)
+    assert w.flush_emission_work()
+    saved=api.work.get(ready['uid'])
+    assert saved['profile']['mini_mode'] is True
+    review=api.review_work(saved['uid'],saved['generation'])
+    assert review['production_allowed'],review['errors']
+    assert any('mini' in msg.lower() for msg in review['warnings'])
+    target=api.output_path('cache','test-physical-mini.pdf')
+    report=api.work.proof(saved['uid'],saved['generation'],target)
+    assert any('pequeno' in msg.lower() for msg in report['warnings'])
+    from covex_label_manager.engine import blocking_render_warnings
+    assert blocking_render_warnings(report['warnings'],saved['profile'])==[]
+    with fitz.open(target) as pdf:
+        text=''.join(page.get_text() for page in pdf)
+        # The embedded font ToUnicode map can extract the visible hyphen
+        # as soft hyphen. The PDF glyph must still be checked visually.
+        assert 'MINI-001' in text.replace('\u00ad','-') and pdf.page_count>=1
+    panel.mini_mode.setChecked(False)
+    assert w.flush_emission_work()
+    assert not api.review_work(w.emission_work['uid'],w.emission_work['generation'])['production_allowed']
+    assert not api.issues()
+
+
+def test_mini_mode_does_not_override_real_blocking_warnings(studio):
+    from covex_label_manager.engine import blocking_render_warnings
+    p={'mini_mode':True}
+    warnings=['Texto pequeno (2.9 pt) en Lote: requiere revisar el formato.',
+              'Contraste insuficiente (1.2:1).','Recorte protegido: texto crítico']
+    assert blocking_render_warnings(warnings,p)==warnings[1:]
+    other=['El pictograma es demasiado pequeño y está recortado.',
+           'Dato demasiado pequeño porque desaparece la última letra.']
+    assert blocking_render_warnings(other,p)==other
+
+
 def test_free_sheet_invalid_second_slot_remains_visible_and_repairable(studio):
     """Invalid mm geometry must not empty the canvas; all boxes remain editable."""
     import copy

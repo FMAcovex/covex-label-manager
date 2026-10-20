@@ -123,7 +123,7 @@ def critical_losses(source_page, layout, clip):
 
 
 def paint(page, source, layout, values, target, *, settings=None, strict=True,
-          default_color=(0,0,0)):
+          default_color=(0,0,0), allow_mini=False):
     """Compose in source points THEN transform background and fields together."""
     from .typography import paint as paint_text, contrast_warning
     report=geometry(layout['crop'],target,settings)
@@ -140,7 +140,7 @@ def paint(page, source, layout, values, target, *, settings=None, strict=True,
             for span in line['spans']:
                 if span['text'].strip() and not (fitz.Rect(span['bbox'])&visible).is_empty and span['size']*report['scale']<6:
                     message=f"Texto fijo demasiado pequeño ({span['size']*report['scale']:.2f} pt): "+span['text'][:60]+'. Amplíe el área o prepare una revisión de origen.'
-                    if strict:raise ValueError(message)
+                    if strict and not allow_mini:raise ValueError(message)
                     warnings.append(message)
     with fitz.open() as composed:
         layer=composed.new_page(width=source_page.rect.width,height=source_page.rect.height)
@@ -163,7 +163,7 @@ def paint(page, source, layout, values, target, *, settings=None, strict=True,
                 draw_legacy_field(layer,text,rect,size,field['bold'],field['label'],default_color)
             if size*report['scale']<6:
                 message=field['label']+f": texto final demasiado pequeño ({size*report['scale']:.2f} pt); mínimo 6 pt."
-                if strict:raise ValueError(message)
+                if strict and not allow_mini:raise ValueError(message)
                 warnings.append(message)
         # Also check actual new glyphs against their SOURCE boxes before crop.
         # The typography renderer has already measured its full ascent/descent.

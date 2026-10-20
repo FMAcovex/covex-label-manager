@@ -130,6 +130,14 @@ class EmissionCentreMixin:
         task.start()
         from ..diagnostics import event
         event('preview_start')
+    def blocking_preview_warnings(self,preview=None):
+        from ..engine import blocking_render_warnings
+        preview=self.work_preview if preview is None else preview
+        if not preview or not self.emission_work:return []
+        return blocking_render_warnings(
+            preview['result'].get('warnings',[]),
+            self.emission_work['profile'])
+
     def automatic_preview_completed(self,payload):
         from .preview_task import discard_temporary
         if getattr(self, '_runtime_shutting_down', False):
@@ -162,7 +170,11 @@ class EmissionCentreMixin:
         self.refresh_emission_review()
         self.show_composition_report(payload['result'])
         if payload['result']['warnings']:
-            self.native_issue.setEnabled(False);self.emission_feedback.setText('Revise antes de emitir: '+' · '.join(payload['result']['warnings'][:5]))
+            if self.blocking_preview_warnings(payload):
+                self.native_issue.setEnabled(False)
+            prefix=('Bloqueo de emisión: ' if self.blocking_preview_warnings(payload)
+                    else 'Formato mini · texto inferior a 6 pt, verifique impresión física: ')
+            self.emission_feedback.setText(prefix+' · '.join(payload['result']['warnings'][:5]))
     def automatic_preview_finished(self):
         from ..diagnostics import event
         event('preview_finish')
@@ -202,7 +214,7 @@ class EmissionCentreMixin:
         self.emission_feedback.setText('\n'.join(list(dict.fromkeys(messages))[:2])+('\nRevise los demás avisos junto a los campos.' if len(messages)>2 else '') if messages else 'Datos preparados. Compruebe la vista previa antes de emitir. La impresión física no se confirma aquí.')
         self.native_proof.setEnabled(review['proof_allowed'] and not self.native_busy);self.preview_work_button.setEnabled(review['proof_allowed'] and not self.native_busy)
         valid=self.preview_matches(review)
-        self.native_issue.setEnabled(review['production_allowed'] and valid and not self.work_preview['result']['warnings'] and not self.native_busy and not self.legacy_process and self.preview_task is None)
+        self.native_issue.setEnabled(review['production_allowed'] and valid and not self.blocking_preview_warnings() and not self.native_busy and not self.legacy_process and self.preview_task is None)
         blockers=[item['message'] for item in review['errors']]
         if not review['production_allowed'] and not blockers:
             blockers.append('La revisión, variante o datos actuales no autorizan una emisión definitiva.')
@@ -212,8 +224,8 @@ class EmissionCentreMixin:
         if self.work_dirty_panel:blockers.append('Hay cambios pendientes de guardar.')
         if self.preview_task is not None:blockers.append('Se está calculando la vista previa.')
         elif not valid:blockers.append('La vista previa PDF no está actualizada. Actualícela antes de emitir.')
-        if self.work_preview and self.work_preview['result'].get('warnings'):
-            blockers.extend(self.work_preview['result']['warnings'])
+        if self.work_preview:
+            blockers.extend(self.blocking_preview_warnings())
         if self.native_busy or self.legacy_process:blockers.append('Hay una operación en curso.')
         blockers=list(dict.fromkeys(str(s) for s in blockers if s))
         self.emission_blockers.setText(
@@ -335,7 +347,10 @@ class EmissionCentreMixin:
             self.refresh_emission_review()
             self.show_composition_report(result)
             if result['warnings']:
-                self.native_issue.setEnabled(False);self.emission_feedback.setText('Revise antes de emitir: '+' · '.join(result['warnings'][:5]))
+                if self.blocking_preview_warnings():self.native_issue.setEnabled(False)
+                prefix=('Revise antes de emitir: ' if self.blocking_preview_warnings()
+                        else 'Formato mini · comprobar legibilidad física: ')
+                self.emission_feedback.setText(prefix+' · '.join(result['warnings'][:5]))
             return True
         except Exception as ex:self.emission_error(ex);return False
 
@@ -359,9 +374,19 @@ class EmissionCentreMixin:
         review=self.refresh_emission_review()
         if not self.preview_matches(review):
             self.navigate('emission');self.preview_emission_work();return False
-        if not review['production_allowed'] or self.work_preview['result']['warnings']:return False
+        if not review['production_allowed'] or self.blocking_preview_warnings():return False
         w=self.emission_work;s=review['summary']
         text=f"Registrar definitivamente «{w['name']}»?\n\n{self._emission_document_full}\nLote: {w['values'].get('lote','(no definido por el diseño)')}\n{s['physical']} etiquetas · {s['pages']} hojas {w['profile'].get('paper','A4')}\n\nGuardar un borrador no emite. Generar este PDF registra la emisión, sin confirmar la impresión física."
+        if w['profile'].get('mini_mode'):
+            from ..engine import is_mini_advisory
+            mini=[msg for msg in self.work_preview['result'].get('warnings',[])
+                  if is_mini_advisory(msg)]
+            if mini:
+                text+=('\n\nFORMATO MINI · Texto por debajo de 6 pt. '
+                       'Confirme que ha revisado una prueba física al 100 %, '
+                       'que es legible y que cuenta con el diseño documental '
+                       'autorizado. La aplicación no acredita estas comprobaciones. '
+                       '\n\n¿Continuar con la emisión?')
         if QMessageBox.question(self,'Confirmar emisión definitiva',text,QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.Cancel,QMessageBox.StandardButton.Cancel)!=QMessageBox.StandardButton.Yes:return False
         try:
             latest=self.api.review_work(w['uid'],w['generation'])

@@ -297,3 +297,21 @@ def test_typography_preserves_interior_spaces_and_rejects_silent_tab_substitutio
         with pytest.raises(ValueError,match='Demasiadas líneas'):
             paint(page,'SYN\nLOT\nEXTRA',fitz.Rect(20,160,200,260),12,False,DEFAULT,
                   baseline=True,continuation=(20,180,2))
+
+
+def test_explicit_mini_option_allows_small_status_text_without_weakening_crop(tmp_path):
+    """Old strict 6pt contract remains; opt-in only removes font-size rejection."""
+    path=tmp_path/'synthetic-mini-status.pdf'
+    with fitz.open() as document:
+        page=document.new_page(width=200,height=100)
+        page.insert_text((60,30),'SYNTHETIC TINY',fontsize=3)
+        document.save(path)
+    layout=make_layout(path,'aprobado')
+    with fitz.open(path) as source_doc,fitz.open() as output:
+        page=output.new_page(width=200,height=100)
+        with pytest.raises(ValueError,match='Texto fijo demasiado pequeño'):
+            paint_status(page,source_doc,layout,{},fitz.Rect(0,0,200,100),strict=True)
+        result=paint_status(page,source_doc,layout,{},fitz.Rect(0,0,200,100),
+                            strict=True,allow_mini=True)
+        assert any('demasiado pequeño' in text for text in result['warnings'])
+        assert 'SYNTHETIC TINY' in page.get_text()
