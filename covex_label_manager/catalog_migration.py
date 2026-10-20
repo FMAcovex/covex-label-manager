@@ -4,7 +4,7 @@ from collections import defaultdict
 from .catalog_exchange import _existing
 from .importer import proposed_identity,docx_to_pdf,auto_crop
 from .storage import sha256
-import tempfile,shutil,fitz
+import tempfile,shutil,fitz,hashlib
 
 SUFFIXES={'.docx','.doc','.pdf','.png','.jpg','.jpeg'}
 def safe(root,name):
@@ -17,25 +17,51 @@ def safe(root,name):
     if not path.resolve().is_relative_to(root):raise ValueError('Ruta fuera de carpeta.')
     return path
 
-def preview(api,folder):
+class PreviewCancelled(Exception):
+    """A read-only inventory was interrupted before classification finished."""
+
+
+def _scan_digest(path, interrupt):
+    if interrupt is None:
+        return sha256(path)
+    digest=hashlib.sha256()
+    with open(path,'rb') as source:
+        while True:
+            if interrupt():
+                raise PreviewCancelled()
+            block=source.read(128*1024)
+            if not block:
+                return digest.hexdigest()
+            digest.update(block)
+
+
+def preview_existing(existing,folder,interrupt=None):
+    """Hash and classify from plain snapshots; never access SQLite in a worker.
+
+    All final imports still revalidate SHA-256 and documentary identity through
+    the locked repository. Cancellation never creates or updates any record.
+    """
     root=Path(folder).resolve(strict=True)
     if not root.is_dir():raise ValueError('Seleccione carpeta.')
     groups=defaultdict(list);rows=[]
     for p in sorted(root.rglob('*')):
+        if interrupt is not None and interrupt():
+            raise PreviewCancelled()
         if p.suffix.lower() not in SUFFIXES or p.name.startswith('~$'):continue
         rel=p.relative_to(root).as_posix()
         try:safe(root,rel)
         except (ValueError,OSError):rows.append(dict(source=rel,status='BLOCKED_UNSAFE'));continue
         groups[(str(p.parent.relative_to(root)).casefold(),p.stem.casefold())].append(p)
-    existing=_existing(api)
     for group in groups.values():
+        if interrupt is not None and interrupt():
+            raise PreviewCancelled()
         originals=[p for p in group if p.suffix.lower() in ('.doc','.docx')]
         pdfs=[p for p in group if p.suffix.lower()=='.pdf']
         images=[p for p in group if p.suffix.lower() in ('.png','.jpg','.jpeg')]
         if len(originals)>1 or len(pdfs)>1 or len(images)>1 or (images and (pdfs or originals)):
             rows.append(dict(source=group[0].relative_to(root).as_posix(),status='BLOCKED_PAIR'));continue
         src=(originals or images or pdfs)[0];pdf=pdfs[0] if pdfs else None
-        ident=proposed_identity(src);digest=sha256(src);pdigest=sha256(pdf) if pdf else None
+        ident=proposed_identity(src);digest=_scan_digest(src,interrupt);pdigest=_scan_digest(pdf,interrupt) if pdf else None
         exact=[];overlap=[];identities=[]
         for l,v in existing:
             a=v['source_sha256'];b=v['pdf_sha256']
@@ -50,7 +76,17 @@ def preview(api,folder):
         h=row.get('sha256')
         if h in seen and row['status']=='REVIEW_REQUIRED':row['status']='BATCH_DUPLICATE'
         if h:seen.setdefault(h,row['source'])
+    if interrupt is not None and interrupt():
+        raise PreviewCancelled()
     return {'contract':2,'mode':'REVIEW_ONLY','files':sorted(rows,key=lambda x:x['source'])}
+
+
+def preview(api,folder):
+    # Compatibility with R5B service and synchronous non-Qt callers.
+    # The GUI snapshots catalog rows on the UI thread before running
+    # preview_existing on the worker.
+    return preview_existing(_existing(api),folder)
+
 
 def apply(api,folder,row,decision):
     if not isinstance(row,dict) or not isinstance(decision,dict):raise ValueError('Selección inválida.')

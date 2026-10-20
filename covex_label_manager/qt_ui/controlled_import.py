@@ -1,7 +1,7 @@
 """Folder wizard over the unchanged R5B pending-only, hash-checked service."""
 from pathlib import Path
 import uuid
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QTimer, Qt, QThread, Signal
 from PySide6.QtWidgets import (QFileDialog,QMessageBox,QComboBox,QTableWidget,
     QTableWidgetItem,QHeaderView,QAbstractItemView,QProgressBar,QHBoxLayout,
     QDialogButtonBox,QLineEdit,QFormLayout,QStackedWidget,QWidget,QCheckBox,QApplication,
@@ -19,6 +19,30 @@ DIAGNOSES={
     'BLOCKED_UNSAFE':'Ruta no segura: bloqueada',
 }
 
+class FolderPreviewWorker(QThread):
+    completed=Signal(object)
+    failed=Signal(str)
+
+    def __init__(self,existing,folder,parent=None):
+        super().__init__(parent)
+        self.existing=existing
+        self.folder=folder
+        self._cancelled=False
+
+    def cancel(self):
+        self._cancelled=True
+
+    def run(self):
+        from ..catalog_migration import preview_existing,PreviewCancelled
+        try:
+            result=preview_existing(self.existing,self.folder,
+                                    interrupt=lambda:self._cancelled)
+            if not self._cancelled:self.completed.emit(result)
+        except PreviewCancelled:
+            pass
+        except (OSError,ValueError,RuntimeError) as error:
+            if not self._cancelled:self.failed.emit(str(error))
+
 
 class ControlledImportDialog(QDialog):
     def __init__(self,parent,api,folder=None):
@@ -27,6 +51,7 @@ class ControlledImportDialog(QDialog):
         # Never shadow QDialog.done(int): Qt calls this virtual method on closing.
         self.processed=0;self.ok=0;self.failures=[];self.running=False;self.cancelled=False
         self.queue=[];self.imported=[];self.editor_version_id=None;self.close_when_stopped=False
+        self.preview_worker=None;self.preview_closing=False;self.preview_scan=False
         self.setWindowTitle('Importar carpeta · Asistente documental');self.resize(1050,650)
         layout=vbox(self);self.heading=label('1 · Seleccionar carpeta','panelTitle');layout.addWidget(self.heading)
         self.pages=QStackedWidget()
@@ -39,6 +64,8 @@ class ControlledImportDialog(QDialog):
         note=label('Seleccione una carpeta local. No se modifica ningún original ni se aprueba documentación.','subtle');note.setWordWrap(True);fl.addWidget(note)
         self.folder_path=QLineEdit();self.folder_path.setReadOnly(True);self.folder_path.setAccessibleName('Carpeta seleccionada');fl.addWidget(self.folder_path)
         self.choose_button=button('Seleccionar / cambiar carpeta…',self.choose_folder);fl.addWidget(self.choose_button)
+        self.cancel_scan_button=button('Cancelar análisis',self.cancel_scan)
+        self.cancel_scan_button.hide();fl.addWidget(self.cancel_scan_button)
         self.folder_summary=label('PDF, Word e imágenes; se incluyen subcarpetas.','subtle');self.folder_summary.setWordWrap(True);fl.addWidget(self.folder_summary);fl.addStretch();self.pages.addWidget(first)
         review=QWidget();rl=vbox(review,0,6)
         self.review_path=label('','subtle');self.review_path.setWordWrap(True);rl.addWidget(self.review_path)
@@ -92,7 +119,7 @@ class ControlledImportDialog(QDialog):
         page=self.pages.currentIndex()
         self.confirm_identity.setVisible(page==1);self.editor_actions.setVisible(page==2);self.progress.setVisible(page==2)
         self.heading.setText(['1 · Seleccionar carpeta','2 · Revisar e identificar documentos','3 · Importación y acceso al Editor'][page])
-        self.back.setVisible(page==1);self.next.setVisible(page==0);self.next.setEnabled(bool(self.rows))
+        self.back.setVisible(page==1);self.next.setVisible(page==0);self.next.setEnabled(bool(self.rows) and not self.preview_scan)
         self.go.setVisible(page==1);self.go.setEnabled(self.confirm_identity.isChecked() and not self.running and not self.processed)
         self.stop_button.setVisible(page==2);self.stop_button.setEnabled(self.running and not self.cancelled)
         QTimer.singleShot(0,self,self.fit_footer)
@@ -125,12 +152,56 @@ class ControlledImportDialog(QDialog):
     def choose_folder(self):
         folder=QFileDialog.getExistingDirectory(self,'Seleccionar carpeta de documentos',str(self.folder or ''))
         if folder:
-            try:self.set_folder(folder)
+            try:self.scan_folder(folder)
             except (ValueError,OSError) as ex:QMessageBox.warning(self,'Carpeta no disponible',str(ex))
 
+    def scan_folder(self,folder):
+        """UI thread snapshots SQL; file I/O/hashing runs off the event loop."""
+        if self.preview_scan or self.running or self.processed:return
+        from ..catalog_exchange import _existing
+        existing=_existing(self.api)
+        self.preview_scan=True;self.rows=[];self.confirm_identity.setChecked(False)
+        self.folder=Path(folder);self.folder_path.setText(str(self.folder))
+        self.folder_summary.setText('Analizando archivos y huellas SHA-256… Puede cancelar.')
+        self.choose_button.setEnabled(False);self.cancel_scan_button.show()
+        self.preview_worker=FolderPreviewWorker(existing,folder,self)
+        self.preview_worker.completed.connect(self.scan_completed)
+        self.preview_worker.failed.connect(self.scan_failed)
+        self.preview_worker.finished.connect(self.scan_finished)
+        self.preview_worker.start()
+        self.update_buttons()
+
+    def cancel_scan(self):
+        if self.preview_worker and self.preview_worker.isRunning():
+            self.preview_worker.cancel()
+            self.folder_summary.setText('Cancelando análisis, sin modificar documentos…')
+            self.cancel_scan_button.setEnabled(False)
+
+    def scan_completed(self,result):
+        if not self.preview_closing:self.populate_folder(self.folder,result['files'])
+
+    def scan_failed(self,error):
+        if not self.preview_closing:
+            self.folder_summary.setText('No se ha completado el análisis.')
+            QMessageBox.warning(self,'Análisis de carpeta no disponible',error)
+
+    def scan_finished(self):
+        self.preview_scan=False
+        self.choose_button.setEnabled(True)
+        self.cancel_scan_button.hide();self.cancel_scan_button.setEnabled(True)
+        worker=self.preview_worker;self.preview_worker=None
+        if worker:worker.deleteLater()
+        self.update_buttons()
+        if self.preview_closing:super().reject()
+
     def set_folder(self,folder):
-        if self.running or self.processed:return
-        rows=self.api.catalog_migration_preview(folder)['files'];self.folder=Path(folder);self.rows=rows
+        """Synchronous API retained for existing tests/explicit non-UI callers."""
+        if self.preview_scan or self.running or self.processed:return
+        rows=self.api.catalog_migration_preview(folder)['files']
+        self.populate_folder(folder,rows)
+
+    def populate_folder(self,folder,rows):
+        self.folder=Path(folder);self.rows=rows
         self.folder_path.setText(str(self.folder));self.folder_path.setToolTip(str(self.folder));self.review_path.setText('Carpeta: '+str(self.folder))
         self.folder_summary.setText(f'{len(rows)} documentos detectados. Continúe para revisar identidades y coincidencias.')
         self.confirm_identity.setChecked(False);self.metadata=[];self.row_actions=[];self.targets=[]
@@ -304,9 +375,13 @@ class ControlledImportDialog(QDialog):
     def close_requested(self):self.reject()
 
     def reject(self):
+        if self.preview_scan:
+            self.preview_closing=True;self.cancel_scan();return
         if self.running:self.close_when_stopped=True;self.stop();return
         super().reject()
 
     def closeEvent(self,event):
+        if self.preview_scan:
+            self.preview_closing=True;self.cancel_scan();event.ignore();return
         if self.running:self.close_when_stopped=True;self.stop();event.ignore();return
         super().closeEvent(event)
