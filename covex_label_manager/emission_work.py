@@ -236,8 +236,10 @@ class WorkRepository:
                     if not str(item.get('lote','')).strip():
                         raise ValueError(
                             f'Recipiente {number}: el estado del material requiere '
-                            'identificación de lote. Complétela en Datos de lote '
-                            'o en la fila del recipiente antes de emitir.')
+                            'identificación de lote. Complete la columna Lote '
+                            'de Recipientes o utilice un campo documental «lote». '
+                            'Los campos genéricos no se interpretan automáticamente '
+                            'como identificación de lote.')
             w=copy.deepcopy(old);w.update(phase='EMITTING',operation_uid=uuid.uuid4().hex,
                 generation=generation+1,updated_at=now())
             self._write(w,old)
