@@ -79,17 +79,20 @@ def exercise(w,app,captures=None):
     w.choose_column(6,True);check(not w.table.isColumnHidden(6),'Optional metadata columns accessible');w.reset_columns()
     w.navigate('history');check(w.stack.currentWidget() is w.history_page,'Native history replaces the previous companion-only section')
     w.navigate('settings');settle()
-    check(w.stack.currentWidget() is w.settings_page and w.settings_tabs.count()==5,
-          'Native settings opens five administration sections, not Tkinter')
+    check(w.stack.currentWidget() is w.settings_page and w.settings_tabs.count()==3
+          and w.settings_general_tabs.count()==2
+          and w.settings_documents_tabs.count()==3
+          and w.settings_admin_tabs.count()==2,
+          'Native settings groups the preserved functions into three clear areas, not Tkinter')
     check(w.settings_data_path.isReadOnly() and w.settings_data_path.text()==w.api.location(),
           'Settings exposes only a read-only data location')
     check(w.settings_counts['labels'].text()==str(w.api.stats()['labels']),
           'Settings counters are read from the existing service')
     snap('R3D_Qt_Configuracion_Resumen.png')
-    w.settings_tabs.setCurrentIndex(1);settle();snap('R3D_Qt_Configuracion_Datos.png')
-    w.settings_tabs.setCurrentIndex(2);settle();snap('R3D_Qt_Configuracion_CM.png')
-    w.settings_tabs.setCurrentIndex(3);settle();snap('R3D_Qt_Configuracion_Estados.png')
-    w.settings_tabs.setCurrentIndex(4);settle();snap('R3D_Qt_Configuracion_Auditoria.png')
+    w.open_settings_section(0,1);settle();snap('R3D_Qt_Configuracion_Datos.png')
+    w.open_settings_section(1,1);settle();snap('R3D_Qt_Configuracion_CM.png')
+    w.open_settings_section(1,2);settle();snap('R3D_Qt_Configuracion_Estados.png')
+    w.open_settings_section(2,0);settle();snap('R3D_Qt_Configuracion_Auditoria.png')
     dialog=QMessageBox(QMessageBox.Icon.Information,'Confirmación de prueba',
         'Vista de ejemplo del cuadro emergente. Solo contiene datos ficticios.',
         QMessageBox.StandardButton.Ok,w)
