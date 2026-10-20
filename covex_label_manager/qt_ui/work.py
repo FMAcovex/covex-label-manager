@@ -339,11 +339,11 @@ class WorkPanel(QWidget):
                         'Ancho/Alto de la posición o arrastre sus bordes.')
             self.keep_ratio.setEnabled(not free_layout)
             self.design_sheet_button.setText(
-                'Modificar tamaño y posición de cada etiqueta…' if free_layout
+                'Modificar tamaño y posiciones de etiquetas…' if free_layout
                 else 'Diseñar hoja y posiciones…')
             self.format_context.setText(
                 ('Distribución libre: cada casilla tiene su propio ancho, alto y posición. '
-                 'Use «Modificar tamaño y posición»; los campos Ancho/Alto generales '
+                 'Use «Modificar tamaño y posiciones»; los campos Ancho/Alto generales '
                  'no cambiarían la hoja. El zoom del PDF solo modifica la vista.')
                 if free_layout else
                 ('Cuadrícula: Ancho y Alto indican los milímetros reales por etiqueta. '
