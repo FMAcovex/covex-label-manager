@@ -487,7 +487,9 @@ class EmissionCentreMixin:
 
     def work_options(self):
         """Plain-language, organized actions; no side effects until selected."""
-        menu=QMenu(self)
+        # Open asynchronously: exec() starts a nested modal event loop and can
+        # freeze automated Qt interaction or leave the emission UI unresponsive.
+        menu=QMenu(self.native_options)
         menu.setToolTipsVisible(True)
         menu.addSection('FORMATO FÍSICO')
         size=menu.addAction('Cambiar tamaño y distribuir etiquetas…',
@@ -509,7 +511,11 @@ class EmissionCentreMixin:
         binding.setToolTip(
             'Revisar una revisión o variante vinculada. '
             'Se mantienen los controles de vigencia y aprobación.')
-        menu.exec(self.cursor().pos())
+        # Anchor to the action button, not the cursor (which can move during
+        # keyboard access). Reclaim each transient menu after it is dismissed.
+        menu.aboutToHide.connect(menu.deleteLater)
+        menu.popup(self.native_options.mapToGlobal(
+            self.native_options.rect().bottomLeft()))
     def paste_work_containers(self):
         if not self.emission_work or not self.flush_emission_work():return
         from ..vessels import parse_tabular_vessels
