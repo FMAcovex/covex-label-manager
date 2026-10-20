@@ -146,10 +146,15 @@ def test_work_format_help_explains_physical_dimensions_without_writing(studio,mo
     panel.format_help_toggle.setChecked(True)
     assert not panel.format_help.isHidden()
     assert 'Casilla inicial' in panel.format_help.text()
-    actions=[]
-    monkeypatch.setattr(QMenu,'exec',
-                        lambda menu,*args:actions.extend(a.text() for a in menu.actions()))
+    # Inspect the real native popup: it must return immediately instead of
+    # entering a nested modal event loop, and its actions must be discoverable.
     w.work_options()
+    menus=w.native_options.findChildren(QMenu)
+    assert len(menus)==1
+    menu=menus[0]
+    actions=[action.text() for action in menu.actions()]
+    assert menu.isVisible()
+    menu.close()
     assert 'FORMATO FÍSICO' in actions
     assert any('numeración' in title.lower() for title in actions)
     assert 'TRABAJO Y TRAZABILIDAD' in actions
