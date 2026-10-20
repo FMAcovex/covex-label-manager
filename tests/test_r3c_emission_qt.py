@@ -169,5 +169,5 @@ def test_free_sheet_format_help_points_to_actual_slot_editor(studio):
     panel=w.emission_panel
     assert 'Distribución libre' in panel.format_context.text()
     assert not panel.profile_inputs['width_mm'].isEnabled()
-    assert 'Modificar tamaño y posición' in panel.design_sheet_button.text()
+    assert 'Modificar tamaño y posiciones' in panel.design_sheet_button.text()
     assert api.work.get(committed['uid'])['profile']==committed['profile']
