@@ -123,6 +123,67 @@ def test_compact_emission_keeps_all_blockers_and_pdf_space(studio):
     assert w.emission_pdf.view.height() > 70
 
 
+def test_free_sheet_invalid_second_slot_remains_visible_and_repairable(studio):
+    """Invalid mm geometry must not empty the canvas; all boxes remain editable."""
+    import copy
+    from PySide6.QtWidgets import QDialogButtonBox
+    from test_r3e_layout import profile
+    w, session, app = studio
+    model = profile("A4", 3)
+    before = copy.deepcopy(model)
+    model["slots"][1]["y"] = model["margin_mm"] - 2
+    dialog = SheetDesigner(w, model, quantities={"count": "5", "copies": "1", "selection": ""})
+    app.processEvents()
+
+    assert dialog.profile["layout_mode"] == "free"
+    assert len(dialog.items) == 3
+    assert "Posición 2" in dialog.error.text()
+    assert not dialog.buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
+    assert dialog.items[1].pen().color().name() == "#c63e33"
+    assert "Posición 2" in dialog.items[1].toolTip()
+    assert len(dialog.profile["slots"]) == 3
+
+    # The operator can repair the position using an actual numeric editing
+    # control, without resetting all other carefully arranged positions.
+    item = dialog.items[1]
+    item.setSelected(True)
+    app.processEvents()
+    dialog.box_inputs["y"].setValue(before["slots"][1]["y"])
+    dialog.numeric_box()
+    assert len(dialog.items) == 3
+    assert dialog.buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
+    assert "Posición 2" not in dialog.error.text()
+    dialog.undo()
+    assert len(dialog.items) == 3
+    assert not dialog.buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
+    dialog.reject()
+
+
+def test_free_sheet_overlap_and_margin_change_never_hide_slots(studio):
+    """Changing a margin or overlapping boxes keeps geometry accessible."""
+    from PySide6.QtWidgets import QDialogButtonBox
+    from test_r3e_layout import profile
+    w, session, app = studio
+    dialog = SheetDesigner(w, profile("A4", 2))
+    assert len(dialog.items) == 2
+    changed = dict(dialog.profile)
+    changed["slots"] = [dict(slot) for slot in dialog.profile["slots"]]
+    changed["slots"][1] = dict(changed["slots"][0])
+    dialog.push(changed, "Synthetic overlapping positions")
+    assert len(dialog.items) == 2
+    assert "Solapamiento en posición 2" in dialog.error.text()
+    assert dialog.items[1].pen().color().name() == "#c63e33"
+    assert not dialog.buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
+
+    dialog.undo()
+    assert len(dialog.items) == 2
+    assert dialog.buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
+    dialog.measures["margin_mm"].setValue(15)
+    assert len(dialog.items) == 2
+    assert "Posición 1" in dialog.error.text()
+    assert not dialog.buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
+    dialog.reject()
+
 def test_integrated_status_legacy_short_number_uses_measured_ink():
     """Historical R7B integrated overlay must accept one digit in a short box."""
     import fitz
