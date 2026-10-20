@@ -83,9 +83,22 @@ try:
         real_question=QMessageBox.question
         try:
             QMessageBox.question=lambda *args,**kwargs:QMessageBox.StandardButton.Yes
-            d.start();d.timer.stop();d.step();d.timer.stop();d.finish()
+            d.start()
+            # The operator dialog now prepares/imports files asynchronously.
+            # Drive the actual event loop until the real result arrives rather
+            # than calling a formerly synchronous step and closing prematurely.
+            for _ in range(800):
+                if d.processed>=1 and not d.running:
+                    break
+                QTest.qWait(25)
+            else:
+                raise AssertionError(
+                    f'Importación sin terminar: {d.processed}/{len(d.queue)}; '
+                    f'worker={bool(d.import_worker)}; errores={d.failures}; '
+                    f'estado={d.status.text()}')
         finally:QMessageBox.question=real_question
-        assert d.ok==1 and api.version(d.imported[0]['version_id'])['state']=='PENDING'
+        assert d.ok==1 and api.version(d.imported[0]['version_id'])['state']=='PENDING',(
+            d.failures,d.status.text())
         capture('04-resumen-pendiente',d)
         w.refresh();w.select_version(d.imported[0]['version_id']);w.open_editor();capture('05-editor-importado',w)
     d.hide()

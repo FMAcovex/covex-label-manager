@@ -88,43 +88,130 @@ def preview(api,folder):
     return preview_existing(_existing(api),folder)
 
 
-def apply(api,folder,row,decision):
-    if not isinstance(row,dict) or not isinstance(decision,dict):raise ValueError('Selección inválida.')
-    if row.get('status') not in ('REVIEW_REQUIRED','IDENTITY_CONFLICT'):raise ValueError('Archivo bloqueado por inventario.')
+def validate_intent(row, decision):
+    """Check user choices without touching a source or a database."""
+    if not isinstance(row, dict) or not isinstance(decision, dict):
+        raise ValueError('Selección inválida.')
+    if row.get('status') not in ('REVIEW_REQUIRED', 'IDENTITY_CONFLICT'):
+        raise ValueError('Archivo bloqueado por inventario.')
     mode=decision.get('action')
-    if mode not in ('NEW_LABEL','NEW_REVISION'):raise ValueError('Acción explícita obligatoria.')
-    name=decision.get('name','');version=decision.get('version','');origin=decision.get('origin')
-    if not isinstance(name,str) or not name.strip() or not isinstance(version,str) or not version.strip():raise ValueError('Nombre y revisión obligatorios.')
-    if origin not in ('COVEX','CLIENTE'):raise ValueError('Origen inválido.')
+    if mode not in ('NEW_LABEL','NEW_REVISION'):
+        raise ValueError('Acción explícita obligatoria.')
+    name=decision.get('name','');version=decision.get('version','')
+    origin=decision.get('origin')
+    if (not isinstance(name,str) or not name.strip()
+            or not isinstance(version,str) or not version.strip()):
+        raise ValueError('Nombre y revisión obligatorios.')
+    if origin not in ('COVEX','CLIENTE'):
+        raise ValueError('Origen inválido.')
     customer=decision.get('customer','')
-    if origin=='CLIENTE' and not customer:raise ValueError('Cliente obligatorio.')
-    if any(not isinstance(decision.get(k,''),str) for k in ('code','category','annex','ref_customer','customer')):raise ValueError('Metadatos inválidos.')
-    root=Path(folder).resolve(strict=True);source=safe(root,row['source'])
+    if origin=='CLIENTE' and not customer:
+        raise ValueError('Cliente obligatorio.')
+    if any(not isinstance(decision.get(k,''),str)
+           for k in ('code','category','annex','ref_customer','customer')):
+        raise ValueError('Metadatos inválidos.')
+    return mode
+
+
+def prepare_source(folder, row, staging_directory):
+    """Expensive, *read-only* stage: copy/hash/convert/crop off the GUI thread.
+
+    No catalogue API, Qt object, DB handle or audit log may enter this function.
+    Caller owns the staging directory and must keep it alive through commit.
+    """
+    if not isinstance(row,dict) or row.get('status') not in ('REVIEW_REQUIRED','IDENTITY_CONFLICT'):
+        raise ValueError('Archivo bloqueado por inventario.')
+    root=Path(folder).resolve(strict=True)
+    source=safe(root,row['source'])
     pdf_source=safe(root,row['pdf']) if row.get('pdf') else None
-    if sha256(source)!=row.get('sha256') or (pdf_source and sha256(pdf_source)!=row.get('pdf_sha256')):raise ValueError('Fuente modificada desde previsualización.')
-    with tempfile.TemporaryDirectory(prefix='covex_r5b_') as temporary:
-        temp=Path(temporary);original=temp/('original'+source.suffix.lower())
-        shutil.copyfile(source,original)
-        if sha256(original)!=row['sha256']:raise ValueError('La copia de origen cambió.')
-        if pdf_source and pdf_source!=source:
-            pdf=temp/'master.pdf';shutil.copyfile(pdf_source,pdf)
-            if sha256(pdf)!=row['pdf_sha256']:raise ValueError('La copia PDF cambió.')
-        elif source.suffix.lower()=='.pdf':pdf=original
-        else:pdf=docx_to_pdf(original,temp/'converted')
-        with fitz.open(pdf) as doc:
-            if doc.page_count!=1:raise ValueError('Separe etiquetas multipágina.')
-        crop,_=auto_crop(pdf)
-        with api.work.catalog_lock():
-            for l,v in _existing(api):
-                if row['sha256'] in (v['source_sha256'],v['pdf_sha256']) or (row.get('pdf_sha256') and row['pdf_sha256'] in (v['source_sha256'],v['pdf_sha256'])):raise ValueError('Documento ya registrado; revisar coincidencia.')
-            if mode=='NEW_LABEL':
-                for l in api.labels():
-                    if l['origin'].casefold()==origin.casefold() and l['customer'].casefold()==customer.casefold() and (l['name'].casefold()==name.strip().casefold() or (decision.get('code') and l['code'].casefold()==decision['code'].casefold())):raise ValueError('Etiqueta existente: vincule una revisión, no duplique el maestro.')
-                vid=api._repository.add_label(name,decision.get('code',''),decision.get('category',''),decision.get('annex',''),origin,customer,version,pdf,original,crop,[],'R5B · importar pendiente, revisar campos y recorte. SHA-256 '+row['sha256'],decision.get('ref_customer',''))
-            else:
-                target=decision.get('target_label_id')
-                if not isinstance(target,int) or isinstance(target,bool) or not any(l['id']==target for l in api.labels()):raise ValueError('Seleccione etiqueta de destino válida.')
-                if any(v['version'].casefold()==version.casefold() for v in api.versions(target)):raise ValueError('Revisión existente.')
-                vid=api._repository.add_version(target,version,pdf,original,crop,[],'R5B · revisión pendiente, revisar campos y recorte. SHA-256 '+row['sha256'])
+    if sha256(source)!=row.get('sha256') or (
+            pdf_source and sha256(pdf_source)!=row.get('pdf_sha256')):
+        raise ValueError('Fuente modificada desde previsualización.')
+    temp=Path(staging_directory)
+    temp.mkdir(parents=True,exist_ok=True)
+    original=temp/('original'+source.suffix.lower())
+    if original.exists():
+        raise FileExistsError('La preparación ya existe.')
+    shutil.copyfile(source,original)
+    if sha256(original)!=row['sha256']:
+        raise ValueError('La copia de origen cambió.')
+    if pdf_source and pdf_source!=source:
+        pdf=temp/'master.pdf'
+        if pdf.exists():
+            raise FileExistsError('La preparación PDF ya existe.')
+        shutil.copyfile(pdf_source,pdf)
+        if sha256(pdf)!=row['pdf_sha256']:
+            raise ValueError('La copia PDF cambió.')
+    elif source.suffix.lower()=='.pdf':
+        pdf=original
+    else:
+        pdf=docx_to_pdf(original,temp/'converted')
+    with fitz.open(pdf) as doc:
+        if doc.page_count!=1:
+            raise ValueError('Separe etiquetas multipágina.')
+    crop,_=auto_crop(pdf)
+    return {'original':str(original),'pdf':str(pdf),'crop':crop,
+            'staged_pdf_sha256':sha256(pdf)}
+
+
+def commit_prepared(api, folder, row, decision, prepared):
+    """Fast catalogue transaction on owner thread, rechecking original + stage.
+
+    This preserves the same hash, lock, duplicate and pending-only safeguards
+    used by apply(). No approval or overwrite can occur.
+    """
+    mode=validate_intent(row,decision)
+    root=Path(folder).resolve(strict=True)
+    source=safe(root,row['source'])
+    pdf_source=safe(root,row['pdf']) if row.get('pdf') else None
+    if sha256(source)!=row.get('sha256') or (
+            pdf_source and sha256(pdf_source)!=row.get('pdf_sha256')):
+        raise ValueError('Fuente modificada desde previsualización.')
+    original=Path(prepared['original'])
+    pdf=Path(prepared['pdf'])
+    if sha256(original)!=row['sha256'] or sha256(pdf)!=prepared['staged_pdf_sha256']:
+        raise ValueError('La preparación ha cambiado desde la conversión.')
+    crop=prepared['crop']
+    name=decision['name'];version=decision['version']
+    origin=decision['origin'];customer=decision.get('customer','')
+    with api.work.catalog_lock():
+        for l,v in _existing(api):
+            if row['sha256'] in (v['source_sha256'],v['pdf_sha256']) or (
+                    row.get('pdf_sha256') and row['pdf_sha256'] in
+                    (v['source_sha256'],v['pdf_sha256'])):
+                raise ValueError('Documento ya registrado; revisar coincidencia.')
+        if mode=='NEW_LABEL':
+            for l in api.labels():
+                if (l['origin'].casefold()==origin.casefold()
+                        and l['customer'].casefold()==customer.casefold()
+                        and (l['name'].casefold()==name.strip().casefold()
+                             or (decision.get('code') and
+                                 l['code'].casefold()==decision['code'].casefold()))):
+                    raise ValueError('Etiqueta existente: vincule una revisión, no duplique el maestro.')
+            vid=api._repository.add_label(
+                name,decision.get('code',''),decision.get('category',''),
+                decision.get('annex',''),origin,customer,version,pdf,original,
+                crop,[],'R5B · importar pendiente, revisar campos y recorte. SHA-256 '+
+                row['sha256'],decision.get('ref_customer',''))
+        else:
+            target=decision.get('target_label_id')
+            if (not isinstance(target,int) or isinstance(target,bool)
+                    or not any(l['id']==target for l in api.labels())):
+                raise ValueError('Seleccione etiqueta de destino válida.')
+            if any(v['version'].casefold()==version.casefold()
+                   for v in api.versions(target)):
+                raise ValueError('Revisión existente.')
+            vid=api._repository.add_version(
+                target,version,pdf,original,crop,[],
+                'R5B · revisión pendiente, revisar campos y recorte. SHA-256 '+
+                row['sha256'])
     result=api.version(vid)
     return {'label_id':result['label_id'],'version_id':vid,'state':result['state']}
+
+
+def apply(api, folder, row, decision):
+    """Backwards-compatible synchronous service entrypoint."""
+    validate_intent(row,decision)
+    with tempfile.TemporaryDirectory(prefix='covex_r5b_') as directory:
+        prepared=prepare_source(folder,row,directory)
+        return commit_prepared(api,folder,row,decision,prepared)

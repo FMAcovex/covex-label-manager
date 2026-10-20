@@ -1,6 +1,7 @@
 """Folder wizard over the unchanged R5B pending-only, hash-checked service."""
 from pathlib import Path
 import uuid
+import tempfile
 from PySide6.QtCore import QTimer, Qt, QThread, Signal
 from PySide6.QtWidgets import (QFileDialog,QMessageBox,QComboBox,QTableWidget,
     QTableWidgetItem,QHeaderView,QAbstractItemView,QProgressBar,QHBoxLayout,
@@ -43,6 +44,34 @@ class FolderPreviewWorker(QThread):
         except (OSError,ValueError,RuntimeError) as error:
             if not self._cancelled:self.failed.emit(str(error))
 
+class ImportPreparationWorker(QThread):
+    completed=Signal(object)
+    failed=Signal(str)
+
+    def __init__(self,folder,row,parent=None):
+        super().__init__(parent)
+        self.folder=folder
+        self.row=row
+        self.temp=None
+        self.abandoned=False
+
+    def run(self):
+        from ..catalog_migration import prepare_source
+        try:
+            self.temp=tempfile.TemporaryDirectory(prefix='covex_import_stage_')
+            result=prepare_source(self.folder,self.row,self.temp.name)
+            if not self.abandoned:self.completed.emit(result)
+        except Exception as error:
+            if not self.abandoned:self.failed.emit(str(error))
+
+    def abandon(self):
+        self.abandoned=True
+
+    def cleanup(self):
+        if self.temp:
+            self.temp.cleanup()
+            self.temp=None
+
 
 class ControlledImportDialog(QDialog):
     def __init__(self,parent,api,folder=None):
@@ -52,6 +81,7 @@ class ControlledImportDialog(QDialog):
         self.processed=0;self.ok=0;self.failures=[];self.running=False;self.cancelled=False
         self.queue=[];self.imported=[];self.editor_version_id=None;self.close_when_stopped=False
         self.preview_worker=None;self.preview_closing=False;self.preview_scan=False
+        self.import_worker=None;self.prepared_result=None;self.prepared_error=None
         self.setWindowTitle('Importar carpeta · Asistente documental');self.resize(1050,650)
         layout=vbox(self);self.heading=label('1 · Seleccionar carpeta','panelTitle');layout.addWidget(self.heading)
         self.pages=QStackedWidget()
@@ -344,25 +374,83 @@ class ControlledImportDialog(QDialog):
         self.running=True;self.table.setEnabled(False);self.pages.setCurrentIndex(2);self.results.setRowCount(len(self.queue));self.progress.setRange(0,len(self.queue))
         for n,(i,_) in enumerate(self.queue):
             self.results.setItem(n,0,QTableWidgetItem(self.rows[i]['source']));self.results.setItem(n,1,QTableWidgetItem('Sin procesar'))
-        self.status.setText('Importando por archivo. Detener conserva las incorporaciones completadas.');self.update_buttons();self.timer.start(0)
+        self.status.setText('Preparando documentos sin bloquear la interfaz. Detener conserva los ya importados.');self.update_buttons();self.timer.start(0)
 
     def step(self):
-        if not self.running:return
+        if not self.running or self.import_worker:return
         if self.cancelled or self.processed>=len(self.queue):self.finish();return
         i,decision=self.queue[self.processed]
+        # Retain the synchronous method as a compatibility/test path when no
+        # dialog event loop is running. A visible operator dialog uses the worker.
+        if not self.isVisible():
+            try:
+                result=self.api.catalog_migration_apply(self.folder,self.rows[i],decision)
+                self.record_import_result(result,None)
+            except Exception as error:self.record_import_result(None,str(error))
+            return
+        self.prepared_result=None;self.prepared_error=None
+        self.import_worker=ImportPreparationWorker(self.folder,self.rows[i],self)
+        self.import_worker.completed.connect(self.preparation_completed)
+        self.import_worker.failed.connect(self.preparation_failed)
+        self.import_worker.finished.connect(self.preparation_finished)
+        self.import_worker.start()
+
+    def preparation_completed(self,result):
+        self.prepared_result=result
+
+    def preparation_failed(self,message):
+        self.prepared_error=message
+
+    def preparation_finished(self):
+        worker=self.import_worker
+        if worker is None:return
+        self.import_worker=None
         try:
-            result=self.api.catalog_migration_apply(self.folder,self.rows[i],decision)
-            self.ok+=1;self.imported.append(result);msg='Importado · PENDIENTE · Revisar campos y recorte'
-            self.editor_choice.addItem(decision['name']+' / '+decision['version'],result['version_id'])
-        except Exception as ex:
-            msg='No importado: '+str(ex);self.failures.append(self.rows[i]['source']+': '+str(ex))
-        self.table.item(i,8).setText(msg);self.results.item(self.processed,1).setText(msg);self.results.item(self.processed,1).setToolTip(msg)
-        self.processed+=1;self.progress.setValue(self.processed);self.status.setText(f'{self.processed}/{len(self.queue)} · {self.ok} incorporados · {len(self.failures)} incidencias');self.timer.start(0)
+            # Cancellation is effective *before* entering the catalogue
+            # transaction. A conversion underway finishes only into a temp.
+            if self.cancelled:
+                self.record_import_result(None,'Detenido antes de registrar')
+            elif self.prepared_error:
+                self.record_import_result(None,self.prepared_error)
+            elif self.prepared_result:
+                from ..catalog_migration import commit_prepared
+                i,decision=self.queue[self.processed]
+                try:
+                    result=commit_prepared(self.api,self.folder,self.rows[i],
+                                           decision,self.prepared_result)
+                    self.record_import_result(result,None)
+                except Exception as error:
+                    self.record_import_result(None,str(error))
+            else:
+                self.record_import_result(None,'Preparación no completada')
+        finally:
+            worker.cleanup()
+            worker.deleteLater()
+
+    def record_import_result(self,result,error):
+        i,decision=self.queue[self.processed]
+        if result is not None:
+            self.ok+=1;self.imported.append(result)
+            msg='Importado · PENDIENTE · Revisar campos y recorte'
+            self.editor_choice.addItem(decision['name']+' / '+decision['version'],
+                                       result['version_id'])
+        else:
+            msg='No importado: '+str(error)
+            if error!='Detenido antes de registrar':
+                self.failures.append(self.rows[i]['source']+': '+str(error))
+        self.table.item(i,8).setText(msg)
+        self.results.item(self.processed,1).setText(msg)
+        self.results.item(self.processed,1).setToolTip(msg)
+        self.processed+=1;self.progress.setValue(self.processed)
+        self.status.setText(f'{self.processed}/{len(self.queue)} · {self.ok} incorporados · {len(self.failures)} incidencias')
+        if self.isVisible():self.timer.start(0)
 
     def stop(self):
-        self.cancelled=True;self.stop_button.setEnabled(False);self.status.setText('Deteniendo antes del siguiente archivo. Se conserva lo ya importado.')
+        self.cancelled=True;self.stop_button.setEnabled(False);self.status.setText('Deteniendo: no se registrará el documento en preparación. Se conserva lo ya importado.')
+        if self.import_worker:self.import_worker.abandon()
 
     def finish(self):
+        if self.import_worker:return
         self.timer.stop();self.running=False;self.update_buttons();self.editor_button.setEnabled(bool(self.imported))
         self.status.setText(f'{"Detenido" if self.cancelled else "Finalizado"}: {self.ok} incorporados; {len(self.failures)} incidencias; {len(self.queue)-self.processed} sin procesar. Todo lo incorporado queda PENDIENTE de revisión documental.')
         self.fit_footer()
