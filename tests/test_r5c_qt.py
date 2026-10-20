@@ -71,6 +71,6 @@ def test_reconciliation_hides_optional_mapping_until_requested(studio,tmp_path):
     assert dialog.inputs['origin'].currentData()=='Origen'
     assert not dialog.optional_columns.isVisible()
     dialog.show_columns.setChecked(True)
-    assert dialog.optional_columns.isVisible() if dialog.isVisible() else dialog.show_columns.isChecked()
+    assert not dialog.optional_columns.isHidden()
     assert 'Ocultar' in dialog.show_columns.text()
     dialog.reject()
