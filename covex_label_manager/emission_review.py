@@ -3,7 +3,7 @@ import json
 import math
 import unicodedata
 from .emission_work import parameters
-from .engine import validate_fields,_status_settings
+from .engine import validate_fields,_status_settings,is_mini_advisory
 from .status_combined import resolve_status
 from .vessels import validate_vessel_masses,parse_mass
 
@@ -61,6 +61,9 @@ def review(api,uid,generation):
         overrides=w['per_container'].get(str(number),{})
         values=normalized(w['values']);values.update(normalized(overrides))
         for message in validate_fields(version,values,effective,strict=False):
+            if p.get('mini_mode',False) and is_mini_advisory(message):
+                if message not in result['warnings']:result['warnings'].append(message+' · Formato mini: revisar impresión física al 100 %.')
+                continue
             field=next((f for f in fields if f.get('label',f['key']) in message),None)
             key=field['key'] if field else 'format'
             error('container:'+key if key in overrides else 'value:'+key,message,number if key in overrides else None)
