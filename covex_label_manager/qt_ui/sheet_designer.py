@@ -1,5 +1,6 @@
 """Native millimetre sheet designer; edits an isolated copy until acceptance."""
 import copy
+import re
 from dataclasses import asdict
 from PySide6.QtCore import Qt, QRectF, QTimer
 from PySide6.QtGui import QColor, QPen, QBrush, QPalette
@@ -207,24 +208,50 @@ class SheetDesigner(QDialog):
                 self.initial_quantities.get('selection',''),self.vessel_count.value()))
             physical=selected_count*self.copy_count.value()
             planned_first=set()
-            plan=plan_sheet(self.profile,1)
-            for page_number,slot_index in physical_placements(self.profile,plan.capacity,physical):
-                if page_number>0:break
-                planned_first.add(slot_index)
+            # Rendering must never depend on a successful emission plan:
+            # otherwise the first invalid free position silently clears ALL
+            # boxes from the canvas, making recovery with the mouse impossible.
+            plan_error=None
+            try:
+                plan=plan_sheet(self.profile,1)
+                for page_number,slot_index in physical_placements(self.profile,plan.capacity,physical):
+                    if page_number>0:break
+                    planned_first.add(slot_index)
+            except (ValueError,KeyError,TypeError) as ex:
+                plan_error=str(ex)
+                # Show the intended first-sheet occupants for editing only.
+                # These are NOT an emission authorization or physical plan.
+                for index in range(max(0,start-1),len(boxes)):
+                    if index+1 not in reserved:
+                        planned_first.add(index)
+                        if len(planned_first)>=physical:break
+            invalid_positions=set()
+            if plan_error:
+                match=re.search(r'(?:Posición|Solapamiento en posición) (\\d+)',plan_error)
+                if match:invalid_positions.add(int(match.group(1)))
             for i,b in enumerate(boxes):
                 item=SlotItem(b,i,self,self.profile.get('layout_mode')=='free');scene.addItem(item);self.items.append(item)
-                if i+1<start or i+1 in reserved:
+                invalid=i+1 in invalid_positions
+                if invalid:
+                    item.setBrush(QBrush(QColor(198,62,51,85)))
+                    item.setPen(QPen(QColor('#C63E33'),1))
+                    item.setToolTip(f'Posición {i+1}: {plan_error}. Corrija sus dimensiones o desplácela dentro del margen.')
+                elif i+1<start or i+1 in reserved:
                     item.setBrush(QBrush(QColor(191,74,65,100)))
                     item.setPen(QPen(QColor('#AD4742'),.55))
-                if self.thumbnail and i in planned_first:
+                if self.thumbnail and i in planned_first and b.width>0 and b.height>0:
                     image=scene.addPixmap(pixmap(self.thumbnail));image.setParentItem(item);scale=min(b.width/self.thumbnail.width,b.height/self.thumbnail.height);image.setScale(scale);image.setPos((b.width-self.thumbnail.width*scale)/2,(b.height-self.thumbnail.height*scale)/2);image.setAcceptedMouseButtons(Qt.MouseButton.NoButton);image.setZValue(-1)
-                t=scene.addText(str(i+1)+(' · USADA' if i+1<start or i+1 in reserved else ' · ETIQUETA' if i in planned_first else ' · VACÍA'));t.setParentItem(item);t.setScale(.3);t.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+                status=(' · REVISAR' if invalid else ' · USADA' if i+1<start or i+1 in reserved else ' · ETIQUETA' if i in planned_first else ' · VACÍA')
+                t=scene.addText(str(i+1)+status);t.setParentItem(item);t.setScale(.3);t.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
             scene.setSceneRect(-12,-9,pw+20,ph+18)
-            plan=plan_sheet(self.profile,1)
-            from ..sheet_layout import available_first_page
-            usable=available_first_page(self.profile,plan.capacity)
-            self.error.setText(f'{pw:g} × {ph:g} mm · {plan.capacity} posiciones / hoja · {len(usable)} libres · {len(planned_first)} se imprimirán en la primera hoja · casillas rojas = ocupadas · Zoom independiente del PDF')
-            self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(True)
+            if plan_error:
+                self.error.setText('No se puede aplicar: '+plan_error+' · Posiciones conservadas para corregirlas (rojo = revisar).')
+                self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
+            else:
+                from ..sheet_layout import available_first_page
+                usable=available_first_page(self.profile,plan.capacity)
+                self.error.setText(f'{pw:g} × {ph:g} mm · {plan.capacity} posiciones / hoja · {len(usable)} libres · {len(planned_first)} se imprimirán en la primera hoja · casillas rojas = ocupadas · Zoom independiente del PDF')
+                self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(True)
         except (ValueError,KeyError,TypeError) as ex:
             self.error.setText('No se puede aplicar: '+str(ex));self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
         self.busy=False
