@@ -54,6 +54,10 @@ QDoubleSpinBox { background: white; border: 1px solid #DCE5E7; border-radius: 5p
 QTabWidget::pane { border: none; border-top: 1px solid #E0E8EA; background: white; }
 QTabBar::tab { padding: 8px 7px; color: #4B6268; background: white; border-bottom: 2px solid transparent; }
 QTabBar::tab:selected { color: #147D71; border-bottom: 2px solid #147D71; font-weight: 600; }
+QTabBar#settingsPrimaryNav::tab { padding: 10px 17px; border-bottom: 3px solid transparent; font-weight: 600; }
+QTabBar#settingsPrimaryNav::tab:selected { color: #116C62; background: #E4F1ED; border-bottom: 3px solid #147D71; }
+QTabBar#settingsPrimaryNav::tab:hover { background: #F0F8F6; }
+
 QToolButton { background: white; border: 1px solid #DCE5E7; border-radius: 5px; padding: 8px; }
 QToolButton:hover { background: #E4F1ED; }
 QCheckBox { spacing: 8px; }
