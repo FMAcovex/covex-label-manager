@@ -112,7 +112,7 @@ def test_settings_shortcuts_preserve_read_only_navigation(studio,monkeypatch,tmp
     assert w.settings_tabs.currentIndex()==1
     assert w.settings_documents_tabs.currentIndex()==0
     source=tmp_path/'ensayo-maestro.csv'
-    source.write_text('Denominación;Revisión\\nFICTICIA;00\\n',encoding='utf-8')
+    source.write_text('Denominación;Revisión\nFICTICIA;00\n',encoding='utf-8')
     opened=[]
     monkeypatch.setattr(QFileDialog,'getOpenFileName',lambda *args,**kwargs:(str(source),''))
     monkeypatch.setattr(MasterReconciliationDialog,'exec',
