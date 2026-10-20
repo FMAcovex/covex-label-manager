@@ -45,6 +45,48 @@ def _contains(outer, inner):
             and outer.x1+.02>=inner.x1 and outer.y1+.02>=inner.y1)
 
 
+
+def draw_legacy_field(page, text, rect, size, bold, label, color=(0,0,0)):
+    """Print exactly the source legacy glyphs, without shrinking or clipping.
+
+    A field may be shorter than 1.2 em yet comfortably contain one numeral.
+    Check the actual glyph ink bounds instead of rejecting by nominal line
+    spacing; preserve the historical coordinates whenever they already fit.
+    """
+    rect=fitz.Rect(rect)
+    name='hebo' if bold else 'helv'
+    font=fitz.Font(fontname=name)
+    pen=0.; min_x=max_x=lo=hi=None
+    for char in text:
+        if not font.has_glyph(ord(char)):
+            raise ValueError('El campo de estado '+label+' contiene un carácter no disponible en la fuente documental.')
+        box=font.glyph_bbox(ord(char))
+        if not box.is_empty and not char.isspace():
+            x0=(pen+box.x0)*size;x1=(pen+box.x1)*size
+            y0=box.y0*size;y1=box.y1*size
+            min_x=x0 if min_x is None else min(min_x,x0)
+            max_x=x1 if max_x is None else max(max_x,x1)
+            lo=y0 if lo is None else min(lo,y0)
+            hi=y1 if hi is None else max(hi,y1)
+        pen+=font.glyph_advance(ord(char))
+    if min_x is None:
+        return  # no printable ink
+    # Small fixed safety inset protects PDF rasterisation and accent overhang.
+    pad=.35
+    if max_x-min_x>rect.width-2*pad+.001 or hi-lo>rect.height-2*pad+.001:
+        raise ValueError('El dato excede el campo de estado '+label+
+                         f' (caja {rect.width*25.4/72:.2f} × {rect.height*25.4/72:.2f} mm; fuente {size:g} pt). '+
+                         'Compruebe la caja y la fuente en una nueva revisión documental.')
+    x=rect.x0+1.
+    baseline=rect.y0+size*1.1
+    if not (rect.x0+pad-.001<=x+min_x and x+max_x<=rect.x1-pad+.001
+            and rect.y0+pad-.001<=baseline-hi and baseline-lo<=rect.y1-pad+.001):
+        x=rect.x0+pad-min_x
+        baseline=rect.y0+pad+hi
+    page.insert_text((x,baseline),text,fontname=name,fontsize=size,
+                     color=color,overlay=True)
+
+
 def critical_losses(source_page, layout, clip):
     crop=fitz.Rect(layout['crop']); losses=[]
     def check(box,name):
@@ -56,10 +98,12 @@ def critical_losses(source_page, layout, clip):
             check(block['bbox'],'imagen / símbolo')
         for line in block.get('lines',[]):
             for span in line['spans']:
-                # PDF extraction boxes can omit italic overhangs. Reserve an
-                # em around fixed text conservatively; never authorize a cut
-                # tangent to a glyph merely because advance widths fit.
-                box=fitz.Rect(span['bbox']);pad=span['size']
+                # Text extraction boxes already include font ascenders and
+                # descenders. One whole em on every side caused false blocked
+                # fills even when intact text was several points from the cut.
+                # Retain a positive guard for overhangs / raster uncertainty.
+                box=fitz.Rect(span['bbox'])
+                pad=max(.5,min(1.5,span['size']*.12))
                 check(fitz.Rect(box.x0-pad,box.y0-pad,box.x1+pad,box.y1+pad),
                       'texto fijo: '+span['text'][:60])
     for drawing in source_page.get_drawings():
@@ -116,10 +160,7 @@ def paint(page, source, layout, values, target, *, settings=None, strict=True,
             else:
                 # Explicit composition may be used with an old layout: preserve
                 # the historical source baseline/font/color and block overflow.
-                font='hebo' if field['bold'] else 'helv'
-                if size*1.2>rect.height or fitz.get_text_length(text,fontname=font,fontsize=size)>rect.width-2:
-                    raise ValueError('El dato excede el campo de estado '+field['label']+f' (caja {rect.width*25.4/72:.2f} × {rect.height*25.4/72:.2f} mm; fuente {size:g} pt). Incluso un carácter puede exceder la altura. Amplíe la caja o reduzca la fuente en una nueva revisión documental.')
-                layer.insert_text((rect.x0+1,rect.y0+size*1.1),text,fontname=font,fontsize=size,color=default_color)
+                draw_legacy_field(layer,text,rect,size,field['bold'],field['label'],default_color)
             if size*report['scale']<6:
                 message=field['label']+f": texto final demasiado pequeño ({size*report['scale']:.2f} pt); mínimo 6 pt."
                 if strict:raise ValueError(message)
