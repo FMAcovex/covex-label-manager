@@ -133,3 +133,46 @@ def test_compact_centre_keeps_work_actions_and_pdf_controls(studio):
     assert not w.emission_panel._compact
     assert w.emission_panel.action_row.count()==3
     assert w.emission_heading.isVisible()
+
+
+def test_work_format_help_explains_physical_dimensions_without_writing(studio,monkeypatch):
+    from PySide6.QtWidgets import QMenu
+    w,api,work=prepared(studio)
+    panel=w.emission_panel
+    panel.tabs.setCurrentIndex(2)
+    assert 'Cuadrícula' in panel.format_context.text()
+    assert 'No es el zoom' in panel.profile_inputs['height_mm'].toolTip()
+    assert not panel.format_help_toggle.isChecked()
+    panel.format_help_toggle.setChecked(True)
+    assert not panel.format_help.isHidden()
+    assert 'Casilla inicial' in panel.format_help.text()
+    # Inspect the real native popup: it must return immediately instead of
+    # entering a nested modal event loop, and its actions must be discoverable.
+    w.work_options()
+    menus=w.native_options.findChildren(QMenu)
+    assert len(menus)==1
+    menu=menus[0]
+    actions=[action.text() for action in menu.actions()]
+    assert menu.isVisible()
+    menu.close()
+    assert 'FORMATO FÍSICO' in actions
+    assert any('numeración' in title.lower() for title in actions)
+    assert 'TRABAJO Y TRAZABILIDAD' in actions
+    assert 'Cambiar tamaño y distribuir etiquetas…' in actions
+    assert not api.issues()
+    assert api.work.get(work['uid'])['profile']==work['profile']
+
+
+def test_free_sheet_format_help_points_to_actual_slot_editor(studio):
+    from covex_label_manager.sheet_layout import template
+    w,api,work=prepared(studio)
+    p=dict(work['profile'],layout_version=1,layout_mode='free',
+           paper='A4',margin_mm=8,gap_mm=3)
+    p['slots']=template(p,2)
+    committed=api.work.save(work['uid'],work['generation'],{'profile':p})
+    w.load_emission_work(committed['uid'])
+    panel=w.emission_panel
+    assert 'Distribución libre' in panel.format_context.text()
+    assert not panel.profile_inputs['width_mm'].isEnabled()
+    assert 'Modificar tamaño y posiciones' in panel.design_sheet_button.text()
+    assert api.work.get(committed['uid'])['profile']==committed['profile']

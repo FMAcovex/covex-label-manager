@@ -73,7 +73,11 @@ class EmissionCentreMixin:
         self.fit_status_button.hide();fl.addWidget(self.fit_status_button)
         actions=QHBoxLayout();self.native_save=button('Guardar trabajo',self.flush_emission_work);actions.addWidget(self.native_save)
         self.native_proof=button('PDF de prueba',self.proof_emission_work);actions.addWidget(self.native_proof)
-        self.native_options=button('Opciones…',self.work_options);actions.addWidget(self.native_options);actions.addStretch()
+        self.native_options=button('Más opciones ▾',self.work_options)
+        self.native_options.setToolTip(
+            'Cambiar tamaño y distribución, consultar numeración por recipiente '
+            'o recuperar un trabajo. Ninguna de estas opciones aprueba un diseño.')
+        actions.addWidget(self.native_options);actions.addStretch()
         self.native_issue=button('Emitir definitivamente',self.issue_emission_work,'primary');actions.addWidget(self.native_issue)
         self.native_print=button('Imprimir PDF registrado…',self.print_emission_pdf);self.native_print.setEnabled(False);actions.addWidget(self.native_print)
         fl.addLayout(actions);layout.addWidget(footer)
@@ -482,13 +486,36 @@ class EmissionCentreMixin:
         QMessageBox.information(self,'Numeración por recipiente (1/N)',message)
 
     def work_options(self):
-        menu=QMenu(self)
-        menu.addAction('Cambiar tamaño y distribución de etiqueta…',self.open_emission_size_settings)
-        menu.addAction('Numeración por recipiente (1/N)…',self.explain_container_numbering)
-        menu.addSeparator()
-        menu.addAction('Recuperar trabajo…',self.recover_emission_work)
-        menu.addAction('Actualizar vínculo documental…',self.refresh_work_binding)
-        menu.exec(self.cursor().pos())
+        """Plain-language, organized actions; no side effects until selected."""
+        # Open asynchronously: exec() starts a nested modal event loop and can
+        # freeze automated Qt interaction or leave the emission UI unresponsive.
+        menu=QMenu(self.native_options)
+        menu.setToolTipsVisible(True)
+        menu.addSection('FORMATO FÍSICO')
+        size=menu.addAction('Cambiar tamaño y distribuir etiquetas…',
+                            self.open_emission_size_settings)
+        size.setToolTip(
+            'En cuadrícula permite editar las medidas en mm; '
+            'en distribución libre abre el diseñador de posiciones.')
+        numbering=menu.addAction('¿Cómo poner 1/5, 2/5…?  Numeración',
+                                  self.explain_container_numbering)
+        numbering.setToolTip(
+            'Comprueba si la revisión dispone del campo documental Numeración. '
+            'No modifica campos ni revisiones aprobadas.')
+        menu.addSection('TRABAJO Y TRAZABILIDAD')
+        recover=menu.addAction('Recuperar un intento interrumpido…',
+                               self.recover_emission_work)
+        recover.setToolTip('Solo si existe un intento interrumpido. Conservar el historial.')
+        binding=menu.addAction('Actualizar vínculo documental…',
+                               self.refresh_work_binding)
+        binding.setToolTip(
+            'Revisar una revisión o variante vinculada. '
+            'Se mantienen los controles de vigencia y aprobación.')
+        # Anchor to the action button, not the cursor (which can move during
+        # keyboard access). Reclaim each transient menu after it is dismissed.
+        menu.aboutToHide.connect(menu.deleteLater)
+        menu.popup(self.native_options.mapToGlobal(
+            self.native_options.rect().bottomLeft()))
     def paste_work_containers(self):
         if not self.emission_work or not self.flush_emission_work():return
         from ..vessels import parse_tabular_vessels

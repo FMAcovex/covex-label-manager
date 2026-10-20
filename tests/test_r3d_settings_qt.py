@@ -15,7 +15,12 @@ def test_settings_is_native_without_launching_tk(studio,monkeypatch):
     w.navigate('settings');app.processEvents()
     assert w.stack.currentWidget() is w.settings_page
     assert w.settings_page.isEnabled()
-    assert w.settings_tabs.count()==5
+    assert w.settings_tabs.count()==3
+    assert [w.settings_tabs.tabText(i) for i in range(3)]==[
+        'General','Gestión documental','Administración avanzada']
+    assert w.settings_general_tabs.count()==2
+    assert w.settings_documents_tabs.count()==3
+    assert w.settings_admin_tabs.count()==2
     assert w.settings_counts['labels'].text()==str(api.stats()['labels'])
     assert w.settings_data_path.isReadOnly()
     assert w.settings_data_path.text()==api.location()
@@ -95,3 +100,29 @@ def test_legacy_transition_keeps_all_87_feature_ids(studio):
          and line.split('|')[1].strip()[0].isalpha()
          and line.split('|')[1].strip()[1:].isdigit()]
     assert len(ids)==87 and len(set(ids))==87
+
+
+def test_settings_shortcuts_preserve_read_only_navigation(studio,monkeypatch,tmp_path):
+    from PySide6.QtTest import QTest
+    from covex_label_manager.qt_ui.master_reconcile_ui import MasterReconciliationDialog
+    w,api,app=studio
+    w.navigate('settings')
+    before=[(r['version_id'],r['state']) for r in api.library_records()]
+    w.open_settings_section(1,0)
+    assert w.settings_tabs.currentIndex()==1
+    assert w.settings_documents_tabs.currentIndex()==0
+    source=tmp_path/'ensayo-maestro.csv'
+    source.write_text('Denominación;Revisión\nFICTICIA;00\n',encoding='utf-8')
+    opened=[]
+    monkeypatch.setattr(QFileDialog,'getOpenFileName',lambda *args,**kwargs:(str(source),''))
+    monkeypatch.setattr(MasterReconciliationDialog,'exec',
+                        lambda dlg:opened.append(dlg.path) or QDialog.DialogCode.Rejected)
+    QTest.mouseClick(w.settings_reconcile_button,Qt.MouseButton.LeftButton)
+    assert opened==[str(source)]
+    assert before==[(r['version_id'],r['state']) for r in api.library_records()]
+    w.open_settings_section(2,1)
+    assert w.settings_tabs.currentIndex()==2
+    assert w.settings_admin_tabs.tabText(w.settings_admin_tabs.currentIndex())=='Diagnóstico y pruebas'
+    w.open_settings_section(0,1)
+    assert w.settings_general_tabs.currentIndex()==1
+    assert w.settings_data_path.text()==api.location()

@@ -64,23 +64,41 @@ class SettingsMixin:
         self.refresh_native_settings()
 
     def build_native_settings(self):
+        """Three human-readable areas; all prior actions remain accessible.
+
+        Reorganization only: no new persistence, direct SQLite access, or
+        change to existing documentary/approval service contracts.
+        """
         page = QWidget()
         page.setObjectName('nativeSettings')
-        layout = vbox(page, 20, 11)
+        layout = vbox(page, 18, 9)
         layout.addWidget(label('Configuración y datos', 'title'))
         subtitle = label(
-            'Preferencias locales, respaldo documental, clasificación CM, '
-            'maestros de estado y trazabilidad. Sin cambiar los datos originales.',
+            'Tus preferencias, documentos de referencia y herramientas de revisión, '
+            'ordenados por finalidad. Cada acción indica si modifica información.',
             'subtle',
         )
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
         self.settings_tabs = QTabWidget()
+        self.settings_tabs.setObjectName('settingsMainTabs')
+        self.settings_tabs.tabBar().setObjectName('settingsPrimaryNav')
+        self.settings_tabs.setAccessibleName('Secciones de configuración')
         layout.addWidget(self.settings_tabs, 1)
 
-        overview = _scroll_tab(self.settings_tabs, 'Resumen')
-        summary = _section(overview, 'Estado de la biblioteca',
-                           'Recuentos reales de la instalación abierta; las variantes no se cuentan como revisiones.')
+        # GENERAL: the operator only needs these two pages for everyday use.
+        general_container = QWidget()
+        general_layout = vbox(general_container, 8, 6)
+        self.settings_general_tabs = QTabWidget()
+        self.settings_general_tabs.setObjectName('settingsGeneralTabs')
+        general_layout.addWidget(self.settings_general_tabs, 1)
+        self.settings_tabs.addTab(general_container, 'General')
+
+        overview = _scroll_tab(self.settings_general_tabs, 'Resumen')
+        summary = _section(
+            overview, 'Tu biblioteca local',
+            'Cifras de la instalación abierta. Las variantes no cuentan como revisiones.',
+        )
         tiles = QGridLayout()
         tiles.setSpacing(10)
         self.settings_counts = {}
@@ -101,84 +119,207 @@ class SettingsMixin:
             self.settings_counts[key] = value
             tiles.addWidget(card, index // 3, index % 3)
         summary.addLayout(tiles)
-        summary.addWidget(button('Actualizar recuentos', self.refresh_native_settings))
-        info = _section(overview, 'Estado operativo')
-        info.addWidget(label(
-            'Los PDF generados no acreditan impresión física. Esta versión continúa '
-            'pendiente de aceptación Windows/Word/impresora y validación GMP.', 'subtle',
+        summary.addWidget(button('Actualizar cifras', self.refresh_native_settings))
+        quick = _section(
+            overview, 'Accesos habituales',
+            'Elige una tarea. Las acciones de conciliación y consulta nunca aprueban documentos.',
+        )
+        quick.addWidget(button(
+            'Cambiar operador o crear copia de seguridad…',
+            lambda: self.open_settings_section(0, 1),
         ))
-        info.addWidget(button('Diagnóstico de preaceptación…', self.open_acceptance_readiness))
-        info.addWidget(button('Sesiones de pruebas presenciales…', self.open_uat_session))
-        info.addWidget(button('Exportar informe de diagnóstico…', self.export_diagnostic_report))
-        info.addWidget(button('Ir a Biblioteca', lambda: self.navigate('library')))
+        quick.addWidget(button(
+            'Comparar el libro máster con la biblioteca…',
+            lambda: self.open_settings_section(1, 0),
+        ))
+        quick.addWidget(button('Ir a Biblioteca', lambda: self.navigate('library')))
+        state = _section(
+            overview, 'Uso documental',
+            'Emitir un PDF no confirma su impresión. La aceptación en Windows, '
+            'Word real, impresoras y la validación GMP siguen siendo actividades independientes.',
+        )
+        state.addWidget(button(
+            'Ver pruebas y diagnóstico (administración)…',
+            lambda: self.open_settings_section(2, 1),
+        ))
         overview.addStretch()
 
-        general = _scroll_tab(self.settings_tabs, 'Preferencias y datos')
-        pref = _section(general, 'Operador',
-                        'Identificador que constará en las nuevas emisiones. No equivale a autenticación o firma electrónica.')
+        general = _scroll_tab(self.settings_general_tabs, 'Preferencias y copias')
+        pref = _section(
+            general, 'Operador de las emisiones',
+            'Se guarda como dato del operador para nuevas emisiones. '
+            'No supone inicio de sesión ni firma electrónica.',
+        )
         self.settings_operator = QLineEdit()
         self.settings_operator.setObjectName('settingsOperator')
         self.settings_operator.setPlaceholderText('Nombre o identificador del operador')
         pref.addWidget(self.settings_operator)
         pref.addWidget(button('Guardar operador', self.save_settings_operator, 'primary'))
-        data = _section(general, 'Directorio de datos',
-                        'La ruta es solo de consulta. Para trasladarla, cierre la aplicación y utilice el procedimiento de copia íntegra.')
+        data = _section(
+            general, 'Carpeta local de datos · Solo consulta',
+            'Muestra dónde se guarda la biblioteca. Copiar la ruta no mueve ni cambia ningún archivo.',
+        )
         self.settings_data_path = QLineEdit()
         self.settings_data_path.setReadOnly(True)
         self.settings_data_path.setObjectName('settingsDataPath')
         data.addWidget(self.settings_data_path)
         data.addWidget(button('Copiar ruta', self.copy_settings_path))
-        backup = _section(general, 'Copia de seguridad ZIP',
-                          'Incluye SQLite v4, maestros, fuentes, evidencias, trabajos y manifiestos. Guárdela en un lugar protegido.')
-        backup.addWidget(button('Crear copia de seguridad verificada', self.create_settings_backup, 'primary'))
+        backup = _section(
+            general, 'Copia de seguridad · Crea un archivo ZIP',
+            'Incluye base de datos, maestros, fuentes, trabajos y evidencias. '
+            'Es una acción de escritura en la carpeta de copias, no una restauración.',
+        )
+        backup.addWidget(button(
+            'Crear copia de seguridad verificada…', self.create_settings_backup, 'primary',
+        ))
         restore = label(
-            'Restauración: con ambas aplicaciones cerradas, verifique el ZIP y '
-            'restaure en una carpeta nueva mediante el procedimiento documentado. '
-            'No existe una restauración automática ni se debe sobrescribir data en uso.',
+            'Para restaurar: cierre las aplicaciones, compruebe el ZIP y siga '
+            'el procedimiento documentado sobre una carpeta nueva. '
+            'No se restaura ni sobrescribe información desde esta pantalla.',
             'subtle',
         )
         restore.setWordWrap(True)
         backup.addWidget(restore)
         general.addStretch()
 
-        cm = _scroll_tab(self.settings_tabs, 'Catálogo CM')
-        catalog = _section(cm, 'Clasificación de materiales',
-                           'Importación acumulativa desde DOCX; no borra, sobrescribe ni corrige duplicados automáticamente.')
+        # DOCUMENTARY tasks remain separate from local user preferences.
+        docs_container = QWidget()
+        docs_layout = vbox(docs_container, 8, 6)
+        self.settings_documents_tabs = QTabWidget()
+        self.settings_documents_tabs.setObjectName('settingsDocumentTabs')
+        docs_layout.addWidget(self.settings_documents_tabs, 1)
+        self.settings_tabs.addTab(docs_container, 'Gestión documental')
+
+        master = _scroll_tab(self.settings_documents_tabs, 'Libro máster')
+        reconciliation = _section(
+            master, 'Conciliar libro máster · Solo lectura',
+            'Compara un listado Excel XLSX, CSV o TSV que selecciones '
+            'con las etiquetas y revisiones de la biblioteca local.',
+        )
+        reconciliation.addWidget(label(
+            'Podrás revisar: coincidencias, etiquetas o revisiones ausentes, '
+            'diferencias de metadatos/estado, duplicados y registros '
+            'que solo constan en la aplicación.', 'subtle',
+        ))
+        self.settings_reconcile_button = button(
+            'Seleccionar libro y comparar…', self.reconcile_master, 'primary',
+        )
+        reconciliation.addWidget(self.settings_reconcile_button)
+        precautions = _section(
+            master, '¿Qué hace y qué NO hace?',
+            'Solo prepara un informe. No conecta con SharePoint, no importa '
+            'etiquetas, no corrige códigos y no aprueba ni retira revisiones.',
+        )
+        precautions.addWidget(label(
+            'El listado puede ser parcial: «Solo en biblioteca» no implica '
+            'que debas eliminar documentos. Los códigos con ceros iniciales '
+            'deben estar guardados como texto en Excel.', 'subtle',
+        ))
+        precautions.addWidget(button(
+            'Inventariar documentos de una carpeta…', self.review_catalog_folder,
+        ))
+        master.addStretch()
+
+        cm = _scroll_tab(self.settings_documents_tabs, 'Catálogo CM')
+        catalog = _section(
+            cm, 'Materiales y clasificación CM',
+            'Importa materiales desde DOCX. Es una incorporación de datos '
+            'que requiere confirmación: nunca corrige ni elimina duplicados automáticamente.',
+        )
         self.settings_cm_summary = label('', 'subtle')
         catalog.addWidget(self.settings_cm_summary)
-        catalog.addWidget(button('Importar clasificación CM (DOCX)…', self.import_settings_cm, 'primary'))
-        duplicates = _section(cm, 'Duplicidades de código — revisión manual')
-        self.settings_duplicates = _read_only_table(['Código', 'Coincidencias', 'Denominaciones'])
+        catalog.addWidget(button(
+            'Importar clasificación CM (DOCX)…', self.import_settings_cm, 'primary',
+        ))
+        duplicates = _section(
+            cm, 'Códigos repetidos · Pendientes de revisión manual',
+            'Consulta informativa. Ningún código se fusiona automáticamente.',
+        )
+        self.settings_duplicates = _read_only_table(
+            ['Código', 'Coincidencias', 'Denominaciones'],
+        )
         duplicates.addWidget(self.settings_duplicates)
         cm.addStretch()
 
-        status = _scroll_tab(self.settings_tabs, 'Maestros de estado')
+        status = _scroll_tab(self.settings_documents_tabs, 'Maestros de estado')
         status_card = _section(
-            status, 'Etiquetas de estado',
-            'Registrar una aprobación requiere cotejo con el Word autorizado y '
-            'evidencia documental externa. No se aprueban automáticamente.',
+            status, 'Plantillas Sin analizar / Aprobado / Rechazado',
+            'Solo se registra una aprobación documental externa ya existente. '
+            'Requiere cotejar el diseño con el Word autorizado y aportar evidencias.',
         )
-        self.settings_status = _read_only_table(['Estado', 'Versión', 'Situación', 'Referencia'])
+        self.settings_status = _read_only_table(
+            ['Estado', 'Versión', 'Situación', 'Referencia'],
+        )
         status_card.addWidget(self.settings_status)
         self.settings_approve_status = button(
-            'Registrar aprobación documental…', self.approve_settings_status, 'primary',
+            'Registrar aprobación documental externa…',
+            self.approve_settings_status,
+            'primary',
+        )
+        self.settings_approve_status.setToolTip(
+            'Esta acción SÍ modifica el estado documental de un maestro pendiente. '
+            'Requiere referencia, responsable y confirmación expresa.',
         )
         status_card.addWidget(self.settings_approve_status)
         status.addStretch()
 
-        audit = _scroll_tab(self.settings_tabs, 'Auditoría local')
-        audit_card = _section(audit, 'Últimos movimientos',
-                              'Consulta del registro local existente; no equivale a una auditoría inviolable.')
-        self.settings_audit = _read_only_table(['Fecha', 'Evento', 'Referencia', 'Detalle'])
+        # ADVANCED is discoverable, but no longer occupies the user summary.
+        advanced_container = QWidget()
+        advanced_layout = vbox(advanced_container, 8, 6)
+        self.settings_admin_tabs = QTabWidget()
+        self.settings_admin_tabs.setObjectName('settingsAdminTabs')
+        advanced_layout.addWidget(self.settings_admin_tabs, 1)
+        self.settings_tabs.addTab(advanced_container, 'Administración avanzada')
+
+        audit = _scroll_tab(self.settings_admin_tabs, 'Auditoría local')
+        audit_card = _section(
+            audit, 'Consulta del historial técnico',
+            'Solo lectura. La auditoría local registra actividad, '
+            'pero no es inviolable ni sustituye la documentación GMP.',
+        )
+        self.settings_audit = _read_only_table(
+            ['Fecha', 'Evento', 'Referencia', 'Detalle'],
+        )
         audit_card.addWidget(self.settings_audit)
         audit_card.addWidget(button('Actualizar movimientos', self.refresh_native_settings))
         audit.addStretch()
 
-        footer = QHBoxLayout()
-        footer.addStretch()
-        footer.addWidget(button('Configuración clásica (compatibilidad)…', lambda: self.open_legacy('admin')))
-        layout.addLayout(footer)
+        diagnostic = _scroll_tab(self.settings_admin_tabs, 'Diagnóstico y pruebas')
+        info = _section(
+            diagnostic, 'Verificaciones técnicas de aceptación',
+            'Herramientas para IT y Calidad. Una ejecución satisfactoria '
+            'no aprueba por sí sola el uso en producción.',
+        )
+        info.addWidget(button('Diagnóstico de preaceptación…', self.open_acceptance_readiness))
+        info.addWidget(button('Sesiones de pruebas presenciales…', self.open_uat_session))
+        report = _section(
+            diagnostic, 'Exportar evidencia técnica',
+            'Genera un archivo local que debe revisarse antes de compartir. '
+            'No reemplaza la copia de seguridad documental.',
+        )
+        report.addWidget(button(
+            'Exportar informe de diagnóstico…', self.export_diagnostic_report,
+        ))
+        compatibility = _section(
+            diagnostic, 'Compatibilidad con versión clásica',
+            'Acceso excepcional a las opciones históricas. '
+            'Cierre esa ventana antes de continuar editando en Qt.',
+        )
+        compatibility.addWidget(button(
+            'Abrir Configuración clásica…', lambda: self.open_legacy('admin'),
+        ))
+        diagnostic.addStretch()
         return page
+
+    def open_settings_section(self, group, section=0):
+        """Navigation-only shortcut; never mutates source or audit data."""
+        self.settings_tabs.setCurrentIndex(group)
+        tabs = (
+            self.settings_general_tabs,
+            self.settings_documents_tabs,
+            self.settings_admin_tabs,
+        )[group]
+        tabs.setCurrentIndex(section)
 
     def export_diagnostic_report(self):
         from ..diagnostics import Diagnostics

@@ -64,15 +64,62 @@ class WorkPanel(QWidget):
         self.tabs.currentChanged.connect(self.tab_changed)
         self.containers.setToolTip('Vacío hereda el dato común. PN/PB: kg, g o mg; sin unidad significa kg. Se convierte a la unidad documental del campo. Admite Excel.')
         cfg=QWidget();cfg.setObjectName('workForm');form=QFormLayout(cfg)
-        self.design_sheet_button=button('Diseñar hoja…',self.design_sheet,'primary');form.addRow(self.design_sheet_button)
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+        self.format_context=label(
+            'El tamaño físico se mide en milímetros; el zoom del PDF solo cambia la vista.',
+            'subtle',
+        )
+        self.format_context.setObjectName('emissionFormatContext')
+        self.format_context.setWordWrap(True)
+        form.addRow(self.format_context)
+        form.addRow(label('1 · CANTIDAD Y DISTRIBUCIÓN', 'section'))
+        self.design_sheet_button=button('Diseñar hoja y posiciones…',self.design_sheet,'primary');form.addRow(self.design_sheet_button)
         self.calibrate_button=button('Aplicar medidas de impresora…',self.calibrate_printer)
         self.calibrate_button.setToolTip('Introduzca medidas realizadas en papel; generar una hoja patrón no calibra la impresora.')
         form.addRow(self.calibrate_button)
         for key,title in [('count','Recipientes'),('copies','Copias por recipiente'),('selection','Números (1-3,5; vacío = todos)')]:
             e=QLineEdit();e.textEdited.connect(self.changed);self.inputs[key]=e;form.addRow(title,self.with_error(e,key))
-        for key,title in [('width_mm','Ancho mm'),('height_mm','Alto mm'),('margin_mm','Margen de hoja mm'),('gap_mm','Separación mm'),
+        amount_help=label(
+            'Recipientes = envases distintos; Copias = etiquetas iguales para cada envase. '
+            'Números permite emitir solo una selección, por ejemplo 1-3,5.',
+            'subtle',
+        )
+        amount_help.setWordWrap(True)
+        form.addRow(amount_help)
+        form.addRow(label('2 · TAMAÑO FÍSICO Y PAPEL', 'section'))
+        for key,title in [('width_mm','Ancho físico (mm)'),('height_mm','Alto físico (mm)'),('margin_mm','Margen de hoja (mm)'),('gap_mm','Separación (mm)'),
             ('offset_x_mm','Desplazamiento X mm'),('offset_y_mm','Desplazamiento Y mm'),('start_slot','Casilla inicial'),('safety_mm','Seguridad mm'),('printer_name','Impresora (referencia)')]:
             e=QLineEdit();e.textEdited.connect(self.changed);self.profile_inputs[key]=e;form.addRow(title,self.with_error(e,key))
+        descriptions={
+            'width_mm':'Ancho final de la etiqueta en mm. En distribución libre se edita cada posición en Diseñar hoja.',
+            'height_mm':'Alto final de la etiqueta en mm. No es el zoom de la vista previa.',
+            'margin_mm':'Distancia desde el borde físico del papel; respete el área imprimible de la impresora.',
+            'gap_mm':'Separación física entre etiquetas en modo cuadrícula.',
+            'offset_x_mm':'Desplazamiento de calibración horizontal de la impresión, no cambia el diseño aprobado.',
+            'offset_y_mm':'Desplazamiento de calibración vertical de la impresión, no cambia el diseño aprobado.',
+            'start_slot':'Primera posición disponible de la hoja. En distribución libre utilice Diseñar hoja.',
+            'safety_mm':'Zona de seguridad interior para evitar pérdida de contenido al imprimir.',
+            'printer_name':'Referencia informativa de impresora; no envía automáticamente el PDF a imprimir.',
+        }
+        for key,note in descriptions.items():
+            self.profile_inputs[key].setToolTip(note)
+            self.profile_inputs[key].setAccessibleDescription(note)
+        self.format_help_toggle=QCheckBox('Explicar medidas y límites')
+        self.format_help_toggle.setObjectName('emissionFormatHelpToggle')
+        form.addRow(self.format_help_toggle)
+        self.format_help=label(
+            'Ancho/alto: tamaño final de cada etiqueta. Margen: borde del papel. '
+            'Separación: espacio entre etiquetas. X/Y: correcciones de impresora. '
+            'Seguridad: zona protegida del contenido. Casilla inicial: '
+            'posición desde la que se aprovecha la hoja. '
+            'Para tamaño y colocación libres, use el Diseñador de hojas. '
+            'El PDF de prueba refleja las medidas; el zoom no modifica el papel.',
+            'subtle',
+        )
+        self.format_help.setWordWrap(True)
+        self.format_help.hide()
+        self.format_help_toggle.toggled.connect(self.format_help.setVisible)
+        form.addRow(self.format_help)
         self.keep_ratio=QCheckBox('Conservar proporción del diseño');self.keep_ratio.setChecked(True);form.addRow(self.keep_ratio)
         self.mini_mode=QCheckBox('Permitir etiqueta mini (texto final inferior a 6 pt)')
         self.mini_mode.setToolTip('Permite imprimir tamaños pequeños sin cambiarlos. '
@@ -280,20 +327,34 @@ class WorkPanel(QWidget):
                 raw=w['profile'].get(k,'')
                 shown=format_measure(raw) if k!='printer_name' else str(raw)
                 e.setText(shown);self._profile_display[k]=(shown,raw)
-                e.setToolTip(f'Valor exacto conservado: {raw}. Solo una edición expresa cambia este dato.')
+                e.setToolTip(
+                    e.accessibleDescription()+'\
+'+
+                    f'Valor exacto conservado: {raw}. Solo una edición expresa cambia este dato.'
+                )
             free_layout=w['profile'].get('layout_mode')=='free'
             for key in ('width_mm','height_mm'):
                 entry=self.profile_inputs[key]
                 entry.setEnabled(not free_layout)
                 if free_layout:
                     entry.setToolTip(
+                        entry.toolTip()+'\n'
                         'Distribución libre: la medida real procede de cada '
                         'posición de la hoja. Use «Diseñar hoja…» y cambie '
                         'Ancho/Alto de la posición o arrastre sus bordes.')
             self.keep_ratio.setEnabled(not free_layout)
             self.design_sheet_button.setText(
-                'Modificar tamaño de las posiciones…' if free_layout
-                else 'Diseñar hoja…')
+                'Modificar tamaño y posiciones de etiquetas…' if free_layout
+                else 'Diseñar hoja y posiciones…')
+            self.format_context.setText(
+                ('Distribución libre: cada casilla tiene su propio ancho, alto y posición. '
+                 'Use «Modificar tamaño y posiciones»; los campos Ancho/Alto generales '
+                 'no cambiarían la hoja. El zoom del PDF solo modifica la vista.')
+                if free_layout else
+                ('Cuadrícula: Ancho y Alto indican los milímetros reales por etiqueta. '
+                 'Para mover o aprovechar posiciones de la hoja, abra «Diseñar hoja». '
+                 'El zoom del PDF no cambia las dimensiones impresas.')
+            )
             self.mini_mode.setChecked(bool(w['profile'].get('mini_mode',False)))
             self.orientation.setCurrentIndex(max(0,self.orientation.findData(w['profile'].get('orientation','portrait'))));self.cut.setCurrentIndex(max(0,self.cut.findData(str(w['profile'].get('crop_marks',0)))))
             state=w['status'];self.status_kind.setCurrentIndex(max(0,self.status_kind.findData(state.get('kind','ninguna'))));self.placement.setCurrentIndex(max(0,self.placement.findData(state.get('placement','integrada'))))
