@@ -130,3 +130,37 @@ def test_corrupt_layout_profile_is_isolated_without_silent_repair(demo):
     assert repo.invalid_files==['corrupt-r3e.json']
     assert repo.get('known-good')==good
     assert bad.read_bytes()==original
+
+
+def test_mini_sheet_slots_have_explicit_five_mm_minimum():
+    p=profile('A4',1)
+    p['slots'][0].update(width=7,height=7)
+    with pytest.raises(ValueError,match='mínimo 10 mm'):
+        slots(p)
+    p['mini_mode']=True
+    assert slots(p)[0].width==7
+    p['slots'][0]['width']=4.99
+    with pytest.raises(ValueError,match='mínimo 5 mm'):
+        slots(p)
+
+
+def test_mini_grid_can_be_smaller_than_old_ten_mm_minimum():
+    base={'layout_version':1,'layout_mode':'grid','paper':'A4',
+          'width_mm':7,'height_mm':7,'margin_mm':8,'gap_mm':3,
+          'start_slot':1,'safety_mm':0}
+    with pytest.raises(ValueError):
+        plan_sheet(base,1)
+    allowed={**base,'mini_mode':True}
+    plan=plan_sheet(allowed,3)
+    assert plan.count_physical==3
+    assert plan.capacity>=3
+
+
+def test_mini_does_not_accept_broken_geometry_or_malformed_flag():
+    p=profile('A4',1)
+    p['mini_mode']='True'
+    with pytest.raises(ValueError,match='booleano'):
+        slots(p)
+    p['mini_mode']=True;p['slots'][0]['x']=-30
+    with pytest.raises(ValueError,match='límites'):
+        slots(p)
