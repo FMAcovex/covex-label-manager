@@ -390,12 +390,14 @@ class WorkPanel(QWidget):
             if uid:
                 status['revision_uid']=uid
                 status['fields']={k:entry.text() for k,entry in self.r7b_field_widgets.items()}
+        profile={**w['profile'],**{k:self.profile_value(k,e) for k,e in self.profile_inputs.items()},
+            'orientation':self.orientation.currentData(),
+            'crop_marks':w['profile'].get('crop_marks',0) if str(w['profile'].get('crop_marks',0))==self.cut.currentData() else self.cut.currentData()}
+        # Legacy jobs keep their unchanged profile unless mini is requested.
+        if self.mini_mode.isChecked():profile['mini_mode']=True
+        else:profile.pop('mini_mode',None)
         return {'values':{k:e.text() for k,e in self.value_inputs.items()},'per_container':per,
-            'profile':{**w['profile'],**{k:self.profile_value(k,e) for k,e in self.profile_inputs.items()},
-                'mini_mode':self.mini_mode.isChecked(),
-                'orientation':self.orientation.currentData(),
-                'crop_marks':w['profile'].get('crop_marks',0) if str(w['profile'].get('crop_marks',0))==self.cut.currentData() else self.cut.currentData()},
-            'status':status,**{k:e.text() for k,e in self.inputs.items()}}
+            'profile':profile,'status':status,**{k:e.text() for k,e in self.inputs.items()}}
     def restore_size(self):
         if not self.controller.emission_work:return
         b=self.controller.emission_work['binding'];v=self.controller.api.resolved_design(b['revision_id'],b['variant_id'])
