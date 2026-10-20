@@ -327,13 +327,18 @@ class WorkPanel(QWidget):
                 raw=w['profile'].get(k,'')
                 shown=format_measure(raw) if k!='printer_name' else str(raw)
                 e.setText(shown);self._profile_display[k]=(shown,raw)
-                e.setToolTip(f'Valor exacto conservado: {raw}. Solo una edición expresa cambia este dato.')
+                e.setToolTip(
+                    e.accessibleDescription()+'\
+'+
+                    f'Valor exacto conservado: {raw}. Solo una edición expresa cambia este dato.'
+                )
             free_layout=w['profile'].get('layout_mode')=='free'
             for key in ('width_mm','height_mm'):
                 entry=self.profile_inputs[key]
                 entry.setEnabled(not free_layout)
                 if free_layout:
                     entry.setToolTip(
+                        entry.toolTip()+'\n'
                         'Distribución libre: la medida real procede de cada '
                         'posición de la hoja. Use «Diseñar hoja…» y cambie '
                         'Ancho/Alto de la posición o arrastre sus bordes.')
