@@ -424,12 +424,14 @@ class StatusCatalogue:
                         tx = rect.x0 + (fr.x0 - source_crop.x0) * scale
                         ty = rect.y0 + (fr.y0 - source_crop.y0) * scale
                         fs = field["font_size"] * scale
-                        font = "hebo" if field["bold"] else "helv"
-                        if fitz.get_text_length(value, fontname=font, fontsize=fs) > fr.width * scale - 2:
-                            raise StatusDesignError("Dato desbordado: " + field["label"])
-                        if fs * 1.2 > fr.height * scale:
-                            raise StatusDesignError("Altura insuficiente: " + field["label"])
-                        page.insert_text((tx + 1, ty + fs * 1.1), value, fontname=font, fontsize=fs)
+                        from .status_scaling import draw_legacy_field
+                        try:
+                            draw_legacy_field(page, value,
+                                              fitz.Rect(tx, ty, tx + fr.width * scale,
+                                                        ty + fr.height * scale),
+                                              fs, field["bold"], field["label"])
+                        except ValueError as exc:
+                            raise StatusDesignError(str(exc)) from exc
                     if proof:
                         warning = "PRUEBA - NO APTO PARA USO GMP"
                         strip = fitz.Rect(rect.x0, rect.y0, rect.x1, rect.y0 + min(16, rect.height * 0.24))
