@@ -18,9 +18,26 @@ class LayoutError(ValueError):
 
 def is_mini_advisory(message):
     """Only font legibility warnings, never real clipping/contrast/document guards."""
-    text=str(message).lower()
-    return ('texto pequeno (' in text or 'texto pequeño' in text
-            or 'demasiado pequeño' in text)
+    text=str(message).strip().casefold()
+    # Accept only exact families emitted by the font-size validators.
+    # Unrelated data loss or pictogram alerts must never be downgraded.
+    return (
+        (text.startswith('texto pequeno (') and ' pt) en ' in text
+         and text.endswith(': requiere revisar el formato.'))
+        or (text.startswith('texto demasiado pequeño (')
+            and text.endswith('; mínimo operativo 6 pt.'))
+        or (text.startswith('texto fijo demasiado pequeño (')
+            and ' pt): ' in text
+            and text.endswith('amplíe el área o prepare una revisión de origen.'))
+        or (': texto final demasiado pequeño (' in text
+            and text.endswith('; mínimo 6 pt.'))
+        or (text.startswith('campo de estado demasiado pequeño (')
+            and text.endswith('compruebe la legibilidad física al 100 %.'))
+        or (text.startswith('estado histórico demasiado pequeño tras la composición;')
+            and text.endswith('comprobar legibilidad física al 100 %.'))
+        or (text.startswith('texto pequeño en etiqueta de estado (')
+            and text.endswith('pt): revise el tamaño.'))
+    )
 
 
 def blocking_render_warnings(warnings,profile):
@@ -309,18 +326,21 @@ def _paint_status_r7b(page, source, asset, target, material, status, test_mode, 
             if not test_mode and not material.get('_mini_mode',False):
                 raise LayoutError(message)
             warnings.append(message)
-        font = "hebo" if field["bold"] else "helv"
         x = rect.x0 + (box.x0 - crop.x0) * factor
         y = rect.y0 + (box.y0 - crop.y0) * factor
-        allowed = box.width * factor
-        if size * 1.2 > box.height * factor or fitz.get_text_length(
-                text, fontname=font, fontsize=size) > allowed - 2:
-            raise LayoutError("El dato de estado excede el campo " + field["label"] + ".")
-        # Color is a provisional default; approval of fields/layout remains
-        # external. No replacement of the existing artwork takes place.
+        # R8-RC3B/3C already measure the real glyph ink in independent
+        # state emission. The combined/integrated R7B route must apply that
+        # SAME guard, rather than the obsolete 1.2-em height heuristic.
+        # Keep the approved font, size, field and source design unchanged.
+        from .status_scaling import draw_legacy_field
         color = (1, 1, 1) if asset["kind"] == "rechazado" else (0, 0, 0)
-        page.insert_text((x + 1, y + size * 1.1), text, fontname=font,
-                         fontsize=size, color=color, overlay=True)
+        try:
+            draw_legacy_field(page, text,
+                              fitz.Rect(x, y, x + box.width * factor,
+                                        y + box.height * factor),
+                              size, field["bold"], field["label"], color)
+        except ValueError as exc:
+            raise LayoutError(str(exc)) from exc
 
 
 def _paint_status(page,status_source,status_master,view_rect,values,status,font_regular,font_bold,warnings,test_mode):

@@ -158,7 +158,9 @@ def test_mini_mode_allows_small_pdf_with_visible_legibility_notice(studio):
     assert blocking_render_warnings(report['warnings'],saved['profile'])==[]
     with fitz.open(target) as pdf:
         text=''.join(page.get_text() for page in pdf)
-        assert 'MINI-001' in text and pdf.page_count>=1
+        # The embedded font ToUnicode map can extract the visible hyphen
+        # as soft hyphen. The PDF glyph must still be checked visually.
+        assert 'MINI-001' in text.replace('\u00ad','-') and pdf.page_count>=1
     panel.mini_mode.setChecked(False)
     assert w.flush_emission_work()
     assert not api.review_work(w.emission_work['uid'],w.emission_work['generation'])['production_allowed']
@@ -171,3 +173,127 @@ def test_mini_mode_does_not_override_real_blocking_warnings(studio):
     warnings=['Texto pequeno (2.9 pt) en Lote: requiere revisar el formato.',
               'Contraste insuficiente (1.2:1).','Recorte protegido: texto crítico']
     assert blocking_render_warnings(warnings,p)==warnings[1:]
+    other=['El pictograma es demasiado pequeño y está recortado.',
+           'Dato demasiado pequeño porque desaparece la última letra.']
+    assert blocking_render_warnings(other,p)==other
+
+
+def test_free_sheet_invalid_second_slot_remains_visible_and_repairable(studio):
+    """Invalid mm geometry must not empty the canvas; all boxes remain editable."""
+    import copy
+    from PySide6.QtWidgets import QDialogButtonBox
+    from test_r3e_layout import profile
+    w, session, app = studio
+    model = profile("A4", 3)
+    before = copy.deepcopy(model)
+    model["slots"][1]["y"] = model["margin_mm"] - 2
+    dialog = SheetDesigner(w, model, quantities={"count": "5", "copies": "1", "selection": ""})
+    app.processEvents()
+
+    assert dialog.profile["layout_mode"] == "free"
+    assert len(dialog.items) == 3
+    assert "Posición 2" in dialog.error.text()
+    assert not dialog.buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
+    assert dialog.items[1].pen().color().name() == "#c63e33"
+    assert "Posición 2" in dialog.items[1].toolTip()
+    assert len(dialog.profile["slots"]) == 3
+
+    # The operator can repair the position using an actual numeric editing
+    # control, without resetting all other carefully arranged positions.
+    item = dialog.items[1]
+    item.setSelected(True)
+    app.processEvents()
+    dialog.box_inputs["y"].setValue(before["slots"][1]["y"])
+    dialog.numeric_box()
+    assert len(dialog.items) == 3
+    assert dialog.buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
+    assert "Posición 2" not in dialog.error.text()
+    dialog.undo()
+    assert len(dialog.items) == 3
+    assert not dialog.buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
+    dialog.reject()
+
+
+def test_free_sheet_overlap_and_margin_change_never_hide_slots(studio):
+    """Changing a margin or overlapping boxes keeps geometry accessible."""
+    from PySide6.QtWidgets import QDialogButtonBox
+    from test_r3e_layout import profile
+    w, session, app = studio
+    dialog = SheetDesigner(w, profile("A4", 2))
+    assert len(dialog.items) == 2
+    changed = dict(dialog.profile)
+    changed["slots"] = [dict(slot) for slot in dialog.profile["slots"]]
+    changed["slots"][1] = dict(changed["slots"][0])
+    dialog.push(changed, "Synthetic overlapping positions")
+    assert len(dialog.items) == 2
+    assert "Solapamiento en posición 2" in dialog.error.text()
+    assert dialog.items[1].pen().color().name() == "#c63e33"
+    assert not dialog.buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
+
+    dialog.undo()
+    assert len(dialog.items) == 2
+    assert dialog.buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
+    dialog.measures["margin_mm"].setValue(15)
+    assert len(dialog.items) == 2
+    assert "Posición 1" in dialog.error.text()
+    assert not dialog.buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
+    dialog.reject()
+
+def test_integrated_status_legacy_short_number_uses_measured_ink():
+    """Historical R7B integrated overlay must accept one digit in a short box."""
+    import fitz
+    from covex_label_manager.engine import _paint_status_r7b, LayoutError
+    with fitz.open() as origin, fitz.open() as result:
+        origin.new_page(width=120,height=90)
+        canvas=result.new_page(width=120,height=90)
+        field={'key':'campo_2','label':'Campo 2','rect':[10,10,25,18.5],
+               'font_size':10,'bold':False,'required':True}
+        contract={'contract':1,'page':0,'crop':[0,0,120,90],'fields':[field]}
+        status={'fields':{'campo_2':'1'}}
+        _paint_status_r7b(canvas,origin,{'r7b_layout':contract,'kind':'aprobado'},
+                          fitz.Rect(0,0,120,90),{},status,True,[])
+        assert '1' in canvas.get_text()
+        field['rect']=[10,10,25,15]
+        with pytest.raises(LayoutError,match='excede'):
+            _paint_status_r7b(result.new_page(width=120,height=90),origin,
+                              {'r7b_layout':contract,'kind':'aprobado'},
+                              fitz.Rect(0,0,120,90),{},status,True,[])
+
+
+def test_emission_options_expose_real_size_and_documentary_numbering(studio,monkeypatch):
+    """Physical sizing is available; 1/N never appears without an approved field."""
+    from PySide6.QtWidgets import QMessageBox
+    window,session,app=studio
+    work=window.api.work.create(session.initial_id,name='Synthetic sizing and numbering')
+    window.load_emission_work(work['uid'])
+    window.navigate('emission')
+    window.open_emission_size_settings()
+    app.processEvents()
+    assert window.emission_panel.tabs.currentIndex()==2
+    assert window.emission_panel.profile_inputs['width_mm'].hasFocus()
+    assert window.api.work.get(work['uid'])['profile']==work['profile']
+    notes=[]
+    monkeypatch.setattr(QMessageBox,'information',
+                        lambda _window,title,message:notes.append((title,message)))
+    window.explain_container_numbering()
+    assert notes and 'Numeración' in notes[-1][0]
+    assert 'variante' in notes[-1][1].lower() or 'contiene el campo' in notes[-1][1]
+
+
+def test_free_layout_size_action_opens_position_editor_not_ignored_fields(studio,monkeypatch):
+    """An existing free sheet is sized by slot boxes, not legacy width_mm."""
+    from covex_label_manager.sheet_layout import template
+    window,session,app=studio
+    work=window.api.work.create(session.initial_id,name='Synthetic free layout')
+    p=dict(work['profile'],layout_version=1,layout_mode='free',
+           paper='A4',margin_mm=8,gap_mm=3)
+    p['slots']=template(p,2)
+    saved=window.api.work.save(work['uid'],work['generation'],{'profile':p})
+    window.load_emission_work(saved['uid'])
+    assert not window.emission_panel.profile_inputs['width_mm'].isEnabled()
+    assert 'posiciones' in window.emission_panel.design_sheet_button.text().lower()
+    calls=[]
+    monkeypatch.setattr(window.emission_panel,'design_sheet',lambda:calls.append('sheet'))
+    window.open_emission_size_settings()
+    assert calls==['sheet']
+    assert window.api.work.get(saved['uid'])['profile']==saved['profile']

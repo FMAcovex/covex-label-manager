@@ -205,3 +205,44 @@ def test_backup_excludes_concurrent_work_cutover(work,tmp_path,monkeypatch):
     with closing(Store(restored)) as s:
         other=LocalServices(s);loaded=other.work.get(w['uid'])
         assert loaded==issued and other.issue(loaded['issue_id']) is not None
+
+
+def test_missing_status_lot_does_not_create_interrupted_intent(work):
+    """A correctable operator omission must not convert a DRAFT into EMITTING."""
+    api, previous = work
+    values=dict(previous['values'],lote='')
+    candidate=api.work.save(previous['uid'],previous['generation'],
+                            {'values': values,'per_container': {},
+                             'status': {'kind':'sin_analizar'}})
+    with pytest.raises(ValueError,match='identificación de lote'):
+        api.work.issue(candidate['uid'],candidate['generation'],'SYNTHETIC OPERATOR')
+    saved=api.work.get(candidate['uid'])
+    assert saved['phase']=='DRAFT'
+    assert saved['generation']==candidate['generation']
+    assert saved['operation_uid'] is None
+    assert not api.issues()
+
+
+def test_status_lot_can_be_inherited_or_overridden_by_each_container(work):
+    api, previous=work
+    values=dict(previous['values'],lote='')
+    candidate=api.work.save(previous['uid'],previous['generation'],
+                            {'values':values, 'per_container':{'1':{'lote':'LOT-ONE'}},
+                             'status':{'kind':'aprobado'}})
+    with pytest.raises(ValueError,match='Recipiente 2'):
+        api.work.issue(candidate['uid'],candidate['generation'],'SYNTHETIC OPERATOR')
+    assert api.work.get(candidate['uid'])['phase']=='DRAFT'
+    assert not api.issues()
+
+
+def test_review_warns_before_issuing_status_without_container_lot(work):
+    api,previous=work
+    draft=api.work.save(previous['uid'],previous['generation'],
+                        {'values':dict(previous['values'],lote=''),
+                         'per_container':{},
+                         'status':{'kind':'sin_analizar','fecha':'20/10/2026'}})
+    report=api.review_work(draft['uid'],draft['generation'])
+    assert not report['production_allowed']
+    assert any('Recipiente 1' in e['message']
+               and 'lote' in e['message'] for e in report['errors'])
+    assert api.work.get(draft['uid'])['phase']=='DRAFT'

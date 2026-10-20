@@ -226,6 +226,20 @@ class WorkRepository:
             if old['profile'].get('trial_appearance') is not None:
                 raise PermissionError('Ajustes temporales de PRUEBA: restablezca el diseño o cree una variante y complete su revisión y aprobación externa.')
             self.assert_current(old,True);p,indices,count,copies=parameters(old)
+            # Deterministic missing-lot validation belongs BEFORE the durable
+            # EMITTING intent. A user data error must not be treated as an
+            # interrupted transaction requiring manual incident recovery.
+            if old['status'].get('kind') in ('sin_analizar','aprobado'):
+                for number in indices:
+                    item=dict(old['values'])
+                    item.update(old['per_container'].get(str(number),{}))
+                    if not str(item.get('lote','')).strip():
+                        raise ValueError(
+                            f'Recipiente {number}: el estado del material requiere '
+                            'identificación de lote. Complete la columna Lote '
+                            'de Recipientes o utilice un campo documental «lote». '
+                            'Los campos genéricos no se interpretan automáticamente '
+                            'como identificación de lote.')
             w=copy.deepcopy(old);w.update(phase='EMITTING',operation_uid=uuid.uuid4().hex,
                 generation=generation+1,updated_at=now())
             self._write(w,old)
