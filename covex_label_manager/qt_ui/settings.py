@@ -82,6 +82,7 @@ class SettingsMixin:
         layout.addWidget(subtitle)
         self.settings_tabs = QTabWidget()
         self.settings_tabs.setObjectName('settingsMainTabs')
+        self.settings_tabs.tabBar().setObjectName('settingsPrimaryNav')
         self.settings_tabs.setAccessibleName('Secciones de configuración')
         layout.addWidget(self.settings_tabs, 1)
 
