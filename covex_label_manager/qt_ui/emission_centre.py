@@ -422,6 +422,12 @@ class EmissionCentreMixin:
             return
         self.navigate('emission')
         self.emission_compact.setCurrentIndex(0)
+        # Free layout uses slot rectangles for PDF geometry. Editing the
+        # legacy width_mm text would NOT resize a single free slot.
+        # Open the actual sheet editor instead of offering an inert control.
+        if self.emission_work['profile'].get('layout_mode')=='free':
+            self.emission_panel.design_sheet()
+            return
         self.emission_panel.tabs.setCurrentIndex(2)
         control=self.emission_panel.profile_inputs['width_mm']
         control.setFocus()
