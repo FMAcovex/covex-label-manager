@@ -126,7 +126,8 @@ def test_compact_emission_keeps_all_blockers_and_pdf_space(studio):
 def test_mini_mode_allows_small_pdf_with_visible_legibility_notice(studio):
     """Mini mode is explicitly chosen, durable and limited to size advisories."""
     import fitz
-    w,api,app=studio
+    w,session,app=studio
+    api=session.services
     vid=next(row['version_id'] for row in api.library.entries() if row['state']=='APPROVED')
     work=api.work.create(vid,name='DEMO tamaño mini, ensayo de lectura')
     v=api.version(vid)
