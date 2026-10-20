@@ -190,12 +190,16 @@ def render_proof(pdf_path, layout, values, destination, *, width_mm=None, height
                 y = (box.y0 - crop.y0) * scale
                 w = box.width * scale
                 h = box.height * scale
-                font = "hebo" if field["bold"] else "helv"
+                # The same real-glyph fit test is used in enhanced status
+                # rendering, the legacy proof, and final status emission.
+                # Source coordinates, font family and font size stay unchanged.
+                from .status_scaling import draw_legacy_field
                 size = field["font_size"] * scale
-                if fitz.get_text_length(value, fontname=font, fontsize=size) > w - 2 or size * 1.2 > h:
-                    raise StatusDesignError("El texto no cabe en el campo " + field["label"] + ".")
-                page.insert_text((x + 1, y + min(h - 1, size * 1.1)), value,
-                                 fontname=font, fontsize=size, overlay=True)
+                try:
+                    draw_legacy_field(page, value, fitz.Rect(x, y, x + w, y + h),
+                                      size, field["bold"], field["label"])
+                except ValueError as exc:
+                    raise StatusDesignError(str(exc)) from exc
             # Proof watermark is always present, regardless of source status.
             mark = "PRUEBA - NO APTO PARA USO GMP"
             page.draw_rect(fitz.Rect(0, 0, width, min(18, height * 0.35)),
