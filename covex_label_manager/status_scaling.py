@@ -46,7 +46,7 @@ def _contains(outer, inner):
 
 
 
-def draw_legacy_field(page, text, rect, size, bold, label):
+def draw_legacy_field(page, text, rect, size, bold, label, color=(0,0,0)):
     """Print exactly the source legacy glyphs, without shrinking or clipping.
 
     A field may be shorter than 1.2 em yet comfortably contain one numeral.
@@ -84,7 +84,7 @@ def draw_legacy_field(page, text, rect, size, bold, label):
         x=rect.x0+pad-min_x
         baseline=rect.y0+pad+hi
     page.insert_text((x,baseline),text,fontname=name,fontsize=size,
-                     color=(0,0,0),overlay=True)
+                     color=color,overlay=True)
 
 
 def critical_losses(source_page, layout, clip):
@@ -160,7 +160,7 @@ def paint(page, source, layout, values, target, *, settings=None, strict=True,
             else:
                 # Explicit composition may be used with an old layout: preserve
                 # the historical source baseline/font/color and block overflow.
-                draw_legacy_field(layer,text,rect,size,field['bold'],field['label'])
+                draw_legacy_field(layer,text,rect,size,field['bold'],field['label'],default_color)
             if size*report['scale']<6:
                 message=field['label']+f": texto final demasiado pequeño ({size*report['scale']:.2f} pt); mínimo 6 pt."
                 if strict:raise ValueError(message)
