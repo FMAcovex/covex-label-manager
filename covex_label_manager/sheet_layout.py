@@ -38,6 +38,8 @@ def validate_profile(profile):
     if mode not in ('grid','free'):raise ValueError('Modo de distribución desconocido.')
     if (mode!='grid' or profile.get('paper','A4')!='A4') and profile.get('layout_version')!=1:raise ValueError('Distribución nueva sin versión.')
     paper_size(profile)
+    if type(profile.get('mini_mode',False)) is not bool:
+        raise ValueError('El permiso de formato mini debe ser booleano.')
     for k in ('width_mm','height_mm','margin_mm','gap_mm','offset_x_mm','offset_y_mm','safety_mm'):
         if k in profile:number(profile[k])
     if number(profile.get('safety_mm',0))<0:raise ValueError('Seguridad negativa.')
@@ -60,13 +62,16 @@ def slots(profile, cols=0, rows=0):
         if not cols:cols=math.floor((pw-2*m+g+1e-9)/(w+g));rows=math.floor((ph-2*m+g+1e-9)/(h+g))
         result=[LayoutSlot(m+c*(w+g)+ox,m+r*(h+g)+oy,w,h) for r in range(rows) for c in range(cols)]
     if not 0<=m<=40:raise ValueError('Margen: 0–40 mm.')
+    if mode=='grid' and profile.get('mini_mode',False) and len(result)>1000:
+        raise ValueError('Formato mini: máximo 1000 posiciones por hoja. Amplíe las casillas.')
+    minimum=5 if profile.get('mini_mode',False) else 10
     for i,s in enumerate(result):
         # Legacy offsets used the paper boundary. Versioned profiles use printable margins.
         # An explicitly calibrated profile can require a small mechanical
         # shift inside the usual design margin. Keep the paper boundary strict.
         # plan_sheet() checks calibration integrity before calling slots().
         edge=m if profile.get('layout_version') and not profile.get('printer_calibration') else 0
-        if min(s.width,s.height)<10 or s.x<edge-1e-8 or s.y<edge-1e-8 or s.x+s.width>pw-edge+1e-8 or s.y+s.height>ph-edge+1e-8:raise ValueError(f'Posición {i+1} fuera de límites o margen (mínimo 10 mm).')
+        if min(s.width,s.height)<minimum or s.x<edge-1e-8 or s.y<edge-1e-8 or s.x+s.width>pw-edge+1e-8 or s.y+s.height>ph-edge+1e-8:raise ValueError(f'Posición {i+1} fuera de límites o margen (mínimo {minimum} mm).')
         if mode=='free':
             for other in result[:i]:
                 if min(s.x+s.width,other.x+other.width)-max(s.x,other.x)>1e-8 and min(s.y+s.height,other.y+other.height)-max(s.y,other.y)>1e-8:raise ValueError(f'Solapamiento en posición {i+1}.')
