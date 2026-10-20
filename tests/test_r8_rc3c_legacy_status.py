@@ -2,7 +2,6 @@
 import fitz
 import pytest
 from covex_label_manager.status_design import make_layout, render_proof, StatusDesignError
-from covex_label_manager.status_catalog import StatusCatalog
 
 
 def test_legacy_proof_one_character_short_box(tmp_path):
