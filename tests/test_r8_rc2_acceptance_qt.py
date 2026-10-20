@@ -162,3 +162,22 @@ def test_emission_options_expose_real_size_and_documentary_numbering(studio,monk
     window.explain_container_numbering()
     assert notes and 'Numeración' in notes[-1][0]
     assert 'variante' in notes[-1][1].lower() or 'contiene el campo' in notes[-1][1]
+
+
+def test_free_layout_size_action_opens_position_editor_not_ignored_fields(studio,monkeypatch):
+    """An existing free sheet is sized by slot boxes, not legacy width_mm."""
+    from covex_label_manager.sheet_layout import template
+    window,session,app=studio
+    work=window.api.work.create(session.initial_id,name='Synthetic free layout')
+    p=dict(work['profile'],layout_version=1,layout_mode='free',
+           paper='A4',margin_mm=8,gap_mm=3)
+    p['slots']=template(p,2)
+    saved=window.api.work.save(work['uid'],work['generation'],{'profile':p})
+    window.load_emission_work(saved['uid'])
+    assert not window.emission_panel.profile_inputs['width_mm'].isEnabled()
+    assert 'posiciones' in window.emission_panel.design_sheet_button.text().lower()
+    calls=[]
+    monkeypatch.setattr(window.emission_panel,'design_sheet',lambda:calls.append('sheet'))
+    window.open_emission_size_settings()
+    assert calls==['sheet']
+    assert window.api.work.get(saved['uid'])['profile']==saved['profile']
