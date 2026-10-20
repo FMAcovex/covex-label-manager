@@ -121,3 +121,44 @@ def test_compact_emission_keeps_all_blockers_and_pdf_space(studio):
     assert "número 11" in w.emission_blockers.text()
     assert "número 11" in w.compact_blockers_button.toolTip()
     assert w.emission_pdf.view.height() > 70
+
+
+def test_integrated_status_legacy_short_number_uses_measured_ink():
+    """Historical R7B integrated overlay must accept one digit in a short box."""
+    import fitz
+    from covex_label_manager.engine import _paint_status_r7b, LayoutError
+    with fitz.open() as origin, fitz.open() as result:
+        origin.new_page(width=120,height=90)
+        canvas=result.new_page(width=120,height=90)
+        field={'key':'campo_2','label':'Campo 2','rect':[10,10,25,18.5],
+               'font_size':10,'bold':False,'required':True}
+        contract={'contract':1,'page':0,'crop':[0,0,120,90],'fields':[field]}
+        status={'fields':{'campo_2':'1'}}
+        _paint_status_r7b(canvas,origin,{'r7b_layout':contract,'kind':'aprobado'},
+                          fitz.Rect(0,0,120,90),{},status,True,[])
+        assert '1' in canvas.get_text()
+        field['rect']=[10,10,25,15]
+        with pytest.raises(LayoutError,match='excede'):
+            _paint_status_r7b(result.new_page(width=120,height=90),origin,
+                              {'r7b_layout':contract,'kind':'aprobado'},
+                              fitz.Rect(0,0,120,90),{},status,True,[])
+
+
+def test_emission_options_expose_real_size_and_documentary_numbering(studio,monkeypatch):
+    """Physical sizing is available; 1/N never appears without an approved field."""
+    from PySide6.QtWidgets import QMessageBox
+    window,session,app=studio
+    work=window.api.work.create(session.initial_id,name='Synthetic sizing and numbering')
+    window.load_emission_work(work['uid'])
+    window.navigate('emission')
+    window.open_emission_size_settings()
+    app.processEvents()
+    assert window.emission_panel.tabs.currentIndex()==2
+    assert window.emission_panel.profile_inputs['width_mm'].hasFocus()
+    assert window.api.work.get(work['uid'])['profile']==work['profile']
+    notes=[]
+    monkeypatch.setattr(QMessageBox,'information',
+                        lambda _window,title,message:notes.append((title,message)))
+    window.explain_container_numbering()
+    assert notes and 'Numeración' in notes[-1][0]
+    assert 'variante' in notes[-1][1].lower() or 'contiene el campo' in notes[-1][1]
