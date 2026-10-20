@@ -74,6 +74,15 @@ def review(api,uid,generation):
             try:validate_vessel_masses(values,number)
             except ValueError as ex:error('container:pb' if 'pb' in overrides else 'value:pb',ex,number if 'pb' in overrides else None)
     state=w['status'];kind=state.get('kind','ninguna')
+    if kind in ('sin_analizar','aprobado'):
+        for number in indices:
+            overrides=w['per_container'].get(str(number),{})
+            merged={**w['values'],**overrides}
+            if not str(merged.get('lote','')).strip():
+                error('container:lote' if 'lote' in overrides else 'value:lote',
+                      f'Recipiente {number}: el estado del material necesita identificación de lote. '
+                      'Complete Datos de lote o la fila del recipiente antes de emitir.',
+                      number if 'lote' in overrides else None)
     if kind!='ninguna':
         try:
             document,_,_=_status_settings(state,resolve_status(api._repository,state),api._repository.root,version,False)
