@@ -271,6 +271,19 @@ class WorkPanel(QWidget):
                 shown=format_measure(raw) if k!='printer_name' else str(raw)
                 e.setText(shown);self._profile_display[k]=(shown,raw)
                 e.setToolTip(f'Valor exacto conservado: {raw}. Solo una edición expresa cambia este dato.')
+            free_layout=w['profile'].get('layout_mode')=='free'
+            for key in ('width_mm','height_mm'):
+                entry=self.profile_inputs[key]
+                entry.setEnabled(not free_layout)
+                if free_layout:
+                    entry.setToolTip(
+                        'Distribución libre: la medida real procede de cada '
+                        'posición de la hoja. Use «Diseñar hoja…» y cambie '
+                        'Ancho/Alto de la posición o arrastre sus bordes.')
+            self.keep_ratio.setEnabled(not free_layout)
+            self.design_sheet_button.setText(
+                'Modificar tamaño de las posiciones…' if free_layout
+                else 'Diseñar hoja…')
             self.orientation.setCurrentIndex(max(0,self.orientation.findData(w['profile'].get('orientation','portrait'))));self.cut.setCurrentIndex(max(0,self.cut.findData(str(w['profile'].get('crop_marks',0)))))
             state=w['status'];self.status_kind.setCurrentIndex(max(0,self.status_kind.findData(state.get('kind','ninguna'))));self.placement.setCurrentIndex(max(0,self.placement.findData(state.get('placement','integrada'))))
             composition=state.get('composition',{})
