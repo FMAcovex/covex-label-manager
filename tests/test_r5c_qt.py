@@ -30,9 +30,9 @@ def test_reconciliation_plain_language_mapping_and_attention_filter(studio,tmp_p
     source=api.version(session.initial_id)
     book=tmp_path/'libro-ejemplo.csv'
     book.write_text(
-        'Denominación;Revisión;Código\\n'
-        +f"{source['name']};{source['version']};{source['code']}\\n"
-        +'DOCUMENTO NO EXISTENTE;01;SYN-ABSENT\\n',
+        'Denominación;Revisión;Código\n'
+        +f"{source['name']};{source['version']};{source['code']}\n"
+        +'DOCUMENTO NO EXISTENTE;01;SYN-ABSENT\n',
         encoding='utf-8')
     initial=[(r['version_id'],r['state']) for r in api.library_records()]
     dialog=MasterReconciliationDialog(w,api,book)
@@ -66,7 +66,7 @@ def test_reconciliation_plain_language_mapping_and_attention_filter(studio,tmp_p
 def test_reconciliation_hides_optional_mapping_until_requested(studio,tmp_path):
     w,session,app=studio
     book=tmp_path/'listado.csv'
-    book.write_text('Denominación;Revisión;Origen\\nFICTICIA;01;COVEX\\n',encoding='utf-8')
+    book.write_text('Denominación;Revisión;Origen\nFICTICIA;01;COVEX\n',encoding='utf-8')
     dialog=MasterReconciliationDialog(w,session.services,book)
     assert dialog.inputs['origin'].currentData()=='Origen'
     assert not dialog.optional_columns.isVisible()
