@@ -74,6 +74,16 @@ class WorkPanel(QWidget):
             ('offset_x_mm','Desplazamiento X mm'),('offset_y_mm','Desplazamiento Y mm'),('start_slot','Casilla inicial'),('safety_mm','Seguridad mm'),('printer_name','Impresora (referencia)')]:
             e=QLineEdit();e.textEdited.connect(self.changed);self.profile_inputs[key]=e;form.addRow(title,self.with_error(e,key))
         self.keep_ratio=QCheckBox('Conservar proporción del diseño');self.keep_ratio.setChecked(True);form.addRow(self.keep_ratio)
+        self.mini_mode=QCheckBox('Permitir etiqueta mini (texto final inferior a 6 pt)')
+        self.mini_mode.setToolTip('Permite imprimir tamaños pequeños sin cambiarlos. '
+            'No autoriza recortar letras ni altera aprobaciones documentales. '
+            'Compruebe legibilidad y proporciones con una impresión al 100 %.')
+        self.mini_mode.toggled.connect(self.changed)
+        form.addRow(self.mini_mode)
+        mini_info=label('Formato mini: comprobar físicamente lectura, símbolos y códigos '
+            'al 100 % antes de utilizar. No constituye aprobación documental ni '
+            'validación GMP.','subtle')
+        mini_info.setWordWrap(True);form.addRow(mini_info)
         form.addRow(button('Restaurar tamaño del diseño',self.restore_size))
         for key in ('width_mm','height_mm'):self.profile_inputs[key].textEdited.connect(lambda _,k=key:self.scale_size(k))
         self.orientation=QComboBox();self.orientation.addItem('Vertical','portrait');self.orientation.addItem('Horizontal','landscape');self.orientation.currentTextChanged.connect(self.changed);form.addRow('Orientación',self.orientation)
@@ -271,6 +281,7 @@ class WorkPanel(QWidget):
                 shown=format_measure(raw) if k!='printer_name' else str(raw)
                 e.setText(shown);self._profile_display[k]=(shown,raw)
                 e.setToolTip(f'Valor exacto conservado: {raw}. Solo una edición expresa cambia este dato.')
+            self.mini_mode.setChecked(bool(w['profile'].get('mini_mode',False)))
             self.orientation.setCurrentIndex(max(0,self.orientation.findData(w['profile'].get('orientation','portrait'))));self.cut.setCurrentIndex(max(0,self.cut.findData(str(w['profile'].get('crop_marks',0)))))
             state=w['status'];self.status_kind.setCurrentIndex(max(0,self.status_kind.findData(state.get('kind','ninguna'))));self.placement.setCurrentIndex(max(0,self.placement.findData(state.get('placement','integrada'))))
             composition=state.get('composition',{})
@@ -381,6 +392,7 @@ class WorkPanel(QWidget):
                 status['fields']={k:entry.text() for k,entry in self.r7b_field_widgets.items()}
         return {'values':{k:e.text() for k,e in self.value_inputs.items()},'per_container':per,
             'profile':{**w['profile'],**{k:self.profile_value(k,e) for k,e in self.profile_inputs.items()},
+                'mini_mode':self.mini_mode.isChecked(),
                 'orientation':self.orientation.currentData(),
                 'crop_marks':w['profile'].get('crop_marks',0) if str(w['profile'].get('crop_marks',0))==self.cut.currentData() else self.cut.currentData()},
             'status':status,**{k:e.text() for k,e in self.inputs.items()}}
