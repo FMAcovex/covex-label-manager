@@ -1,5 +1,7 @@
 # Propuesta de aceptación integral R8A–R8D
 
+Actualización R8-RC1: el propietario ya fusionó #33–#36 en `main` `504e542b17bbb8bfe2210fca8c9e19016aa42970`. [Guía operativa de ocho pruebas y registro editable](R8_RC1_ACCEPTANCE/PRUEBAS_USUARIO.md), [entrega sobre main](R8_RC1_ACCEPTANCE/ENTREGA.md). La propuesta de integración al final se conserva como registro histórico, no como estado actual ni autorización de nuevas fusiones. Aceptación manual y GMP siguen pendientes.
+
 **Plan, no acta de ejecución ni validación GMP.** Aceptación conjunta posterior, sin solicitar ensayos manuales durante implementación. Desarrollo/capturas sólo sintéticos. Documentos reales exclusivamente en el entorno y procedimiento autorizado de COVEX; nunca en GitHub ni capturas o diagnósticos sin revisar.
 
 ## Preparación y registro
