@@ -431,6 +431,7 @@ jobs:
           Copy-Item docs/R3B3_STORAGE_SPEC.md dist/COVEXLabelManager_Qt/R3B3_WORK.md
           Copy-Item docs/R3B2_IMPLEMENTATION.md dist/COVEXLabelManager_Qt/R3B2_VARIANTS.md
           Copy-Item scripts/PROBAR_DEMO_QT.bat dist/COVEXLabelManager_Qt/
+          Copy-Item scripts/DIAGNOSTICAR_ARRANQUE_QT.bat dist/COVEXLabelManager_Qt/
           Copy-Item docs/FUNCTIONAL_PRESERVATION_MATRIX.md dist/COVEXLabelManager_Qt/
           Copy-Item docs/R6B_UX_INTEGRATED/PRUEBAS_Y_PORTABLE.md dist/COVEXLabelManager_Qt/GUIA_R6B_UX.md
           Copy-Item docs/R6B_UX_INTEGRATED/CORRECCIONES_ACEPTACION.md dist/COVEXLabelManager_Qt/
@@ -441,6 +442,7 @@ jobs:
           Copy-Item docs/R8C_TYPOGRAPHY_SCALING/URW-FONTS-OFL.txt dist/COVEXLabelManager_Qt/
           Copy-Item docs/R8D_GUIDED_WORKFLOW/README.md dist/COVEXLabelManager_Qt/GUIA_R8D.md
           Copy-Item docs/R8_INTEGRAL_ACCEPTANCE_PLAN.md dist/COVEXLabelManager_Qt/
+          if (!(Test-Path dist/COVEXLabelManager_Qt/DIAGNOSTICAR_ARRANQUE_QT.bat)) { throw 'Missing operator diagnostic launcher' }
           python scripts/build_manifest.py dist/COVEXLabelManager_Qt
           if ($LASTEXITCODE -ne 0) { throw 'Qt build manifest failed' }
           Compress-Archive -Path dist/COVEXLabelManager_Qt -DestinationPath COVEXLabelManager_Qt.zip
